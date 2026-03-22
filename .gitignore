@@ -1,0 +1,58 @@
+# Environment
+.env
+*.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# Docker volumes (ne commitamo podatkov)
+postgres_data/
+redis_data/
+minio_data/
+
+# Logs
+*.log
+logs/
+
+# Node (frontend)
+node_modules/
+.next/
+.nuxt/
+dist/
+
+# Alembic
+migrations/versions/*.pyc
+.claude/
+
+# Mobile / Expo
+mobile/.expo/web/
+mobile/%ProgramData%/
+mobile/android/

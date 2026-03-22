@@ -1,0 +1,21 @@
+api.eversum.com {
+    reverse_proxy api:8000
+    encode gzip
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Frame-Options DENY
+        X-Content-Type-Options nosniff
+    }
+}
+
+app.eversum.com {
+    reverse_proxy frontend:3000
+    encode gzip
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Frame-Options SAMEORIGIN
+        X-Content-Type-Options nosniff
+    }
+}

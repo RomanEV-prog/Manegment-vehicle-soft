@@ -1,0 +1,43 @@
+# Web framework
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+
+# Database
+sqlalchemy==2.0.35
+asyncpg==0.29.0
+alembic==1.13.3
+psycopg2-binary==2.9.9
+
+# Validation
+pydantic[email]==2.9.2
+pydantic-settings==2.5.2
+email-validator==2.2.0
+
+# Auth
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.12
+
+# HTTP client
+httpx==0.27.2
+
+# Background tasks
+celery==5.4.0
+redis==5.1.1
+
+# Object storage
+boto3==1.35.30
+minio==7.2.9
+
+# Email
+aiosmtplib==3.0.2
+
+# PDF generacija
+weasyprint==62.3
+jinja2==3.1.4
+
+# Push notifikacije (FCM)
+firebase-admin==6.5.0
+
+# Utils
+python-dotenv==1.0.1

@@ -1,0 +1,42 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via SSH to Hetzner VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd /opt/eversum
+
+            # Pull latest code
+            git fetch origin
+            git checkout main
+            git pull origin main
+
+            # Build & restart services
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml build --no-cache api frontend
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm api alembic upgrade head
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
+
+            # Health check
+            sleep 5
+            curl -f http://localhost:8000/health || exit 1
+            echo "Deploy OK: $(date)"
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "::error::Deploy na produkcijo NI uspel! Preveri loge."
