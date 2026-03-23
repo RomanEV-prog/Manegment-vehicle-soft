@@ -68,11 +68,11 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: https://api.eversum.com
+        NEXT_PUBLIC_WS_URL: wss://api.eversum.com
     restart: always
     ports: []   # zaprt — Caddy dostopa prek Docker network
-    environment:
-      NEXT_PUBLIC_API_URL: https://api.eversum.com
-      NEXT_PUBLIC_WS_URL: wss://api.eversum.com
 
   caddy:
     image: caddy:2-alpine
