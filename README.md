@@ -33,19 +33,21 @@ Ta ukaz:
 
 | Storitev | URL | Opis |
 |----------|-----|------|
-| Frontend | http://localhost:3000 | Next.js dashboard |
+| Frontend | http://localhost:3001 | Next.js dashboard (3000 zaseda Roman's Cake ERP) |
 | API docs | http://localhost:8000/docs | FastAPI Swagger |
 | MinIO console | http://localhost:9001 | Upravljanje datotek |
-| PostgreSQL | localhost:5432 | DB: eversum / secret |
+| PostgreSQL | localhost:5432 | DB: eversum_db, uporabnik eversum / secret |
 | Redis | localhost:6379 | Event bus + cache |
 
 ### Testni uporabniki (po seed-u)
 
 | E-pošta | Geslo | Vloga |
 |---------|-------|-------|
-| holger.postl@eversum.eu | EvAdmin2024! | admin |
-| marko.hrelja@eversum.eu | QcManager2024! | qc_manager |
-| roman.adler@eversum.eu | Tech2024! | technician |
+| h.postl@eversum.com | admin1234 | admin |
+| m.hrelja@eversum.com | admin1234 | qc_manager |
+| r.adler@eversum.com | admin1234 | technician |
+
+> Vir resnice je `backend/app/scripts/seed.py` — če se tam spremeni, popravi tudi to tabelo.
 
 ---
 
