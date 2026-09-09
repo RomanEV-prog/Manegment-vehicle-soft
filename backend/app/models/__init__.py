@@ -14,6 +14,18 @@ from app.models.alarm_config import AlarmConfig
 from app.models.alarm_event import AlarmEvent
 from app.models.audit_log import AuditLog
 from app.models.obd_session import OBDSession
+from app.models.r156 import (
+    ECU,
+    RXSWIN,
+    RXSWINBaseline,
+    RXSWINBaselineItem,
+    SoftwareUpdateDocument,
+    SoftwareUpdateRXSWIN,
+    SoftwareUpdateTarget,
+    VehicleConfiguration,
+    VehicleECU,
+    VehicleType,
+)
 
 __all__ = [
     "Organization",
@@ -32,4 +44,14 @@ __all__ = [
     "AlarmEvent",
     "AuditLog",
     "OBDSession",
+    "VehicleType",
+    "ECU",
+    "VehicleECU",
+    "RXSWIN",
+    "RXSWINBaseline",
+    "RXSWINBaselineItem",
+    "SoftwareUpdateDocument",
+    "SoftwareUpdateRXSWIN",
+    "SoftwareUpdateTarget",
+    "VehicleConfiguration",
 ]

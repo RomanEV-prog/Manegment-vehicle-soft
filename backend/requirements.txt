@@ -34,6 +34,9 @@ aiosmtplib==3.0.2
 
 # PDF generacija
 weasyprint==62.3
+# pydyf mora biti pripet: novejši (0.11+) spremeni Stream.transform in WeasyPrint 62.3
+# pade z AttributeError: 'super' object has no attribute 'transform'
+pydyf==0.10.0
 jinja2==3.1.4
 
 # Push notifikacije (FCM)
