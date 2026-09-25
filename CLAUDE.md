@@ -44,8 +44,17 @@ docker compose exec -T api alembic upgrade head   # migracije vedno dvakrat — 
 - Po spremembi `Caddyfile.server` je treba `docker compose ... restart caddy` (bind mount).
 - Skrivnosti so samo v `/opt/eversum-sums/deploy/.env.server` na strežniku.
 
+## Pomoč v aplikaciji
+
+- Vsebina pomoči in čarovnika je v `frontend/src/lib/help-content.ts` (EN + SL).
+  Imena gumbov v `**zvezdicah**` se morajo ujemati z napisi v `messages/*.json` —
+  ob preimenovanju gumba popravi tudi pomoč. Nova stran → dodaj temo in `topicForPath`.
+
 ## Dokumentacija
+
+- Stanje projekta, odprte točke za Jakuba in naslednji koraki: `docs/STANJE.md`.
 
 - Priročnik za TÜV: `docs/handbook/build-handbook.js` → `.docx`
   (`NODE_PATH="$(npm root -g)" node docs/handbook/build-handbook.js`; kazalo osveži Word).
   Kar mora potrditi eVersum, je označeno `[TO BE CONFIRMED]` — ne izmišljuj.
+  Datoteko za naročnika kopiraj z različico v imenu (`eVersum-SUMS-Handbook-v0.2.docx`).
