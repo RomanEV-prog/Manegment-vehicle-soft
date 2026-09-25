@@ -49,6 +49,9 @@ jobs:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements-dev.txt') }}
 
+      - name: System libraries for WeasyPrint (PDF reports)
+        run: sudo apt-get update -q && sudo apt-get install -y -q libpango-1.0-0 libpangoft2-1.0-0 libcairo2 libgdk-pixbuf-2.0-0 fonts-dejavu
+
       - name: Install dependencies
         working-directory: backend
         run: pip install -r requirements-dev.txt
@@ -69,7 +72,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install ruff black
+      - run: pip install ruff==0.6.9 black==24.10.0   # iste različice kot requirements-dev.txt
       - name: Ruff lint
         working-directory: backend
         run: ruff check app/
@@ -89,7 +92,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: frontend
-        run: npm install --legacy-peer-deps
+        run: npm ci --legacy-peer-deps
 
       - name: Type check
         working-directory: frontend
