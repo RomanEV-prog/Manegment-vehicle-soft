@@ -1,0 +1,4 @@
+# Skripte in konfiguracija za Linux strežnik morajo imeti LF (bash ne prenese CRLF)
+*.sh text eol=lf
+Caddyfile* text eol=lf
+*.yml text eol=lf

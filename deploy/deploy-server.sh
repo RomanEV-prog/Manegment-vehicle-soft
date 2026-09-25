@@ -43,7 +43,8 @@ fi
 
 echo "=== Prenos kode ($(git rev-parse --short HEAD)) ==="
 $SSH "mkdir -p ${REMOTE} && find ${REMOTE} -mindepth 1 -maxdepth 1 ! -name deploy -exec rm -rf {} +"
-git archive --format=tar HEAD | $SSH "tar -x -C ${REMOTE}"
+# autocrlf=false: sicer git archive na Windows izvozi CRLF in bash skripte na strežniku ne tečejo
+git -c core.autocrlf=false archive --format=tar HEAD | $SSH "tar -x -C ${REMOTE}"
 
 echo "=== Skrivnosti in nastavitve (.env.server ostane med posodobitvami) ==="
 $SSH "cd ${REMOTE}/deploy && if [ ! -f .env.server ]; then
