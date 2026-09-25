@@ -176,6 +176,7 @@ export interface SuEditable {
   user_notification_required: boolean;
   execution_conditions: string | null;
   safe_state_conditions: string | null;
+  user_actions_required: string | null;
   new_hardware_required: boolean;
   safety_security_confirmation: string | null;
   erp_work_order: string | null;

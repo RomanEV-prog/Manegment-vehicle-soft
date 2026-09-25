@@ -904,7 +904,10 @@
     "pre_ok": "Ujema se z baseline-om pred",
     "pre_mismatch": "Se NE ujema z baseline-om pred",
     "pre_already_installed": "Že nameščeno",
-    "pre_unknown": "Konfiguracija ni zapisana"
+    "pre_unknown": "Konfiguracija ni zapisana",
+    "userActions": "Dejanja uporabnika / usposobljene osebe",
+    "userActionsPlaceholder": "Brez — posodobitev izvede tehnik eVersum",
+    "blocker_user_actions": "Dejanja uporabnika / usposobljene osebe pred namestitvijo"
   },
   "vehicleCfg": {
     "back": "Vozila",

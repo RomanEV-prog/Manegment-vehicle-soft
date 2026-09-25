@@ -904,7 +904,10 @@
     "pre_ok": "Matches baseline before",
     "pre_mismatch": "Does not match baseline before",
     "pre_already_installed": "Already installed",
-    "pre_unknown": "No configuration recorded"
+    "pre_unknown": "No configuration recorded",
+    "userActions": "Actions required from the user / a competent person",
+    "userActionsPlaceholder": "None — update performed by an eVersum technician",
+    "blocker_user_actions": "Actions required from the user / a competent person"
   },
   "vehicleCfg": {
     "back": "Vehicles",

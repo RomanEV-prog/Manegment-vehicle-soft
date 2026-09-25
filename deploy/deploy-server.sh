@@ -54,6 +54,9 @@ $SSH "cd ${REMOTE}/deploy && if [ ! -f .env.server ]; then
 fi
 grep -q '^ERP_API_KEY=' .env.server || { printf 'ERP_API_KEY=%s\n' \"\$(openssl rand -hex 24)\" >> .env.server; echo 'dodan ERP_API_KEY'; }"
 
+echo "=== Dnevna varnostna kopija baze (cron 03:30) ==="
+$SSH "install -m 700 ${REMOTE}/deploy/eversum-backup.sh /usr/local/bin/eversum-backup.sh &&   echo '30 3 * * * root /usr/local/bin/eversum-backup.sh >> /var/log/eversum-backup.log 2>&1' > /etc/cron.d/eversum-backup"
+
 echo "=== Gradnja in zagon ==="
 $SSH "cd ${REMOTE}/deploy && docker compose -f docker-compose.server.yml --env-file .env.server up -d --build --remove-orphans"
 

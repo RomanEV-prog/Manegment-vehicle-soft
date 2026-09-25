@@ -145,6 +145,7 @@ SU_TEMPLATE = """
 <table class="kv">
   <tr><td class="k">Execution conditions</td><td class="pre">{{ d.execution_conditions or "—" }}</td></tr>
   <tr><td class="k">Safe state conditions</td><td class="pre">{{ d.safe_state_conditions or "—" }}</td></tr>
+  <tr><td class="k">Actions required from the user / a competent person</td><td class="pre">{{ d.user_actions_required or "—" }}</td></tr>
   <tr><td class="k">Safety / security confirmation</td><td class="pre">{{ d.safety_security_confirmation or "—" }}</td></tr>
 </table>
 

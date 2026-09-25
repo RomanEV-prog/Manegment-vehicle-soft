@@ -128,6 +128,8 @@ async def _release_blockers(db, doc: SoftwareUpdateDocument) -> list[str]:
         b.append("execution_conditions")
     if not (doc.safe_state_conditions or "").strip():
         b.append("safe_state_conditions")
+    if not (doc.user_actions_required or "").strip():
+        b.append("user_actions")
     if not (doc.safety_security_confirmation or "").strip():
         b.append("safety_confirmation")
     if not doc.targets:
@@ -207,6 +209,7 @@ async def _detail(db, doc: SoftwareUpdateDocument) -> SUDocumentDetail:
         user_notification_method=doc.user_notification_method, user_notified_at=doc.user_notified_at,
         user_notified_by_name=names.get(doc.user_notified_by),
         execution_conditions=doc.execution_conditions, safe_state_conditions=doc.safe_state_conditions,
+        user_actions_required=doc.user_actions_required,
         new_hardware_required=doc.new_hardware_required,
         safety_security_confirmation=doc.safety_security_confirmation,
         erp_work_order=doc.erp_work_order, erp_work_order_url=doc.erp_work_order_url,

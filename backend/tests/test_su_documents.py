@@ -66,6 +66,7 @@ COMPLETE = {
     "type_approval_justification": "No change to R48/R10 relevant functions",
     "execution_conditions": "Workshop, vehicle stationary, ignition on, HV off",
     "safe_state_conditions": "Parking brake applied, 12 V > 12.4 V",
+    "user_actions_required": "None — update performed by eVersum technician",
     "safety_security_confirmation": "Flashing via eVersum technician with SHA-256 check",
 }
 
@@ -98,7 +99,7 @@ async def test_new_draft_lists_all_release_blockers(client, su):
     d = await _doc(client, su)
     assert set(d["release_blockers"]) >= {
         "no_rxswins", "vv_not_passed", "ta_decision", "execution_conditions",
-        "safe_state_conditions", "safety_confirmation", "no_targets",
+        "safe_state_conditions", "user_actions", "safety_confirmation", "no_targets",
     }
 
 

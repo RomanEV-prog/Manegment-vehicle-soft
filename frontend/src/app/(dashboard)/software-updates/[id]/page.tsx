@@ -42,7 +42,7 @@ const EDITABLE_KEYS: (keyof SuEditable)[] = [
   "title", "description_purpose", "dependencies_identified", "system_schemes_baseline",
   "type_approval_update_necessary", "type_approval_justification", "unece_affected_requirements",
   "type_approval_granted", "type_approval_number", "type_approval_date", "user_notification_required",
-  "execution_conditions", "safe_state_conditions", "new_hardware_required", "safety_security_confirmation",
+  "execution_conditions", "safe_state_conditions", "user_actions_required", "new_hardware_required", "safety_security_confirmation",
   "erp_work_order", "erp_work_order_url", "egnyte_folder_url",
 ];
 
@@ -513,10 +513,11 @@ export default function SoftwareUpdateDetailPage() {
 
       {/* 5. Izvedba in varnost */}
       <Section title={t("s5")} refText={t("s5ref")}>
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2">
           <Field label={`${t("executionConditions")} *`}>{text("execution_conditions", 4)}</Field>
           <Field label={`${t("safeState")} *`}>{text("safe_state_conditions", 4)}</Field>
-          <Field label={`${t("safetyConfirmation")} *`}>{text("safety_security_confirmation", 4)}</Field>
+          <Field label={`${t("userActions")} *`}>{text("user_actions_required", 3, t("userActionsPlaceholder"))}</Field>
+          <Field label={`${t("safetyConfirmation")} *`}>{text("safety_security_confirmation", 3)}</Field>
         </div>
       </Section>
 

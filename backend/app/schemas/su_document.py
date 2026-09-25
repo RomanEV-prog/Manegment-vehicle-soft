@@ -21,6 +21,7 @@ EDITABLE_FIELDS = (
     "user_notification_required",
     "execution_conditions",
     "safe_state_conditions",
+    "user_actions_required",
     "new_hardware_required",
     "safety_security_confirmation",
     "erp_work_order",
@@ -49,6 +50,7 @@ class SUDocumentUpdate(BaseModel):
     user_notification_required: Optional[bool] = None
     execution_conditions: Optional[str] = None
     safe_state_conditions: Optional[str] = None
+    user_actions_required: Optional[str] = None
     new_hardware_required: Optional[bool] = None
     safety_security_confirmation: Optional[str] = None
     erp_work_order: Optional[str] = None
@@ -164,6 +166,7 @@ class SUDocumentDetail(BaseModel):
 
     execution_conditions: Optional[str]
     safe_state_conditions: Optional[str]
+    user_actions_required: Optional[str]
     new_hardware_required: bool
     safety_security_confirmation: Optional[str]
 

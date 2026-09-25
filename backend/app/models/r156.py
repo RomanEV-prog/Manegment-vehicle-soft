@@ -253,6 +253,8 @@ class SoftwareUpdateDocument(Base):
     # §7.1.2.5 (g)(h) izvedba in varnost
     execution_conditions: Mapped[str | None] = mapped_column(Text, nullable=True)
     safe_state_conditions: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # §7.1.2.5 (g) kriterij 12: dejanja uporabnika / usposobljene osebe pred namestitvijo
+    user_actions_required: Mapped[str | None] = mapped_column(Text, nullable=True)
     new_hardware_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     safety_security_confirmation: Mapped[str | None] = mapped_column(Text, nullable=True)
 
