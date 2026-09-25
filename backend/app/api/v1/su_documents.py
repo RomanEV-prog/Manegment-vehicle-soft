@@ -67,8 +67,16 @@ def _jsonable(v):
 
 async def _audit(db, user: dict, action: str, entity_type: str, entity_id, before=None, after=None):
     await write_audit_log(
-        db=db, org_id=user["org_id"], actor_id=user["user_id"], actor_type="user", actor_device="web",
-        action=action, entity_type=entity_type, entity_id=entity_id, before=before, after=after,
+        db=db,
+        org_id=user["org_id"],
+        actor_id=user["user_id"],
+        actor_type="user",
+        actor_device="web",
+        action=action,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        before=before,
+        after=after,
     )
 
 
@@ -98,8 +106,15 @@ async def _invalidate_vv(db, user: dict, doc: SoftwareUpdateDocument, why: str) 
     doc.vv_status = "pending"
     doc.vv_signed_by = None
     doc.vv_signed_at = None
-    await _audit(db, user, "update", "software_update", doc.id, before=before,
-                 after={"vv_status": "pending", "reason": f"V&V sign-off reset: {why}"})
+    await _audit(
+        db,
+        user,
+        "update",
+        "software_update",
+        doc.id,
+        before=before,
+        after={"vv_status": "pending", "reason": f"V&V sign-off reset: {why}"},
+    )
 
 
 def _require_draft(doc: SoftwareUpdateDocument) -> None:
@@ -121,7 +136,9 @@ async def _release_blockers(db, doc: SoftwareUpdateDocument) -> list[str]:
         after_ids = [a.baseline_after_id for a in doc.affected_rxswins if a.baseline_after_id]
         statuses = {}
         if after_ids:
-            rows = await db.execute(select(RXSWINBaseline.id, RXSWINBaseline.status).where(RXSWINBaseline.id.in_(after_ids)))
+            rows = await db.execute(
+                select(RXSWINBaseline.id, RXSWINBaseline.status).where(RXSWINBaseline.id.in_(after_ids))
+            )
             statuses = dict(rows.all())
         for a in doc.affected_rxswins:
             if statuses.get(a.baseline_after_id) != "released":
@@ -168,12 +185,16 @@ async def _detail(db, doc: SoftwareUpdateDocument) -> SUDocumentDetail:
     names = {}
     if user_ids:
         names = dict((await db.execute(select(User.id, User.full_name).where(User.id.in_(user_ids)))).all())
-    revisions = (await db.execute(
-        select(SoftwareUpdateDocument.id, SoftwareUpdateDocument.baseline_number, SoftwareUpdateDocument.status)
-        .where(SoftwareUpdateDocument.organization_id == doc.organization_id,
-               SoftwareUpdateDocument.document_id == doc.document_id)
-        .order_by(SoftwareUpdateDocument.baseline_number.desc())
-    )).all()
+    revisions = (
+        await db.execute(
+            select(SoftwareUpdateDocument.id, SoftwareUpdateDocument.baseline_number, SoftwareUpdateDocument.status)
+            .where(
+                SoftwareUpdateDocument.organization_id == doc.organization_id,
+                SoftwareUpdateDocument.document_id == doc.document_id,
+            )
+            .order_by(SoftwareUpdateDocument.baseline_number.desc())
+        )
+    ).all()
     superseded_by = await db.scalar(
         select(SoftwareUpdateDocument.id).where(SoftwareUpdateDocument.supersedes_id == doc.id)
     )
@@ -201,52 +222,85 @@ async def _detail(db, doc: SoftwareUpdateDocument) -> SUDocumentDetail:
             else:
                 states.append("mismatch")
             detail.append(f"{a.rxswin_ref.rxswin}: {cur_label} / {exp_label}")
-        state = ("mismatch" if "mismatch" in states else "already_installed" if states and all(
-            s == "already_installed" for s in states) else "ok") if states else "unknown"
+        state = (
+            (
+                "mismatch"
+                if "mismatch" in states
+                else "already_installed" if states and all(s == "already_installed" for s in states) else "ok"
+            )
+            if states
+            else "unknown"
+        )
         preconditions[t.id] = (cfg.config_id, state, detail)
 
     return SUDocumentDetail(
-        id=doc.id, document_id=doc.document_id, revision=doc.baseline_number,
-        vehicle_type_id=doc.vehicle_type_id, vehicle_type_name=vt.name if vt else "—", status=doc.status,
-        title=doc.title, description_purpose=doc.description_purpose,
-        dependencies_identified=doc.dependencies_identified, system_schemes_baseline=doc.system_schemes_baseline,
-        vv_status=doc.vv_status, vv_method=doc.vv_method,
-        vv_signed_by_name=names.get(doc.vv_signed_by), vv_signed_at=doc.vv_signed_at,
+        id=doc.id,
+        document_id=doc.document_id,
+        revision=doc.baseline_number,
+        vehicle_type_id=doc.vehicle_type_id,
+        vehicle_type_name=vt.name if vt else "—",
+        status=doc.status,
+        title=doc.title,
+        description_purpose=doc.description_purpose,
+        dependencies_identified=doc.dependencies_identified,
+        system_schemes_baseline=doc.system_schemes_baseline,
+        vv_status=doc.vv_status,
+        vv_method=doc.vv_method,
+        vv_signed_by_name=names.get(doc.vv_signed_by),
+        vv_signed_at=doc.vv_signed_at,
         type_approval_update_necessary=doc.type_approval_update_necessary,
         type_approval_justification=doc.type_approval_justification,
         unece_affected_requirements=doc.unece_affected_requirements or [],
-        type_approval_granted=doc.type_approval_granted, type_approval_number=doc.type_approval_number,
+        type_approval_granted=doc.type_approval_granted,
+        type_approval_number=doc.type_approval_number,
         type_approval_date=doc.type_approval_date,
         user_notification_required=doc.user_notification_required,
-        user_notification_method=doc.user_notification_method, user_notified_at=doc.user_notified_at,
+        user_notification_method=doc.user_notification_method,
+        user_notified_at=doc.user_notified_at,
         user_notified_by_name=names.get(doc.user_notified_by),
-        execution_conditions=doc.execution_conditions, safe_state_conditions=doc.safe_state_conditions,
+        execution_conditions=doc.execution_conditions,
+        safe_state_conditions=doc.safe_state_conditions,
         user_actions_required=doc.user_actions_required,
         new_hardware_required=doc.new_hardware_required,
         safety_security_confirmation=doc.safety_security_confirmation,
-        erp_work_order=doc.erp_work_order, erp_work_order_url=doc.erp_work_order_url,
+        erp_work_order=doc.erp_work_order,
+        erp_work_order_url=doc.erp_work_order_url,
         egnyte_folder_url=doc.egnyte_folder_url,
-        released_at=doc.released_at, released_by_name=names.get(doc.released_by),
-        supersedes_id=doc.supersedes_id, superseded_by_id=superseded_by,
-        created_by_name=names.get(doc.created_by), created_at=doc.created_at, updated_at=doc.updated_at,
+        released_at=doc.released_at,
+        released_by_name=names.get(doc.released_by),
+        supersedes_id=doc.supersedes_id,
+        superseded_by_id=superseded_by,
+        created_by_name=names.get(doc.created_by),
+        created_at=doc.created_at,
+        updated_at=doc.updated_at,
         affected_rxswins=[
             AffectedRxswinResponse(
-                id=a.id, rxswin_id=a.rxswin_id, rxswin=a.rxswin_ref.rxswin,
-                baseline_before_id=a.baseline_before_id, baseline_before_number=bl(a.baseline_before_id, "baseline_number"),
-                baseline_after_id=a.baseline_after_id, baseline_after_number=bl(a.baseline_after_id, "baseline_number"),
+                id=a.id,
+                rxswin_id=a.rxswin_id,
+                rxswin=a.rxswin_ref.rxswin,
+                baseline_before_id=a.baseline_before_id,
+                baseline_before_number=bl(a.baseline_before_id, "baseline_number"),
+                baseline_after_id=a.baseline_after_id,
+                baseline_after_number=bl(a.baseline_after_id, "baseline_number"),
                 baseline_after_status=bl(a.baseline_after_id, "status"),
             )
             for a in sorted(doc.affected_rxswins, key=lambda a: a.rxswin_ref.rxswin)
         ],
         targets=[
             TargetResponse(
-                id=t.id, vehicle_id=t.vehicle_id,
+                id=t.id,
+                vehicle_id=t.vehicle_id,
                 vin=vehicles[t.vehicle_id].vin if t.vehicle_id in vehicles else "—",
                 vehicle_name=vehicles[t.vehicle_id].name if t.vehicle_id in vehicles else "—",
-                compatibility_confirmed=t.compatibility_confirmed, compatibility_notes=t.compatibility_notes,
-                confirmed_by_name=names.get(t.confirmed_by), confirmed_at=t.confirmed_at,
-                result=t.result, applied_at=t.applied_at, applied_by_name=names.get(t.applied_by),
-                current_config_id=preconditions[t.id][0], precondition=preconditions[t.id][1],
+                compatibility_confirmed=t.compatibility_confirmed,
+                compatibility_notes=t.compatibility_notes,
+                confirmed_by_name=names.get(t.confirmed_by),
+                confirmed_at=t.confirmed_at,
+                result=t.result,
+                applied_at=t.applied_at,
+                applied_by_name=names.get(t.applied_by),
+                current_config_id=preconditions[t.id][0],
+                precondition=preconditions[t.id][1],
                 precondition_detail=preconditions[t.id][2],
             )
             for t in sorted(doc.targets, key=lambda t: vehicles[t.vehicle_id].vin if t.vehicle_id in vehicles else "")
@@ -262,9 +316,11 @@ async def _reload(db, doc_id, org_id) -> SUDocumentDetail:
 
 # ─── Seznam in ustvarjanje ────────────────────────────────────────────────────
 
+
 @router.get("", response_model=list[SUDocumentListItem])
 async def list_documents(
-    user: CurrentUserDep, db: DbSession,
+    user: CurrentUserDep,
+    db: DbSession,
     vehicle_type_id: uuid.UUID | None = Query(None),
     include_superseded: bool = Query(False),
 ):
@@ -282,17 +338,28 @@ async def list_documents(
     if not include_superseded:
         q = q.where(SoftwareUpdateDocument.status != "superseded")
     docs = (await db.execute(q)).scalars().all()
-    types = dict((await db.execute(
-        select(VehicleType.id, VehicleType.name).where(VehicleType.organization_id == user["org_id"])
-    )).all())
+    types = dict(
+        (
+            await db.execute(
+                select(VehicleType.id, VehicleType.name).where(VehicleType.organization_id == user["org_id"])
+            )
+        ).all()
+    )
     return [
         SUDocumentListItem(
-            id=d.id, document_id=d.document_id, revision=d.baseline_number, title=d.title,
-            vehicle_type_id=d.vehicle_type_id, vehicle_type_name=types.get(d.vehicle_type_id, "—"),
-            status=d.status, vv_status=d.vv_status,
+            id=d.id,
+            document_id=d.document_id,
+            revision=d.baseline_number,
+            title=d.title,
+            vehicle_type_id=d.vehicle_type_id,
+            vehicle_type_name=types.get(d.vehicle_type_id, "—"),
+            status=d.status,
+            vv_status=d.vv_status,
             rxswins=sorted(a.rxswin_ref.rxswin for a in d.affected_rxswins),
-            target_count=len(d.targets), applied_count=sum(1 for t in d.targets if t.result == "success"),
-            released_at=d.released_at, updated_at=d.updated_at,
+            target_count=len(d.targets),
+            applied_count=sum(1 for t in d.targets if t.result == "success"),
+            released_at=d.released_at,
+            updated_at=d.updated_at,
         )
         for d in docs
     ]
@@ -317,17 +384,34 @@ async def create_document(data: SUDocumentCreate, user: NonPartnerDep, db: DbSes
     )
     number = int(last.rsplit("-", 1)[1]) + 1 if last else 1
     doc = SoftwareUpdateDocument(
-        organization_id=user["org_id"], vehicle_type_id=vt.id, document_id=f"{prefix}{number:03d}",
-        title=data.title, description_purpose=data.description_purpose,
-        status="draft", baseline_number=1, vv_status="pending",
-        user_notification_required=True, new_hardware_required=False, created_by=user["user_id"],
+        organization_id=user["org_id"],
+        vehicle_type_id=vt.id,
+        document_id=f"{prefix}{number:03d}",
+        title=data.title,
+        description_purpose=data.description_purpose,
+        status="draft",
+        baseline_number=1,
+        vv_status="pending",
+        user_notification_required=True,
+        new_hardware_required=False,
+        created_by=user["user_id"],
     )
     db.add(doc)
     await db.flush()
-    await _audit(db, user, "create", "software_update", doc.id, after={
-        "document_id": doc.document_id, "revision": 1, "vehicle_type": vt.name,
-        "title": doc.title, "description_purpose": doc.description_purpose,
-    })
+    await _audit(
+        db,
+        user,
+        "create",
+        "software_update",
+        doc.id,
+        after={
+            "document_id": doc.document_id,
+            "revision": 1,
+            "vehicle_type": vt.name,
+            "title": doc.title,
+            "description_purpose": doc.description_purpose,
+        },
+    )
     await db.commit()
     return await _reload(db, doc.id, user["org_id"])
 
@@ -347,8 +431,15 @@ async def update_document(doc_id: uuid.UUID, data: SUDocumentUpdate, user: NonPa
     for k, v in changes.items():
         setattr(doc, k, v)
     if changes:
-        await _audit(db, user, "update", "software_update", doc.id,
-                     before=before, after={k: _jsonable(v) for k, v in changes.items()})
+        await _audit(
+            db,
+            user,
+            "update",
+            "software_update",
+            doc.id,
+            before=before,
+            after={k: _jsonable(v) for k, v in changes.items()},
+        )
         await _invalidate_vv(db, user, doc, "content changed (" + ", ".join(sorted(changes)) + ")")
     await db.commit()
     return await _reload(db, doc_id, user["org_id"])
@@ -358,14 +449,24 @@ async def update_document(doc_id: uuid.UUID, data: SUDocumentUpdate, user: NonPa
 async def discard_draft(doc_id: uuid.UUID, user: NonPartnerDep, db: DbSession):
     doc = await _load(db, doc_id, user["org_id"], lock=True)
     _require_draft(doc)
-    await _audit(db, user, "delete", "software_update", doc.id, before={
-        "document_id": doc.document_id, "revision": doc.baseline_number, "title": doc.title,
-    })
+    await _audit(
+        db,
+        user,
+        "delete",
+        "software_update",
+        doc.id,
+        before={
+            "document_id": doc.document_id,
+            "revision": doc.baseline_number,
+            "title": doc.title,
+        },
+    )
     await db.delete(doc)
     await db.commit()
 
 
 # ─── V&V podpis ───────────────────────────────────────────────────────────────
+
 
 @router.post("/{doc_id}/vv", response_model=SUDocumentDetail)
 async def sign_vv(doc_id: uuid.UUID, data: VVSignRequest, db: DbSession, user: dict = ReleaseDep):
@@ -377,13 +478,21 @@ async def sign_vv(doc_id: uuid.UUID, data: VVSignRequest, db: DbSession, user: d
     doc.vv_method = data.vv_method
     doc.vv_signed_by = user["user_id"]
     doc.vv_signed_at = _now()
-    await _audit(db, user, "sign", "software_update", doc.id, before=before,
-                 after={"vv_status": data.vv_status, "vv_method": data.vv_method})
+    await _audit(
+        db,
+        user,
+        "sign",
+        "software_update",
+        doc.id,
+        before=before,
+        after={"vv_status": data.vv_status, "vv_method": data.vv_method},
+    )
     await db.commit()
     return await _reload(db, doc_id, user["org_id"])
 
 
 # ─── Prizadeti RXSWIN-i ───────────────────────────────────────────────────────
+
 
 @router.post("/{doc_id}/rxswins", response_model=SUDocumentDetail, status_code=status.HTTP_201_CREATED)
 async def add_affected_rxswin(doc_id: uuid.UUID, data: AffectedRxswinCreate, user: NonPartnerDep, db: DbSession):
@@ -410,19 +519,32 @@ async def add_affected_rxswin(doc_id: uuid.UUID, data: AffectedRxswinCreate, use
         prev = await db.scalar(
             select(RXSWINBaseline)
             .where(RXSWINBaseline.rxswin_id == rx.id, RXSWINBaseline.baseline_number < after.baseline_number)
-            .order_by(RXSWINBaseline.baseline_number.desc()).limit(1)
+            .order_by(RXSWINBaseline.baseline_number.desc())
+            .limit(1)
         )
         before_id = prev.id if prev else None
     await _invalidate_vv(db, user, doc, f"affected RXSWIN {rx.rxswin} added")
     link = SoftwareUpdateRXSWIN(
-        software_update_id=doc.id, rxswin_id=rx.id, baseline_before_id=before_id, baseline_after_id=after.id,
+        software_update_id=doc.id,
+        rxswin_id=rx.id,
+        baseline_before_id=before_id,
+        baseline_after_id=after.id,
     )
     db.add(link)
     await db.flush()
-    await _audit(db, user, "create", "software_update_rxswin", link.id, after={
-        "document_id": doc.document_id, "rxswin": rx.rxswin,
-        "baseline_before_id": str(before_id) if before_id else None, "baseline_after": after.baseline_number,
-    })
+    await _audit(
+        db,
+        user,
+        "create",
+        "software_update_rxswin",
+        link.id,
+        after={
+            "document_id": doc.document_id,
+            "rxswin": rx.rxswin,
+            "baseline_before_id": str(before_id) if before_id else None,
+            "baseline_after": after.baseline_number,
+        },
+    )
     await db.commit()
     return await _reload(db, doc_id, user["org_id"])
 
@@ -434,8 +556,14 @@ async def remove_affected_rxswin(doc_id: uuid.UUID, link_id: uuid.UUID, user: No
     link = next((a for a in doc.affected_rxswins if a.id == link_id), None)
     if not link:
         raise HTTPException(status_code=404, detail="Povezava ne obstaja")
-    await _audit(db, user, "delete", "software_update_rxswin", link.id,
-                 before={"document_id": doc.document_id, "rxswin": link.rxswin_ref.rxswin})
+    await _audit(
+        db,
+        user,
+        "delete",
+        "software_update_rxswin",
+        link.id,
+        before={"document_id": doc.document_id, "rxswin": link.rxswin_ref.rxswin},
+    )
     await _invalidate_vv(db, user, doc, f"affected RXSWIN {link.rxswin_ref.rxswin} removed")
     await db.delete(link)
     await db.commit()
@@ -444,13 +572,20 @@ async def remove_affected_rxswin(doc_id: uuid.UUID, link_id: uuid.UUID, user: No
 
 # ─── Ciljna vozila (§7.1.1.6, §7.1.1.7, §7.1.2.4) ────────────────────────────
 
+
 @router.post("/{doc_id}/targets", response_model=SUDocumentDetail, status_code=status.HTTP_201_CREATED)
 async def add_targets(doc_id: uuid.UUID, data: TargetsAdd, user: NonPartnerDep, db: DbSession):
     doc = await _load(db, doc_id, user["org_id"], lock=True)
     _require_draft(doc)
-    vehicles = (await db.execute(
-        select(Vehicle).where(Vehicle.id.in_(data.vehicle_ids), Vehicle.organization_id == user["org_id"])
-    )).scalars().all()
+    vehicles = (
+        (
+            await db.execute(
+                select(Vehicle).where(Vehicle.id.in_(data.vehicle_ids), Vehicle.organization_id == user["org_id"])
+            )
+        )
+        .scalars()
+        .all()
+    )
     if len(vehicles) != len(set(data.vehicle_ids)):
         raise HTTPException(status_code=404, detail="Eno ali več vozil ne obstaja")
     wrong = [v.vin for v in vehicles if v.vehicle_type_id != doc.vehicle_type_id]
@@ -466,8 +601,14 @@ async def add_targets(doc_id: uuid.UUID, data: TargetsAdd, user: NonPartnerDep, 
         added.append(v.vin)
     await db.flush()
     if added:
-        await _audit(db, user, "create", "software_update_target", doc.id,
-                     after={"document_id": doc.document_id, "vins": sorted(added)})
+        await _audit(
+            db,
+            user,
+            "create",
+            "software_update_target",
+            doc.id,
+            after={"document_id": doc.document_id, "vins": sorted(added)},
+        )
     await db.commit()
     return await _reload(db, doc_id, user["org_id"])
 
@@ -485,7 +626,11 @@ async def _vin(db, vehicle_id) -> str:
 
 @router.put("/{doc_id}/targets/{target_id}", response_model=SUDocumentDetail)
 async def confirm_compatibility(
-    doc_id: uuid.UUID, target_id: uuid.UUID, data: TargetCompatibility, user: NonPartnerDep, db: DbSession,
+    doc_id: uuid.UUID,
+    target_id: uuid.UUID,
+    data: TargetCompatibility,
+    user: NonPartnerDep,
+    db: DbSession,
 ):
     doc = await _load(db, doc_id, user["org_id"], lock=True)
     _require_draft(doc)
@@ -495,10 +640,20 @@ async def confirm_compatibility(
     t.compatibility_notes = data.compatibility_notes
     t.confirmed_by = user["user_id"] if data.compatibility_confirmed else None
     t.confirmed_at = _now() if data.compatibility_confirmed else None
-    await _audit(db, user, "update", "software_update_target", t.id, before=before, after={
-        "document_id": doc.document_id, "vin": await _vin(db, t.vehicle_id),
-        "compatibility_confirmed": data.compatibility_confirmed, "compatibility_notes": data.compatibility_notes,
-    })
+    await _audit(
+        db,
+        user,
+        "update",
+        "software_update_target",
+        t.id,
+        before=before,
+        after={
+            "document_id": doc.document_id,
+            "vin": await _vin(db, t.vehicle_id),
+            "compatibility_confirmed": data.compatibility_confirmed,
+            "compatibility_notes": data.compatibility_notes,
+        },
+    )
     await db.commit()
     return await _reload(db, doc_id, user["org_id"])
 
@@ -508,8 +663,14 @@ async def remove_target(doc_id: uuid.UUID, target_id: uuid.UUID, user: NonPartne
     doc = await _load(db, doc_id, user["org_id"], lock=True)
     _require_draft(doc)
     t = _find_target(doc, target_id)
-    await _audit(db, user, "delete", "software_update_target", t.id,
-                 before={"document_id": doc.document_id, "vin": await _vin(db, t.vehicle_id)})
+    await _audit(
+        db,
+        user,
+        "delete",
+        "software_update_target",
+        t.id,
+        before={"document_id": doc.document_id, "vin": await _vin(db, t.vehicle_id)},
+    )
     await db.delete(t)
     await db.commit()
     return await _reload(db, doc_id, user["org_id"])
@@ -517,7 +678,11 @@ async def remove_target(doc_id: uuid.UUID, target_id: uuid.UUID, user: NonPartne
 
 @router.post("/{doc_id}/targets/{target_id}/result", response_model=SUDocumentDetail)
 async def record_result(
-    doc_id: uuid.UUID, target_id: uuid.UUID, data: TargetResult, user: NonPartnerDep, db: DbSession,
+    doc_id: uuid.UUID,
+    target_id: uuid.UUID,
+    data: TargetResult,
+    user: NonPartnerDep,
+    db: DbSession,
 ):
     """Izvedba posodobitve na vozilu — dovoljena samo za izdan dokument."""
     doc = await _load(db, doc_id, user["org_id"], lock=True)
@@ -528,11 +693,14 @@ async def record_result(
         # zapis izvedbe je dokaz — ne prepisuje se
         raise HTTPException(status_code=409, detail="Izvedba za to vozilo je že zapisana")
     t.result = data.result
-    t.applied_at = _now()   # strežniški čas — zapis se ne da predatirati
+    t.applied_at = _now()  # strežniški čas — zapis se ne da predatirati
     t.applied_by = user["user_id"]
     after = {
-        "document_id": doc.document_id, "revision": doc.baseline_number, "vin": await _vin(db, t.vehicle_id),
-        "result": data.result, "applied_at": _jsonable(t.applied_at),
+        "document_id": doc.document_id,
+        "revision": doc.baseline_number,
+        "vin": await _vin(db, t.vehicle_id),
+        "result": data.result,
+        "applied_at": _jsonable(t.applied_at),
     }
     if data.result == "success":
         # §7.1.2.2: nova zadnja znana konfiguracija vozila = prejšnja + novi baseline-i
@@ -541,9 +709,14 @@ async def record_result(
         for a in doc.affected_rxswins:
             installed[str(a.rxswin_id)] = str(a.baseline_after_id)
         cfg = await record_configuration(
-            db, vehicle, config_type="last_known", installed=installed,
-            reason=f"{doc.document_id} rev. {doc.baseline_number}", user_id=user["user_id"],
-            software_update_id=doc.id, erp_work_order=doc.erp_work_order,
+            db,
+            vehicle,
+            config_type="last_known",
+            installed=installed,
+            reason=f"{doc.document_id} rev. {doc.baseline_number}",
+            user_id=user["user_id"],
+            software_update_id=doc.id,
+            erp_work_order=doc.erp_work_order,
         )
         after["last_known_configuration"] = cfg.config_id
     await _audit(db, user, "apply", "software_update_target", t.id, before={"result": None}, after=after)
@@ -553,6 +726,7 @@ async def record_result(
 
 # ─── Obvestilo uporabniku (§7.1.1.11) ─────────────────────────────────────────
 
+
 @router.post("/{doc_id}/notification", response_model=SUDocumentDetail)
 async def record_notification(doc_id: uuid.UUID, data: UserNotification, user: NonPartnerDep, db: DbSession):
     """Zapis, da je bil uporabnik (upravljavec flote) obveščen — kdo, kdaj, kako."""
@@ -561,18 +735,32 @@ async def record_notification(doc_id: uuid.UUID, data: UserNotification, user: N
         raise HTTPException(status_code=409, detail="Dokument je nadomeščen")
     if doc.user_notified_at:
         raise HTTPException(status_code=409, detail="Obvestilo je že zapisano")
-    before = {"user_notification_method": doc.user_notification_method, "user_notified_at": _jsonable(doc.user_notified_at)}
+    before = {
+        "user_notification_method": doc.user_notification_method,
+        "user_notified_at": _jsonable(doc.user_notified_at),
+    }
     doc.user_notification_method = data.method
     doc.user_notified_at = _now()
     doc.user_notified_by = user["user_id"]
-    await _audit(db, user, "notify", "software_update", doc.id, before=before, after={
-        "document_id": doc.document_id, "method": data.method, "notified_at": _jsonable(doc.user_notified_at),
-    })
+    await _audit(
+        db,
+        user,
+        "notify",
+        "software_update",
+        doc.id,
+        before=before,
+        after={
+            "document_id": doc.document_id,
+            "method": data.method,
+            "notified_at": _jsonable(doc.user_notified_at),
+        },
+    )
     await db.commit()
     return await _reload(db, doc_id, user["org_id"])
 
 
 # ─── Izdaja in revizija ───────────────────────────────────────────────────────
+
 
 @router.post("/{doc_id}/release", response_model=SUDocumentDetail)
 async def release_document(doc_id: uuid.UUID, db: DbSession, user: dict = ReleaseDep):
@@ -588,8 +776,15 @@ async def release_document(doc_id: uuid.UUID, db: DbSession, user: dict = Releas
         )
         if prev and prev.status == "released":
             prev.status = "superseded"
-            await _audit(db, user, "supersede", "software_update", prev.id, before={"status": "released"},
-                         after={"status": "superseded", "superseded_by_revision": doc.baseline_number})
+            await _audit(
+                db,
+                user,
+                "supersede",
+                "software_update",
+                prev.id,
+                before={"status": "released"},
+                after={"status": "superseded", "superseded_by_revision": doc.baseline_number},
+            )
     doc.status = "released"
     doc.released_at = _now()
     doc.released_by = user["user_id"]
@@ -597,13 +792,26 @@ async def release_document(doc_id: uuid.UUID, db: DbSession, user: dict = Releas
     await db.flush()
     await db.refresh(doc, ["updated_at"])
     detail = await _detail(db, doc)
-    await _audit(db, user, "release", "software_update", doc.id, before={"status": "draft"}, after={
-        "status": "released", "document_id": doc.document_id, "revision": doc.baseline_number,
-        "rxswins": [f"{a.rxswin} B{a.baseline_before_number or '-'}→B{a.baseline_after_number}" for a in detail.affected_rxswins],
-        "targets": [t.vin for t in detail.targets],
-        "vv_status": doc.vv_status,
-        "type_approval_update_necessary": doc.type_approval_update_necessary,
-    })
+    await _audit(
+        db,
+        user,
+        "release",
+        "software_update",
+        doc.id,
+        before={"status": "draft"},
+        after={
+            "status": "released",
+            "document_id": doc.document_id,
+            "revision": doc.baseline_number,
+            "rxswins": [
+                f"{a.rxswin} B{a.baseline_before_number or '-'}→B{a.baseline_after_number}"
+                for a in detail.affected_rxswins
+            ],
+            "targets": [t.vin for t in detail.targets],
+            "vv_status": doc.vv_status,
+            "type_approval_update_necessary": doc.type_approval_update_necessary,
+        },
+    )
     await db.commit()
     return await _reload(db, doc_id, user["org_id"])
 
@@ -624,29 +832,48 @@ async def revise_document(doc_id: uuid.UUID, user: NonPartnerDep, db: DbSession)
     if open_draft:
         raise HTTPException(status_code=409, detail="Za ta dokument že obstaja odprta revizija")
     new = SoftwareUpdateDocument(
-        organization_id=doc.organization_id, vehicle_type_id=doc.vehicle_type_id, document_id=doc.document_id,
-        baseline_number=doc.baseline_number + 1, supersedes_id=doc.id, status="draft",
-        vv_status="pending", created_by=user["user_id"],
+        organization_id=doc.organization_id,
+        vehicle_type_id=doc.vehicle_type_id,
+        document_id=doc.document_id,
+        baseline_number=doc.baseline_number + 1,
+        supersedes_id=doc.id,
+        status="draft",
+        vv_status="pending",
+        created_by=user["user_id"],
         **{f: getattr(doc, f) for f in EDITABLE_FIELDS},
     )
     db.add(new)
     await db.flush()
     for a in doc.affected_rxswins:
-        db.add(SoftwareUpdateRXSWIN(
-            software_update_id=new.id, rxswin_id=a.rxswin_id,
-            baseline_before_id=a.baseline_before_id, baseline_after_id=a.baseline_after_id,
-        ))
+        db.add(
+            SoftwareUpdateRXSWIN(
+                software_update_id=new.id,
+                rxswin_id=a.rxswin_id,
+                baseline_before_id=a.baseline_before_id,
+                baseline_after_id=a.baseline_after_id,
+            )
+        )
     for t in doc.targets:
         db.add(SoftwareUpdateTarget(software_update_id=new.id, vehicle_id=t.vehicle_id, compatibility_confirmed=False))
     await db.flush()
-    await _audit(db, user, "create", "software_update", new.id, after={
-        "document_id": new.document_id, "revision": new.baseline_number, "revises_revision": doc.baseline_number,
-    })
+    await _audit(
+        db,
+        user,
+        "create",
+        "software_update",
+        new.id,
+        after={
+            "document_id": new.document_id,
+            "revision": new.baseline_number,
+            "revises_revision": doc.baseline_number,
+        },
+    )
     await db.commit()
     return await _reload(db, new.id, user["org_id"])
 
 
 # ─── Poročilo (PDF) ───────────────────────────────────────────────────────────
+
 
 @router.get("/{doc_id}/report.pdf")
 async def document_report(doc_id: uuid.UUID, user: CurrentUserDep, db: DbSession):
@@ -657,5 +884,6 @@ async def document_report(doc_id: uuid.UUID, user: CurrentUserDep, db: DbSession
 
     pdf = await run_in_threadpool(render_software_update_pdf, detail)
     filename = f"{detail.document_id} rev{detail.revision} - Software Update.pdf"
-    return Response(content=pdf, media_type="application/pdf",
-                    headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+    return Response(
+        content=pdf, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )

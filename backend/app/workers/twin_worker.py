@@ -2,6 +2,7 @@
 Digital twin updater — Celery task.
 Posodobi vehicle_twin in ustvari snapshot ob vsakem posegu.
 """
+
 import asyncio
 from datetime import datetime, timezone
 
@@ -37,9 +38,7 @@ async def _update_twin(vehicle_id: str, trigger_type: str, trigger_id: str):
 
     async with Session() as db:
         # Pridobi ali ustvari twin
-        result = await db.execute(
-            select(VehicleTwin).where(VehicleTwin.vehicle_id == uuid.UUID(vehicle_id))
-        )
+        result = await db.execute(select(VehicleTwin).where(VehicleTwin.vehicle_id == uuid.UUID(vehicle_id)))
         twin = result.scalar_one_or_none()
         if not twin:
             twin = VehicleTwin(vehicle_id=uuid.UUID(vehicle_id))
@@ -74,12 +73,14 @@ async def _update_twin(vehicle_id: str, trigger_type: str, trigger_id: str):
                 org_id = dtc.organization_id
                 existing = [d for d in (twin.active_dtcs or []) if d.get("id") != trigger_id]
                 if dtc.status == "active":
-                    existing.append({
-                        "id": trigger_id,
-                        "code": dtc.code,
-                        "severity": dtc.severity,
-                        "detected_at": dtc.detected_at.isoformat(),
-                    })
+                    existing.append(
+                        {
+                            "id": trigger_id,
+                            "code": dtc.code,
+                            "severity": dtc.severity,
+                            "detected_at": dtc.detected_at.isoformat(),
+                        }
+                    )
                 twin.active_dtcs = existing
                 flag_modified(twin, "active_dtcs")
                 trigger_label = f"DTC {dtc.code}: {dtc.status}"
@@ -101,6 +102,7 @@ async def _update_twin(vehicle_id: str, trigger_type: str, trigger_id: str):
 
         elif trigger_type == "obd":
             from app.models.obd_session import OBDSession
+
             result = await db.execute(select(OBDSession).where(OBDSession.id == uuid.UUID(trigger_id)))
             obd_session = result.scalar_one_or_none()
             if obd_session:
@@ -112,8 +114,7 @@ async def _update_twin(vehicle_id: str, trigger_type: str, trigger_id: str):
                 flag_modified(twin, "obd_live_data")
                 twin.last_obd_scan_at = datetime.now(timezone.utc)
                 trigger_label = (
-                    f"OBD sken: {obd_session.dtcs_imported} DTC uvoženih"
-                    f", adapter {obd_session.adapter_type}"
+                    f"OBD sken: {obd_session.dtcs_imported} DTC uvoženih" f", adapter {obd_session.adapter_type}"
                 )
 
         elif trigger_type == "service":

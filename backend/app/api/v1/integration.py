@@ -40,6 +40,7 @@ async def integration_org(request: Request, db: DbSession):
         return org_id
     if getattr(request.state, "org_id", None):
         import uuid
+
         return uuid.UUID(request.state.org_id)
     raise HTTPException(status_code=401, detail="Manjka API ključ ali prijava")
 
@@ -72,17 +73,30 @@ async def last_known_configuration(vin: str, request: Request, db: DbSession, or
         from app.utils.audit import write_audit_log
 
         await write_audit_log(
-            db=db, org_id=org_id, actor_id=None, actor_type="api_key", actor_device="erp",
-            action="export", entity_type="vehicle_configuration", entity_id=cfg.id,
+            db=db,
+            org_id=org_id,
+            actor_id=None,
+            actor_type="api_key",
+            actor_device="erp",
+            action="export",
+            entity_type="vehicle_configuration",
+            entity_id=cfg.id,
             after={"vin": v.vin, "config_id": cfg.config_id, "via": "ERP integration"},
         )
         await db.commit()
     from app.api.v1.vehicle_config import su_label
 
     return LastKnownConfiguration(
-        vin=v.vin, vehicle_name=v.name, vehicle_type=vt.name if vt else None,
-        config_id=cfg.config_id, config_type=cfg.config_type, reason=cfg.reason, recorded_at=cfg.created_at,
+        vin=v.vin,
+        vehicle_name=v.name,
+        vehicle_type=vt.name if vt else None,
+        config_id=cfg.config_id,
+        config_type=cfg.config_type,
+        reason=cfg.reason,
+        recorded_at=cfg.created_at,
         software_update=await su_label(db, cfg.software_update_id),
-        system_schemes_baseline=cfg.system_schemes_baseline, erp_work_order=cfg.erp_work_order,
-        rxswins=cfg.snapshot.get("rxswins", []), ecus=cfg.snapshot.get("ecus", []),
+        system_schemes_baseline=cfg.system_schemes_baseline,
+        erp_work_order=cfg.erp_work_order,
+        rxswins=cfg.snapshot.get("rxswins", []),
+        ecus=cfg.snapshot.get("ecus", []),
     )

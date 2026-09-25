@@ -26,6 +26,7 @@ async def list_sw_updates(
     offset: int = Query(0, ge=0),
 ):
     from datetime import date
+
     q = select(SWUpdate).where(SWUpdate.organization_id == user["org_id"])
     if vehicle_id:
         q = q.where(SWUpdate.vehicle_id == vehicle_id)
@@ -86,6 +87,7 @@ async def create_sw_update(data: SWUpdateCreate, user: NonPartnerDep, db: DbSess
 
     # Sproži twin update v ozadju (Celery)
     from app.workers.twin_worker import update_vehicle_twin
+
     update_vehicle_twin.delay(str(sw.vehicle_id), "sw_update", str(sw.id))
 
     return sw
@@ -93,9 +95,7 @@ async def create_sw_update(data: SWUpdateCreate, user: NonPartnerDep, db: DbSess
 
 @router.get("/{sw_id}", response_model=SWUpdateResponse)
 async def get_sw_update(sw_id: uuid.UUID, user: CurrentUserDep, db: DbSession):
-    result = await db.execute(
-        select(SWUpdate).where(SWUpdate.id == sw_id, SWUpdate.organization_id == user["org_id"])
-    )
+    result = await db.execute(select(SWUpdate).where(SWUpdate.id == sw_id, SWUpdate.organization_id == user["org_id"]))
     sw = result.scalar_one_or_none()
     if not sw:
         raise HTTPException(status_code=404, detail="SW posodobitev ne obstaja")
@@ -109,9 +109,7 @@ async def update_sw_update(sw_id: uuid.UUID, data: SWUpdateUpdate, user: NonPart
     Dovoljeni statusi: pending → in_progress → success | failed | rolled_back
     Vsaka sprememba statusa se zapiše v revizijsko sled (R156 §7.4).
     """
-    result = await db.execute(
-        select(SWUpdate).where(SWUpdate.id == sw_id, SWUpdate.organization_id == user["org_id"])
-    )
+    result = await db.execute(select(SWUpdate).where(SWUpdate.id == sw_id, SWUpdate.organization_id == user["org_id"]))
     sw = result.scalar_one_or_none()
     if not sw:
         raise HTTPException(status_code=404, detail="SW posodobitev ne obstaja")
@@ -154,6 +152,7 @@ async def update_sw_update(sw_id: uuid.UUID, data: SWUpdateUpdate, user: NonPart
 
     # Twin posodobitev
     from app.workers.twin_worker import update_vehicle_twin
+
     update_vehicle_twin.delay(str(sw.vehicle_id), "sw_update", str(sw.id))
 
     return sw

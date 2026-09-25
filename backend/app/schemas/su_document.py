@@ -89,10 +89,11 @@ class TargetResult(BaseModel):
 
 
 class UserNotification(BaseModel):
-    method: str = Field(min_length=1)    # npr. "E-mail to fleet manager"
+    method: str = Field(min_length=1)  # npr. "E-mail to fleet manager"
 
 
 # ─── Odgovori ─────────────────────────────────────────────────────────────────
+
 
 class AffectedRxswinResponse(BaseModel):
     id: uuid.UUID
@@ -189,5 +190,5 @@ class SUDocumentDetail(BaseModel):
 
     affected_rxswins: list[AffectedRxswinResponse]
     targets: list[TargetResponse]
-    release_blockers: list[str]      # prazno = pripravljen za izdajo
-    revisions: list[dict]            # [{id, revision, status}] — vse revizije istega document_id
+    release_blockers: list[str]  # prazno = pripravljen za izdajo
+    revisions: list[dict]  # [{id, revision, status}] — vse revizije istega document_id

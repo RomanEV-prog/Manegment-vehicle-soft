@@ -7,8 +7,10 @@ from pydantic import BaseModel, Field
 
 # ─── Live Data (PID vrednosti) ────────────────────────────────────────────────
 
+
 class OBDLiveData(BaseModel):
     """Standard OBD-II Mode 01 PID vrednosti."""
+
     rpm: float | None = Field(None, description="Engine RPM (PID 0x0C)")
     speed_kmh: float | None = Field(None, description="Vehicle speed km/h (PID 0x0D)")
     coolant_temp_c: float | None = Field(None, description="Coolant temperature °C (PID 0x05)")
@@ -30,12 +32,14 @@ class OBDLiveData(BaseModel):
 
 # ─── DTC iz OBD ──────────────────────────────────────────────────────────────
 
+
 class OBDRawDTC(BaseModel):
     code: str = Field(..., description="DTC koda npr. P0420, U0100")
     freeze_frame: dict[str, Any] = Field(default_factory=dict, description="Freeze frame ob zaznavi")
 
 
 # ─── Scan Request ─────────────────────────────────────────────────────────────
+
 
 class OBDScanRequest(BaseModel):
     adapter_type: str = Field("ELM327", description="Tip adapterja: ELM327 | J2534 | K-Line | manual")
@@ -52,6 +56,7 @@ class OBDScanRequest(BaseModel):
 
 # ─── Scan Response ────────────────────────────────────────────────────────────
 
+
 class OBDScanResponse(BaseModel):
     session_id: uuid.UUID
     vehicle_id: uuid.UUID
@@ -66,6 +71,7 @@ class OBDScanResponse(BaseModel):
 
 
 # ─── Session Response ─────────────────────────────────────────────────────────
+
 
 class OBDSessionResponse(BaseModel):
     id: uuid.UUID
@@ -92,6 +98,7 @@ class OBDSessionResponse(BaseModel):
 
 
 # ─── Live Data Response (iz VehicleTwin) ──────────────────────────────────────
+
 
 class OBDLiveDataResponse(BaseModel):
     vehicle_id: uuid.UUID

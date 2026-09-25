@@ -39,6 +39,7 @@ def get_signed_url(object_key: str, expires_hours: int = 1) -> str:
 
 def upload_file(object_key: str, file_data: bytes, content_type: str = "application/octet-stream") -> str:
     import io
+
     client = get_minio_client()
     client.put_object(
         bucket_name=settings.minio_bucket,

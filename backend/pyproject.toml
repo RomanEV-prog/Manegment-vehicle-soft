@@ -1,0 +1,11 @@
+[tool.black]
+line-length = 120
+target-version = ["py312"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint.per-file-ignores]
+# SQLAlchemy relacije z imenom razreda kot nizom ("Vehicle") — razred je registriran ob uvozu app.models
+"app/models/*" = ["F821"]

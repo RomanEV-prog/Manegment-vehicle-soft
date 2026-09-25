@@ -23,10 +23,13 @@ class CurrentUser:
 
         from app.models.user import User
 
-        row = (await db.execute(
-            select(User.is_active, User.role, User.password_changed_at, User.organization_id)
-            .where(User.id == uuid.UUID(request.state.user_id))
-        )).first()
+        row = (
+            await db.execute(
+                select(User.is_active, User.role, User.password_changed_at, User.organization_id).where(
+                    User.id == uuid.UUID(request.state.user_id)
+                )
+            )
+        ).first()
         if not row or not row.is_active or str(row.organization_id) != request.state.org_id:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Seja ni več veljavna")
         issued = getattr(request.state, "iat", None)
@@ -45,6 +48,7 @@ CurrentUserDep = Annotated[dict, Depends(get_current_user)]
 
 def require_role(*roles: str):
     """Dependency factory za preverjanje vloge."""
+
     def _check(user: CurrentUserDep):
         if user["role"] not in roles:
             raise HTTPException(
@@ -52,6 +56,7 @@ def require_role(*roles: str):
                 detail=f"Zahtevana vloga: {', '.join(roles)}",
             )
         return user
+
     return _check
 
 

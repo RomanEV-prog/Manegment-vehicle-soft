@@ -1,10 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import DbSession
 from app.models.user import User
-from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse, UserMe
+from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse
 from app.utils.security import (
     create_access_token,
     create_refresh_token,
@@ -27,8 +26,13 @@ def set_refresh_cookie(response: Response, token: str) -> None:
     from app.config import settings
 
     response.set_cookie(
-        REFRESH_COOKIE, token, httponly=True, secure=settings.environment == "production",
-        samesite="strict", path=REFRESH_COOKIE_PATH, max_age=settings.refresh_token_expire_days * 86400,
+        REFRESH_COOKIE,
+        token,
+        httponly=True,
+        secure=settings.environment == "production",
+        samesite="strict",
+        path=REFRESH_COOKIE_PATH,
+        max_age=settings.refresh_token_expire_days * 86400,
     )
 
 
@@ -43,7 +47,7 @@ async def login(request: Request, response: Response, data: LoginRequest, db: Db
             headers={"Retry-After": str(wait)},
         )
 
-    result = await db.execute(select(User).where(User.email == data.email, User.is_active == True))
+    result = await db.execute(select(User).where(User.email == data.email, User.is_active.is_(True)))
     user = result.scalar_one_or_none()
 
     if not user or not verify_password(data.password, user.password_hash):
@@ -51,8 +55,15 @@ async def login(request: Request, response: Response, data: LoginRequest, db: Db
         if user:
             # neuspela prijava na obstoječ račun — sled za presojo in odkrivanje napadov
             await write_audit_log(
-                db=db, org_id=user.organization_id, actor_id=None, actor_type="system", actor_device="web",
-                actor_ip=client_ip, action="login_failed", entity_type="user", entity_id=user.id,
+                db=db,
+                org_id=user.organization_id,
+                actor_id=None,
+                actor_type="system",
+                actor_device="web",
+                actor_ip=client_ip,
+                action="login_failed",
+                entity_type="user",
+                entity_id=user.id,
                 after={"email": user.email},
             )
             await db.commit()
@@ -99,7 +110,7 @@ async def refresh_token(request: Request, response: Response, db: DbSession, dat
     if not payload:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Neveljaven refresh token")
 
-    result = await db.execute(select(User).where(User.id == payload["sub"], User.is_active == True))
+    result = await db.execute(select(User).where(User.id == payload["sub"], User.is_active.is_(True)))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Uporabnik ne obstaja")
@@ -114,7 +125,7 @@ async def refresh_token(request: Request, response: Response, db: DbSession, dat
         "role": user.role,
     }
 
-    refresh = create_refresh_token(token_data)   # rotacija ob vsakem osveževanju
+    refresh = create_refresh_token(token_data)  # rotacija ob vsakem osveževanju
     set_refresh_cookie(response, refresh)
     return TokenResponse(access_token=create_access_token(token_data), refresh_token=refresh)
 

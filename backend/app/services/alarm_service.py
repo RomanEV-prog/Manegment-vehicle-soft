@@ -1,6 +1,7 @@
 """
 Alarm service — dostava obvestil (email, push, SMS).
 """
+
 import uuid
 
 import aiosmtplib
@@ -26,7 +27,7 @@ async def send_email_alarm(
         select(User).where(
             User.organization_id == org_id,
             User.role.in_(target_roles),
-            User.is_active == True,
+            User.is_active.is_(True),
         )
     )
     recipients = result.scalars().all()
@@ -53,6 +54,7 @@ async def send_email_alarm(
         except Exception as e:
             # Ne blokiraj — samo logiraj
             import logging
+
             logging.getLogger(__name__).error(f"Email napaka za {user.email}: {e}")
 
 
@@ -71,6 +73,7 @@ async def publish_ws_alarm(org_id: str, payload: dict) -> None:
 # Singleton za Firebase Admin SDK — inicializiramo enkrat
 _firebase_app = None
 
+
 def _get_firebase_app():
     global _firebase_app
     if _firebase_app is not None:
@@ -81,12 +84,14 @@ def _get_firebase_app():
         import json
         import firebase_admin
         from firebase_admin import credentials
+
         cred_dict = json.loads(settings.firebase_credentials_json)
         cred = credentials.Certificate(cred_dict)
         _firebase_app = firebase_admin.initialize_app(cred)
         return _firebase_app
     except Exception as e:
         import logging
+
         logging.getLogger(__name__).error(f"Firebase init napaka: {e}")
         return None
 
@@ -106,6 +111,7 @@ async def send_push_notification(
 
     from firebase_admin import messaging
     import logging
+
     log = logging.getLogger(__name__)
 
     target_roles = roles or ["qc_manager", "admin", "technician"]
@@ -113,7 +119,7 @@ async def send_push_notification(
         select(User).where(
             User.organization_id == org_id,
             User.role.in_(target_roles),
-            User.is_active == True,
+            User.is_active.is_(True),
             User.fcm_token.isnot(None),
         )
     )
@@ -126,11 +132,7 @@ async def send_push_notification(
                 data={k: str(v) for k, v in (data or {}).items()},
                 token=user.fcm_token,
                 android=messaging.AndroidConfig(priority="high"),
-                apns=messaging.APNSConfig(
-                    payload=messaging.APNSPayload(
-                        aps=messaging.Aps(sound="default", badge=1)
-                    )
-                ),
+                apns=messaging.APNSConfig(payload=messaging.APNSPayload(aps=messaging.Aps(sound="default", badge=1))),
             )
             messaging.send(message)
         except Exception as e:

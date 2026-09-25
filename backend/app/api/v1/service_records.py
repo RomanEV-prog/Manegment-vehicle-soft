@@ -59,6 +59,7 @@ async def create_service_record(data: ServiceRecordCreate, user: NonPartnerDep, 
     await db.refresh(record)
 
     from app.workers.twin_worker import update_vehicle_twin
+
     update_vehicle_twin.delay(str(record.vehicle_id), "service", str(record.id))
 
     return record

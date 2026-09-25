@@ -21,6 +21,7 @@ WLTP_CYCLES = ("Razred 1", "Razred 2", "Razred 3b")
 
 class VectoInputParams(BaseModel):
     """Strukturirani vhodni parametri VECTO simulacije (EU 2017/337 / EU 2017/2400)."""
+
     # Masa
     masa_prazno_kg: float | None = Field(None, ge=0, description="Masa praznega vozila (kg)")
     masa_test_kg: float | None = Field(None, ge=0, description="Testna masa (kg)")
@@ -49,17 +50,17 @@ class VectoInputParams(BaseModel):
     temperatura_ref_c: float | None = Field(None, ge=-40, le=60, description="Referenčna temperatura (°C)")
     tovor_kg: float | None = Field(None, ge=0, description="Tovor pri testu (kg)")
 
-    model_config = {"extra": "allow"}   # ostali ad-hoc parametri so še vedno dovoljeni
+    model_config = {"extra": "allow"}  # ostali ad-hoc parametri so še vedno dovoljeni
 
 
 class VectoCreate(BaseModel):
     vehicle_id: uuid.UUID
     calculated_at: date
-    co2_wltp: float | None = None           # g/km
-    energy_wltp: float | None = None        # Wh/km
+    co2_wltp: float | None = None  # g/km
+    energy_wltp: float | None = None  # Wh/km
     range_km: int | None = None
     input_params: VectoInputParams | None = None
-    status: str = "draft"                   # 'draft' | 'submitted' | 'approved'
+    status: str = "draft"  # 'draft' | 'submitted' | 'approved'
 
 
 class VectoUpdate(BaseModel):
@@ -223,6 +224,7 @@ async def update_vecto_calculation(
 async def vecto_pdf(calc_id: uuid.UUID, user: CurrentUserDep, db: DbSession):
     """VECTO PDF poročilo za posamezen izračun (EU Uredba 2017/337)."""
     from app.services.report_service import generate_vecto_pdf
+
     try:
         pdf_bytes = await generate_vecto_pdf(db, calc_id, user["org_id"])
     except ValueError as e:

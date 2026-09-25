@@ -1,6 +1,7 @@
 """
 Alarm engine — event-driven in scheduled Celery taski.
 """
+
 import asyncio
 import logging
 
@@ -70,16 +71,22 @@ async def _send_dtc_alarm(dtc_id: str, org_id: str):
 
         # Email + WebSocket + Push
         await send_email_alarm(db, uuid.UUID(org_id), title, message)
-        await publish_ws_alarm(org_id, {
-            "type": "alarm",
-            "severity": "critical",
-            "title": title,
-            "message": message,
-            "vehicle_id": str(dtc.vehicle_id),
-            "alarm_type": "dtc_high_severity",
-        })
+        await publish_ws_alarm(
+            org_id,
+            {
+                "type": "alarm",
+                "severity": "critical",
+                "title": title,
+                "message": message,
+                "vehicle_id": str(dtc.vehicle_id),
+                "alarm_type": "dtc_high_severity",
+            },
+        )
         await send_push_notification(
-            db, uuid.UUID(org_id), title, message,
+            db,
+            uuid.UUID(org_id),
+            title,
+            message,
             data={"alarm_type": "dtc_high_severity", "vehicle_id": str(dtc.vehicle_id)},
         )
 
@@ -94,18 +101,11 @@ async def _run_daily_checks():
     3. Isti DTC code na > 2 vozilih iste org → sistemska napaka
     4. SW verzija zaostaja > 2 verziji za referenčno
     """
-    import uuid
-    from datetime import date, timedelta
-    from collections import Counter
-    from sqlalchemy import select, func
+    from sqlalchemy import select
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from app.config import settings
     from app.models.organization import Organization
-    from app.models.vehicle import Vehicle
-    from app.models.dtc_record import DTCRecord
-    from app.models.homologation import Homologation
-    from app.models.alarm_event import AlarmEvent
     from app.services.alarm_service import send_email_alarm, publish_ws_alarm
 
     engine = create_async_engine(settings.database_url)
@@ -159,8 +159,8 @@ async def _check_hom_overdue(db, org, send_email_alarm, publish_ws_alarm):
         )
 
         # Preveri ali alarm že obstaja za danes
-        from sqlalchemy import and_, cast, Date
         from datetime import datetime, timezone
+
         today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
         existing = await db.execute(
             select(AlarmEvent).where(
@@ -186,10 +186,15 @@ async def _check_hom_overdue(db, org, send_email_alarm, publish_ws_alarm):
         await db.flush()
 
         await send_email_alarm(db, org.id, title, message)
-        await publish_ws_alarm(str(org.id), {
-            "type": "alarm", "severity": "warning",
-            "title": title, "alarm_type": "hom_action_overdue",
-        })
+        await publish_ws_alarm(
+            str(org.id),
+            {
+                "type": "alarm",
+                "severity": "warning",
+                "title": title,
+                "alarm_type": "hom_action_overdue",
+            },
+        )
 
     await db.commit()
 

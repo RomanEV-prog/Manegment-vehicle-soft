@@ -2,7 +2,6 @@ import uuid
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select, update
-from sqlalchemy.dialects.postgresql import UUID
 
 from app.api.deps import CurrentUserDep, DbSession, NonPartnerDep
 from app.models.alarm_event import AlarmEvent
@@ -30,9 +29,7 @@ async def list_alarms(
         q = q.where(AlarmEvent.severity == severity)
     if alarm_type:
         q = q.where(AlarmEvent.alarm_type == alarm_type)
-    result = await db.execute(
-        q.order_by(AlarmEvent.created_at.desc()).limit(limit).offset(offset)
-    )
+    result = await db.execute(q.order_by(AlarmEvent.created_at.desc()).limit(limit).offset(offset))
     return result.scalars().all()
 
 
@@ -68,9 +65,7 @@ async def mark_all_alarms_read(user: CurrentUserDep, db: DbSession):
 
 @router.get("/configs", response_model=list[AlarmConfigResponse])
 async def list_alarm_configs(user: CurrentUserDep, db: DbSession):
-    result = await db.execute(
-        select(AlarmConfig).where(AlarmConfig.organization_id == user["org_id"])
-    )
+    result = await db.execute(select(AlarmConfig).where(AlarmConfig.organization_id == user["org_id"]))
     return result.scalars().all()
 
 

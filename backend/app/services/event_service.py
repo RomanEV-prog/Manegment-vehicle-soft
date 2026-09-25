@@ -2,7 +2,7 @@
 Event service — Redis Streams producer.
 Vsak poseg odda event na event bus.
 """
-import json
+
 import uuid
 
 import redis.asyncio as aioredis

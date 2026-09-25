@@ -6,11 +6,11 @@ from pydantic import BaseModel
 
 class DTCRecordCreate(BaseModel):
     vehicle_id: uuid.UUID
-    code: str                       # 'P0401', 'U0100'
+    code: str  # 'P0401', 'U0100'
     description: str
-    severity: str                   # 'low' | 'medium' | 'high'
+    severity: str  # 'low' | 'medium' | 'high'
     detected_at: datetime
-    source: str = "manual"          # 'manual' | 'obd'
+    source: str = "manual"  # 'manual' | 'obd'
 
 
 class DTCRecordResolve(BaseModel):
@@ -19,7 +19,7 @@ class DTCRecordResolve(BaseModel):
 
 
 class DTCRecordUpdate(BaseModel):
-    status: str | None = None       # 'active' | 'in_review' | 'resolved'
+    status: str | None = None  # 'active' | 'in_review' | 'resolved'
     assigned_to: uuid.UUID | None = None
     reason: str | None = None
 

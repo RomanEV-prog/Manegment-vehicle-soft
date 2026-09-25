@@ -48,7 +48,10 @@ async def main(email: str, name: str, role: str, org_name: str, reset_password: 
             action = "reset_password"
         else:
             user = User(
-                organization_id=org.id, email=email, full_name=name, role=role,
+                organization_id=org.id,
+                email=email,
+                full_name=name,
+                role=role,
                 password_hash=hash_password(password),
             )
             db.add(user)
@@ -56,9 +59,15 @@ async def main(email: str, name: str, role: str, org_name: str, reset_password: 
             action = "create"
 
         await write_audit_log(
-            db=db, org_id=user.organization_id, actor_id=None, actor_type="system", actor_device="cli",
-            action="update" if action == "reset_password" else "create", entity_type="user",
-            entity_id=user.id, after={"email": user.email, "role": user.role, "via": "create_user"},
+            db=db,
+            org_id=user.organization_id,
+            actor_id=None,
+            actor_type="system",
+            actor_device="cli",
+            action="update" if action == "reset_password" else "create",
+            entity_type="user",
+            entity_id=user.id,
+            after={"email": user.email, "role": user.role, "via": "create_user"},
         )
         await db.commit()
 

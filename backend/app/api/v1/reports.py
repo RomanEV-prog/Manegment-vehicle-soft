@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import Response, JSONResponse, StreamingResponse
+from fastapi.responses import Response
 from sqlalchemy import select, func
 
 from app.api.deps import CurrentUserDep, DbSession
@@ -53,9 +53,7 @@ async def sums_report(
 async def fleet_status_report(user: CurrentUserDep, db: DbSession):
     """Pregled celotnega voznega parka — agregiran status."""
     # Vozila
-    result = await db.execute(
-        select(Vehicle).where(Vehicle.organization_id == user["org_id"])
-    )
+    result = await db.execute(select(Vehicle).where(Vehicle.organization_id == user["org_id"]))
     vehicles = result.scalars().all()
 
     # Aktivni DTC high
@@ -88,9 +86,7 @@ async def fleet_status_report(user: CurrentUserDep, db: DbSession):
     recent_sw = result.scalar()
 
     # Twins za vsa vozila v eni query
-    twins_result = await db.execute(
-        select(VehicleTwin).where(VehicleTwin.vehicle_id.in_([v.id for v in vehicles]))
-    )
+    twins_result = await db.execute(select(VehicleTwin).where(VehicleTwin.vehicle_id.in_([v.id for v in vehicles])))
     twins_by_vehicle = {t.vehicle_id: t for t in twins_result.scalars().all()}
 
     # Aktivni DTC counts za vsa vozila v eni query
@@ -107,22 +103,21 @@ async def fleet_status_report(user: CurrentUserDep, db: DbSession):
     vehicle_summaries = []
     for v in vehicles:
         twin = twins_by_vehicle.get(v.id)
-        vehicle_summaries.append({
-            "id": str(v.id),
-            "name": v.name,
-            "vin": v.vin,
-            "model": v.model,
-            "status": v.status,
-            "project_name": v.project_name,
-            "active_dtc_count": dtc_counts_by_vehicle.get(v.id, 0),
-            "active_dtcs_high": sum(
-                1 for d in (twin.active_dtcs if twin else [])
-                if d.get("severity") == "high"
-            ),
-            "ecu_modules": len(twin.ecu_config) if twin else 0,
-            "last_sw_update": twin.last_sw_update_at.isoformat() if twin and twin.last_sw_update_at else None,
-            "last_service": twin.last_service_at.isoformat() if twin and twin.last_service_at else None,
-        })
+        vehicle_summaries.append(
+            {
+                "id": str(v.id),
+                "name": v.name,
+                "vin": v.vin,
+                "model": v.model,
+                "status": v.status,
+                "project_name": v.project_name,
+                "active_dtc_count": dtc_counts_by_vehicle.get(v.id, 0),
+                "active_dtcs_high": sum(1 for d in (twin.active_dtcs if twin else []) if d.get("severity") == "high"),
+                "ecu_modules": len(twin.ecu_config) if twin else 0,
+                "last_sw_update": twin.last_sw_update_at.isoformat() if twin and twin.last_sw_update_at else None,
+                "last_service": twin.last_service_at.isoformat() if twin and twin.last_service_at else None,
+            }
+        )
 
     return {
         "generated_at": datetime.utcnow().isoformat(),
@@ -181,8 +176,10 @@ async def sw_updates_csv(
     """
     CSV izvoz vseh SW posodobitev organizacije — za UNECE R156 revizijsko dokumentacijo.
     """
-    q = select(SWUpdate, Vehicle).join(Vehicle, SWUpdate.vehicle_id == Vehicle.id).where(
-        SWUpdate.organization_id == user["org_id"]
+    q = (
+        select(SWUpdate, Vehicle)
+        .join(Vehicle, SWUpdate.vehicle_id == Vehicle.id)
+        .where(SWUpdate.organization_id == user["org_id"])
     )
     if vehicle_id:
         q = q.where(SWUpdate.vehicle_id == vehicle_id)
@@ -193,23 +190,35 @@ async def sw_updates_csv(
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow([
-        "Datum", "Vozilo", "VIN", "ECU modul",
-        "Verzija pred", "Verzija po", "RXSWIN", "Metoda", "Status", "Opombe",
-    ])
+    writer.writerow(
+        [
+            "Datum",
+            "Vozilo",
+            "VIN",
+            "ECU modul",
+            "Verzija pred",
+            "Verzija po",
+            "RXSWIN",
+            "Metoda",
+            "Status",
+            "Opombe",
+        ]
+    )
     for sw, vehicle in rows:
-        writer.writerow([
-            sw.date.isoformat(),
-            vehicle.name,
-            vehicle.vin,
-            sw.ecu_module,
-            sw.version_before,
-            sw.version_after,
-            sw.rxswin,
-            sw.method,
-            sw.status,
-            sw.notes or "",
-        ])
+        writer.writerow(
+            [
+                sw.date.isoformat(),
+                vehicle.name,
+                vehicle.vin,
+                sw.ecu_module,
+                sw.version_before,
+                sw.version_after,
+                sw.rxswin,
+                sw.method,
+                sw.status,
+                sw.notes or "",
+            ]
+        )
 
     filename = f"SW_posodobitve_{vehicle_id or 'vse'}.csv"
     return Response(
@@ -229,8 +238,10 @@ async def dtc_records_csv(
     """
     CSV izvoz DTC zapisov — za servisno in revizijsko dokumentacijo.
     """
-    q = select(DTCRecord, Vehicle).join(Vehicle, DTCRecord.vehicle_id == Vehicle.id).where(
-        DTCRecord.organization_id == user["org_id"]
+    q = (
+        select(DTCRecord, Vehicle)
+        .join(Vehicle, DTCRecord.vehicle_id == Vehicle.id)
+        .where(DTCRecord.organization_id == user["org_id"])
     )
     if vehicle_id:
         q = q.where(DTCRecord.vehicle_id == vehicle_id)
@@ -243,22 +254,33 @@ async def dtc_records_csv(
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow([
-        "Zaznano", "Vozilo", "VIN", "Koda DTC",
-        "Opis", "Resnost", "Status", "Vir", "Rešeno",
-    ])
+    writer.writerow(
+        [
+            "Zaznano",
+            "Vozilo",
+            "VIN",
+            "Koda DTC",
+            "Opis",
+            "Resnost",
+            "Status",
+            "Vir",
+            "Rešeno",
+        ]
+    )
     for dtc, vehicle in rows:
-        writer.writerow([
-            dtc.detected_at.date().isoformat() if dtc.detected_at else "",
-            vehicle.name,
-            vehicle.vin,
-            dtc.code,
-            dtc.description,
-            dtc.severity,
-            dtc.status,
-            dtc.source,
-            dtc.resolved_at.date().isoformat() if dtc.resolved_at else "",
-        ])
+        writer.writerow(
+            [
+                dtc.detected_at.date().isoformat() if dtc.detected_at else "",
+                vehicle.name,
+                vehicle.vin,
+                dtc.code,
+                dtc.description,
+                dtc.severity,
+                dtc.status,
+                dtc.source,
+                dtc.resolved_at.date().isoformat() if dtc.resolved_at else "",
+            ]
+        )
 
     filename = f"DTC_zapisi_{vehicle_id or 'vse'}.csv"
     return Response(
@@ -294,23 +316,35 @@ async def homologations_csv(
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow([
-        "Vozilo", "VIN", "Uredba", "Status", "Oblast",
-        "Država", "Veljavno od", "Veljavno do", "Naslednja akcija", "Opombe",
-    ])
+    writer.writerow(
+        [
+            "Vozilo",
+            "VIN",
+            "Uredba",
+            "Status",
+            "Oblast",
+            "Država",
+            "Veljavno od",
+            "Veljavno do",
+            "Naslednja akcija",
+            "Opombe",
+        ]
+    )
     for hom, vehicle in rows:
-        writer.writerow([
-            vehicle.name,
-            vehicle.vin,
-            hom.regulation,
-            hom.status,
-            hom.authority or "",
-            hom.country or "",
-            hom.valid_from.isoformat() if hom.valid_from else "",
-            hom.valid_until.isoformat() if hom.valid_until else "",
-            hom.next_action_due.isoformat() if hom.next_action_due else "",
-            hom.notes or "",
-        ])
+        writer.writerow(
+            [
+                vehicle.name,
+                vehicle.vin,
+                hom.regulation,
+                hom.status,
+                hom.authority or "",
+                hom.country or "",
+                hom.valid_from.isoformat() if hom.valid_from else "",
+                hom.valid_until.isoformat() if hom.valid_until else "",
+                hom.next_action_due.isoformat() if hom.next_action_due else "",
+                hom.notes or "",
+            ]
+        )
 
     filename = f"Homologacije_{vehicle_id or 'vse'}.csv"
     return Response(
@@ -343,20 +377,29 @@ async def service_records_csv(
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow([
-        "Datum", "Vozilo", "VIN", "Tip servisa",
-        "Tehnik", "Opravila", "Opombe",
-    ])
+    writer.writerow(
+        [
+            "Datum",
+            "Vozilo",
+            "VIN",
+            "Tip servisa",
+            "Tehnik",
+            "Opravila",
+            "Opombe",
+        ]
+    )
     for sr, vehicle in rows:
-        writer.writerow([
-            sr.date.isoformat() if sr.date else "",
-            vehicle.name,
-            vehicle.vin,
-            sr.service_type,
-            sr.technician,
-            "; ".join(sr.items) if sr.items else "",
-            sr.notes or "",
-        ])
+        writer.writerow(
+            [
+                sr.date.isoformat() if sr.date else "",
+                vehicle.name,
+                vehicle.vin,
+                sr.service_type,
+                sr.technician,
+                "; ".join(sr.items) if sr.items else "",
+                sr.notes or "",
+            ]
+        )
 
     filename = f"Servisni_zapisi_{vehicle_id or 'vse'}.csv"
     return Response(

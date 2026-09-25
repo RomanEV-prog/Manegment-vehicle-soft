@@ -1,6 +1,7 @@
 """
 Photo service — upload/download/delete iz MinIO.
 """
+
 import uuid
 from datetime import datetime, timezone
 
@@ -8,12 +9,16 @@ from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.photo import Photo
-from app.utils.storage import upload_file, get_signed_url, delete_file, ensure_bucket_exists
+from app.utils.storage import upload_file, delete_file, ensure_bucket_exists
 
 
 ALLOWED_CONTENT_TYPES = {
-    "image/jpeg", "image/jpg", "image/png",
-    "image/webp", "image/heic", "image/heif",
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/webp",
+    "image/heic",
+    "image/heif",
 }
 MAX_FILE_SIZE = 20 * 1024 * 1024  # 20 MB
 
@@ -35,8 +40,7 @@ async def upload_photo(
 
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise ValueError(
-            f"Nepodprt tip datoteke: {file.content_type}. "
-            f"Dovoljeni: {', '.join(sorted(ALLOWED_CONTENT_TYPES))}"
+            f"Nepodprt tip datoteke: {file.content_type}. " f"Dovoljeni: {', '.join(sorted(ALLOWED_CONTENT_TYPES))}"
         )
 
     content = await file.read()
@@ -58,7 +62,7 @@ async def upload_photo(
         linked_to_type=linked_to_type,
         linked_to_id=linked_to_id,
         filename=filename,
-        url=object_key,         # Shranjujemo key, ne signed URL (ki poteče)
+        url=object_key,  # Shranjujemo key, ne signed URL (ki poteče)
         photo_type=photo_type,
         gps_lat=gps_lat,
         gps_lng=gps_lng,

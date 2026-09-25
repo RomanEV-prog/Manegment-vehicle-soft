@@ -46,11 +46,15 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(TenantMiddleware)
 
 # CORS (dodan zadnji = teče prvi, pred vsem drugim)
-_cors_origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "https://app.eversum.com",
-] if _is_dev else ["https://app.eversum.com"]
+_cors_origins = (
+    [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://app.eversum.com",
+    ]
+    if _is_dev
+    else ["https://app.eversum.com"]
+)
 
 app.add_middleware(
     CORSMiddleware,

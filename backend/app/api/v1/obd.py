@@ -9,6 +9,7 @@ Sprejema podatke iz OBD-II adapterjev (ELM327, J2534, K-Line) in jih integrira v
 
 Primarni endpoint: POST /obd/{vehicle_id}/scan
 """
+
 import uuid
 from datetime import datetime, timezone
 
@@ -132,6 +133,7 @@ def _classify_severity(code: str) -> str:
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
+
 @router.post("/{vehicle_id}/scan", response_model=OBDScanResponse, status_code=status.HTTP_201_CREATED)
 async def obd_scan(vehicle_id: uuid.UUID, data: OBDScanRequest, user: CurrentUserDep, db: DbSession):
     """
@@ -179,9 +181,7 @@ async def obd_scan(vehicle_id: uuid.UUID, data: OBDScanRequest, user: CurrentUse
     await db.flush()
 
     # Posodobi VehicleTwin.obd_live_data
-    twin_result = await db.execute(
-        select(VehicleTwin).where(VehicleTwin.vehicle_id == vehicle_id)
-    )
+    twin_result = await db.execute(select(VehicleTwin).where(VehicleTwin.vehicle_id == vehicle_id))
     twin = twin_result.scalar_one_or_none()
     if not twin:
         twin = VehicleTwin(vehicle_id=vehicle_id)
@@ -189,6 +189,7 @@ async def obd_scan(vehicle_id: uuid.UUID, data: OBDScanRequest, user: CurrentUse
         await db.flush()
 
     from sqlalchemy.orm.attributes import flag_modified
+
     new_live = dict(live_data_dict)
     new_live["last_updated"] = scanned_at.isoformat()
     new_live["session_id"] = str(session.id)
@@ -371,9 +372,7 @@ async def get_obd_live_data(vehicle_id: uuid.UUID, user: CurrentUserDep, db: DbS
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Vozilo ne obstaja")
 
-    twin_result = await db.execute(
-        select(VehicleTwin).where(VehicleTwin.vehicle_id == vehicle_id)
-    )
+    twin_result = await db.execute(select(VehicleTwin).where(VehicleTwin.vehicle_id == vehicle_id))
     twin = twin_result.scalar_one_or_none()
 
     if not twin or not twin.obd_live_data:

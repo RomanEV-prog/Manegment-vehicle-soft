@@ -16,7 +16,7 @@ class AuditLogResponse(BaseModel):
     id: uuid.UUID
     org_id: uuid.UUID
     actor_id: uuid.UUID | None
-    actor_name: str | None = None   # R156: vsak vnos mora biti pripisan osebi
+    actor_name: str | None = None  # R156: vsak vnos mora biti pripisan osebi
     actor_type: str
     actor_ip: str | None
     actor_device: str | None
@@ -91,7 +91,12 @@ async def list_audit_logs(
 
     q = _filtered(
         select(AuditLog).where(AuditLog.org_id == user["org_id"]).order_by(AuditLog.created_at.desc()),
-        entity_type, entity_id, actor_id, action, from_date, to_date,
+        entity_type,
+        entity_id,
+        actor_id,
+        action,
+        from_date,
+        to_date,
     )
 
     q = q.offset(offset).limit(limit)
@@ -121,9 +126,15 @@ async def count_audit_logs(
         raise HTTPException(status_code=403, detail="Premalo pravic")
 
     from sqlalchemy import func
+
     q = _filtered(
         select(func.count()).select_from(AuditLog).where(AuditLog.org_id == user["org_id"]),
-        entity_type, entity_id, actor_id, action, from_date, to_date,
+        entity_type,
+        entity_id,
+        actor_id,
+        action,
+        from_date,
+        to_date,
     )
     return {"count": (await db.execute(q)).scalar()}
 
@@ -152,27 +163,63 @@ async def export_audit_logs(
         raise HTTPException(status_code=403, detail="Premalo pravic")
     q = _filtered(
         select(AuditLog).where(AuditLog.org_id == user["org_id"]).order_by(AuditLog.created_at),
-        entity_type, entity_id, actor_id, action, from_date, to_date,
+        entity_type,
+        entity_id,
+        actor_id,
+        action,
+        from_date,
+        to_date,
     )
     rows = (await db.execute(q)).scalars().all()
     ids = {r.actor_id for r in rows if r.actor_id}
     names: dict = {}
     if ids:
-        names = {i: (n, e) for i, n, e in (await db.execute(select(User.id, User.full_name, User.email).where(User.id.in_(ids)))).all()}
+        names = {
+            i: (n, e)
+            for i, n, e in (await db.execute(select(User.id, User.full_name, User.email).where(User.id.in_(ids)))).all()
+        }
 
     out = _io.StringIO()
     w = csv.writer(out)
-    w.writerow(["timestamp_utc", "user", "user_email", "actor_type", "action", "entity_type", "entity_id",
-                "before", "after", "reason", "ip", "device"])
+    w.writerow(
+        [
+            "timestamp_utc",
+            "user",
+            "user_email",
+            "actor_type",
+            "action",
+            "entity_type",
+            "entity_id",
+            "before",
+            "after",
+            "reason",
+            "ip",
+            "device",
+        ]
+    )
     for r in rows:
         n, e = names.get(r.actor_id, ("", ""))
-        w.writerow([csv_safe(x) for x in (
-            r.created_at.isoformat(), n, e, r.actor_type, r.action, r.entity_type, str(r.entity_id),
-            json.dumps(r.before, ensure_ascii=False) if r.before is not None else "",
-            json.dumps(r.after, ensure_ascii=False) if r.after is not None else "",
-            r.reason or "", r.actor_ip or "", r.actor_device or "",
-        )])
+        w.writerow(
+            [
+                csv_safe(x)
+                for x in (
+                    r.created_at.isoformat(),
+                    n,
+                    e,
+                    r.actor_type,
+                    r.action,
+                    r.entity_type,
+                    str(r.entity_id),
+                    json.dumps(r.before, ensure_ascii=False) if r.before is not None else "",
+                    json.dumps(r.after, ensure_ascii=False) if r.after is not None else "",
+                    r.reason or "",
+                    r.actor_ip or "",
+                    r.actor_device or "",
+                )
+            ]
+        )
     return Response(
-        content=out.getvalue().encode("utf-8-sig"), media_type="text/csv; charset=utf-8",
+        content=out.getvalue().encode("utf-8-sig"),
+        media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="audit-trail.csv"'},
     )

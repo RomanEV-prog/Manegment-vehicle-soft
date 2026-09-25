@@ -18,6 +18,7 @@ async def _check_vehicle_type(db, vehicle_type_id: uuid.UUID | None, org_id) -> 
     if vehicle_type_id is None:
         return
     from app.models.r156 import VehicleType
+
     exists = await db.scalar(
         select(VehicleType.id).where(VehicleType.id == vehicle_type_id, VehicleType.organization_id == org_id)
     )
@@ -45,11 +46,13 @@ async def list_vehicles(
         q = q.where(Vehicle.vehicle_type_id == vehicle_type_id)
     if search:
         term = f"%{search}%"
-        q = q.where(or_(
-            Vehicle.name.ilike(term),
-            Vehicle.vin.ilike(term),
-            Vehicle.model.ilike(term),
-        ))
+        q = q.where(
+            or_(
+                Vehicle.name.ilike(term),
+                Vehicle.vin.ilike(term),
+                Vehicle.model.ilike(term),
+            )
+        )
     result = await db.execute(q.order_by(Vehicle.name).limit(limit).offset(offset))
     return result.scalars().all()
 
@@ -112,8 +115,11 @@ async def update_vehicle(vehicle_id: uuid.UUID, data: VehicleUpdate, user: NonPa
     if data.vehicle_type_id is not None:
         await _check_vehicle_type(db, data.vehicle_type_id, user["org_id"])
     prev_status = vehicle.status
-    before = {"status": vehicle.status, "name": vehicle.name,
-              "vehicle_type_id": str(vehicle.vehicle_type_id) if vehicle.vehicle_type_id else None}
+    before = {
+        "status": vehicle.status,
+        "name": vehicle.name,
+        "vehicle_type_id": str(vehicle.vehicle_type_id) if vehicle.vehicle_type_id else None,
+    }
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(vehicle, field, value)
 
@@ -127,8 +133,11 @@ async def update_vehicle(vehicle_id: uuid.UUID, data: VehicleUpdate, user: NonPa
         entity_type="vehicle",
         entity_id=vehicle.id,
         before=before,
-        after={"status": vehicle.status, "name": vehicle.name,
-               "vehicle_type_id": str(vehicle.vehicle_type_id) if vehicle.vehicle_type_id else None},
+        after={
+            "status": vehicle.status,
+            "name": vehicle.name,
+            "vehicle_type_id": str(vehicle.vehicle_type_id) if vehicle.vehicle_type_id else None,
+        },
     )
 
     await db.commit()
@@ -138,11 +147,14 @@ async def update_vehicle(vehicle_id: uuid.UUID, data: VehicleUpdate, user: NonPa
     if data.status == "shipped" and prev_status != "shipped":
         import asyncio
         from app.utils.events import publish_event
-        asyncio.create_task(publish_event(
-            "vehicle.shipped",
-            vehicle_id=vehicle.id,
-            org_id=user["org_id"],
-        ))
+
+        asyncio.create_task(
+            publish_event(
+                "vehicle.shipped",
+                vehicle_id=vehicle.id,
+                org_id=user["org_id"],
+            )
+        )
 
     return vehicle
 
@@ -168,14 +180,12 @@ async def delete_vehicle(vehicle_id: uuid.UUID, user: NonPartnerDep, db: DbSessi
             continue
         for fk in table.foreign_keys:
             if fk.column.table is Vehicle.__table__:
-                exists = await db.scalar(
-                    select(func.count()).select_from(table).where(fk.parent == vehicle.id)
-                )
+                exists = await db.scalar(select(func.count()).select_from(table).where(fk.parent == vehicle.id))
                 if exists:
                     raise HTTPException(
                         status_code=409,
                         detail="Vozilo ima zgodovino zapisov in ga ni mogoče izbrisati — "
-                               "nastavi status 'decommissioned'.",
+                        "nastavi status 'decommissioned'.",
                     )
 
     await write_audit_log(

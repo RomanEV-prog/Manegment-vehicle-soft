@@ -8,7 +8,7 @@ PUBLIC_PATHS = {
     "/health",
     "/api/v1/auth/login",
     "/api/v1/auth/refresh",
-    "/api/v1/auth/logout",   # odjava mora izbrisati piškot tudi, ko je dostopni žeton že potekel
+    "/api/v1/auth/logout",  # odjava mora izbrisati piškot tudi, ko je dostopni žeton že potekel
 }
 
 # Dev-only dokumentacija (v produkciji je FastAPI ne servira)
@@ -23,7 +23,11 @@ class TenantMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         # Preskoči javne poti
-        if request.url.path in PUBLIC_PATHS or request.url.path in _DEV_DOC_PATHS or request.url.path.startswith("/ws/"):
+        if (
+            request.url.path in PUBLIC_PATHS
+            or request.url.path in _DEV_DOC_PATHS
+            or request.url.path.startswith("/ws/")
+        ):
             return await call_next(request)
 
         # ERP integracija: endpoint sam preveri X-API-Key (app/api/v1/integration.py)
@@ -33,6 +37,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
         auth_header = request.headers.get("Authorization")
         if not auth_header or not auth_header.startswith("Bearer "):
             from fastapi.responses import JSONResponse
+
             return JSONResponse(
                 status_code=401,
                 content={"detail": "Manjka JWT token", "code": "MISSING_TOKEN"},
@@ -43,6 +48,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
 
         if payload is None:
             from fastapi.responses import JSONResponse
+
             return JSONResponse(
                 status_code=401,
                 content={"detail": "Neveljaven ali potekel token", "code": "INVALID_TOKEN"},

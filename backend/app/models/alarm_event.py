@@ -12,10 +12,12 @@ class AlarmEvent(Base):
     __tablename__ = "alarm_events"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False
+    )
     vehicle_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("vehicles.id"), nullable=True)
     alarm_type: Mapped[str] = mapped_column(String, nullable=False)
-    severity: Mapped[str] = mapped_column(String, nullable=False)           # 'critical' | 'warning' | 'info' | 'success'
+    severity: Mapped[str] = mapped_column(String, nullable=False)  # 'critical' | 'warning' | 'info' | 'success'
     title: Mapped[str] = mapped_column(String, nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False)

@@ -22,7 +22,7 @@ AdminOrQC = Depends(require_role("admin", "qc_manager"))
 class UserCreate(BaseModel):
     email: EmailStr
     full_name: str = Field(min_length=1)
-    role: str       # 'admin' | 'qc_manager' | 'technician' | 'partner_viewer'
+    role: str  # 'admin' | 'qc_manager' | 'technician' | 'partner_viewer'
     password: str = Field(min_length=PASSWORD_MIN)
 
 
@@ -48,14 +48,13 @@ VALID_ROLES = {"admin", "qc_manager", "technician", "partner_viewer"}
 
 @router.get("", response_model=list[UserResponse], dependencies=[AdminOrQC])
 async def list_users(user: CurrentUserDep, db: DbSession):
-    result = await db.execute(
-        select(User).where(User.organization_id == user["org_id"]).order_by(User.full_name)
-    )
+    result = await db.execute(select(User).where(User.organization_id == user["org_id"]).order_by(User.full_name))
     return result.scalars().all()
 
 
-@router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED,
-             dependencies=[Depends(require_role("admin"))])
+@router.post(
+    "", response_model=UserResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_role("admin"))]
+)
 async def create_user(data: UserCreate, user: CurrentUserDep, db: DbSession):
     if data.role not in VALID_ROLES:
         raise HTTPException(status_code=422, detail=f"Neveljavna vloga. Dovoljene: {', '.join(VALID_ROLES)}")
@@ -116,12 +115,9 @@ async def update_fcm_token(data: FcmTokenUpdate, user: CurrentUserDep, db: DbSes
     await db.commit()
 
 
-@router.put("/{user_id}", response_model=UserResponse,
-            dependencies=[Depends(require_role("admin"))])
+@router.put("/{user_id}", response_model=UserResponse, dependencies=[Depends(require_role("admin"))])
 async def update_user(user_id: uuid.UUID, data: UserUpdate, user: CurrentUserDep, db: DbSession):
-    result = await db.execute(
-        select(User).where(User.id == user_id, User.organization_id == user["org_id"])
-    )
+    result = await db.execute(select(User).where(User.id == user_id, User.organization_id == user["org_id"]))
     u = result.scalar_one_or_none()
     if not u:
         raise HTTPException(status_code=404, detail="Uporabnik ne obstaja")
@@ -155,16 +151,13 @@ async def update_user(user_id: uuid.UUID, data: UserUpdate, user: CurrentUserDep
     return u
 
 
-@router.delete("/{user_id}", response_model=UserResponse,
-               dependencies=[Depends(require_role("admin"))])
+@router.delete("/{user_id}", response_model=UserResponse, dependencies=[Depends(require_role("admin"))])
 async def deactivate_user(user_id: uuid.UUID, user: CurrentUserDep, db: DbSession):
     """Deaktivira (ne briše) uporabnika — ohrani audit trail."""
     if user_id == user["user_id"]:
         raise HTTPException(status_code=400, detail="Ne moreš deaktivirati samega sebe")
 
-    result = await db.execute(
-        select(User).where(User.id == user_id, User.organization_id == user["org_id"])
-    )
+    result = await db.execute(select(User).where(User.id == user_id, User.organization_id == user["org_id"]))
     u = result.scalar_one_or_none()
     if not u:
         raise HTTPException(status_code=404, detail="Uporabnik ne obstaja")
@@ -192,6 +185,7 @@ async def deactivate_user(user_id: uuid.UUID, user: CurrentUserDep, db: DbSessio
 
 # ─── Gesla ────────────────────────────────────────────────────────────────────
 
+
 @router.put("/me/password", response_model=TokenResponse)
 async def change_own_password(data: PasswordChange, response: Response, user: CurrentUserDep, db: DbSession):
     """Menjava lastnega gesla. Vrne nove žetone; stare refresh žetone zavrne /auth/refresh."""
@@ -211,8 +205,15 @@ async def change_own_password(data: PasswordChange, response: Response, user: Cu
     # zaokroženo navzdol na sekundo — nov žeton (iat) ne sme biti starejši od tega
     u.password_changed_at = datetime.now(timezone.utc).replace(microsecond=0)
     await write_audit_log(
-        db=db, org_id=user["org_id"], actor_id=user["user_id"], actor_type="user", actor_device="web",
-        action="update", entity_type="user", entity_id=u.id, after={"email": u.email, "password": "changed"},
+        db=db,
+        org_id=user["org_id"],
+        actor_id=user["user_id"],
+        actor_type="user",
+        actor_device="web",
+        action="update",
+        entity_type="user",
+        entity_id=u.id,
+        after={"email": u.email, "password": "changed"},
     )
     await db.commit()
     token_data = {"sub": str(u.id), "org_id": str(u.organization_id), "role": u.role}
@@ -221,8 +222,9 @@ async def change_own_password(data: PasswordChange, response: Response, user: Cu
     return TokenResponse(access_token=create_access_token(token_data), refresh_token=refresh)
 
 
-@router.post("/{user_id}/reset-password", response_model=PasswordResetResponse,
-             dependencies=[Depends(require_role("admin"))])
+@router.post(
+    "/{user_id}/reset-password", response_model=PasswordResetResponse, dependencies=[Depends(require_role("admin"))]
+)
 async def reset_password(user_id: uuid.UUID, user: CurrentUserDep, db: DbSession):
     """Admin nastavi novo naključno geslo — izpiše se enkrat, v revizijsko sled ne gre."""
     u = await db.scalar(select(User).where(User.id == user_id, User.organization_id == user["org_id"]))
@@ -232,8 +234,15 @@ async def reset_password(user_id: uuid.UUID, user: CurrentUserDep, db: DbSession
     u.password_hash = hash_password(temporary)
     u.password_changed_at = datetime.now(timezone.utc).replace(microsecond=0)
     await write_audit_log(
-        db=db, org_id=user["org_id"], actor_id=user["user_id"], actor_type="user", actor_device="web",
-        action="update", entity_type="user", entity_id=u.id, after={"email": u.email, "password": "reset by admin"},
+        db=db,
+        org_id=user["org_id"],
+        actor_id=user["user_id"],
+        actor_type="user",
+        actor_device="web",
+        action="update",
+        entity_type="user",
+        entity_id=u.id,
+        after={"email": u.email, "password": "reset by admin"},
     )
     await db.commit()
     return PasswordResetResponse(email=u.email, temporary_password=temporary)

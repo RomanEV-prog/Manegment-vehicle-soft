@@ -80,6 +80,7 @@ async def create_dtc_record(data: DTCRecordCreate, user: NonPartnerDep, db: DbSe
     # Event bus → alarm engine + twin update
     from app.workers.twin_worker import update_vehicle_twin
     from app.workers.alarm_worker import check_dtc_alarm
+
     update_vehicle_twin.delay(str(dtc.vehicle_id), "dtc", str(dtc.id))
     if dtc.severity == "high":
         check_dtc_alarm.delay(str(dtc.id), str(user["org_id"]))
@@ -134,6 +135,7 @@ async def update_dtc_record(dtc_id: uuid.UUID, data: DTCRecordUpdate, user: NonP
 
     # Twin update
     from app.workers.twin_worker import update_vehicle_twin
+
     update_vehicle_twin.delay(str(dtc.vehicle_id), "dtc", str(dtc.id))
 
     return dtc
@@ -191,6 +193,7 @@ async def batch_resolve_dtc_records(data: BatchResolveRequest, user: CurrentUser
 
     # Posodobi twin za vsako vozilo
     from app.workers.twin_worker import update_vehicle_twin
+
     for vid in vehicle_ids:
         update_vehicle_twin.delay(vid, "dtc_batch_resolve", "batch")
 

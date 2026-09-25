@@ -2,6 +2,7 @@
 Report service — PDF generacija.
 SUMS poročilo za UNECE R156 revizorje.
 """
+
 import uuid
 from datetime import datetime, timezone
 
@@ -190,9 +191,7 @@ async def generate_sums_pdf(db: AsyncSession, vehicle_id: uuid.UUID, org_id: uui
     """Generira SUMS PDF poročilo za vozilo (R156 §7.1.2)."""
 
     # Vozilo
-    result = await db.execute(
-        select(Vehicle).where(Vehicle.id == vehicle_id, Vehicle.organization_id == org_id)
-    )
+    result = await db.execute(select(Vehicle).where(Vehicle.id == vehicle_id, Vehicle.organization_id == org_id))
     vehicle = result.scalar_one_or_none()
     if not vehicle:
         raise ValueError("Vozilo ne obstaja")
@@ -203,24 +202,16 @@ async def generate_sums_pdf(db: AsyncSession, vehicle_id: uuid.UUID, org_id: uui
     ecu_config = twin.ecu_config if twin else {}
 
     # SW posodobitve
-    result = await db.execute(
-        select(SWUpdate)
-        .where(SWUpdate.vehicle_id == vehicle_id)
-        .order_by(SWUpdate.date.desc())
-    )
+    result = await db.execute(select(SWUpdate).where(SWUpdate.vehicle_id == vehicle_id).order_by(SWUpdate.date.desc()))
     sw_updates = result.scalars().all()
 
     # Homologacije
-    result = await db.execute(
-        select(Homologation).where(Homologation.vehicle_id == vehicle_id)
-    )
+    result = await db.execute(select(Homologation).where(Homologation.vehicle_id == vehicle_id))
     homologations = result.scalars().all()
 
     # CoC certifikati
     result = await db.execute(
-        select(CoCCertificate)
-        .where(CoCCertificate.vehicle_id == vehicle_id)
-        .order_by(CoCCertificate.issued_at.desc())
+        select(CoCCertificate).where(CoCCertificate.vehicle_id == vehicle_id).order_by(CoCCertificate.issued_at.desc())
     )
     coc_certs = result.scalars().all()
 
@@ -258,6 +249,7 @@ async def generate_sums_pdf(db: AsyncSession, vehicle_id: uuid.UUID, org_id: uui
     # HTML → PDF z WeasyPrint
     try:
         from weasyprint import HTML
+
         pdf_bytes = HTML(string=html).write_pdf()
         return pdf_bytes
     except ImportError:
@@ -437,9 +429,7 @@ async def generate_vecto_pdf(
     if not calc:
         raise ValueError("VECTO izračun ne obstaja")
 
-    result = await db.execute(
-        select(Vehicle).where(Vehicle.id == calc.vehicle_id)
-    )
+    result = await db.execute(select(Vehicle).where(Vehicle.id == calc.vehicle_id))
     vehicle = result.scalar_one_or_none()
     if not vehicle:
         raise ValueError("Vozilo ne obstaja")
@@ -464,6 +454,7 @@ async def generate_vecto_pdf(
 
     try:
         from weasyprint import HTML
+
         return HTML(string=html).write_pdf()
     except ImportError:
         return html.encode("utf-8")
@@ -603,24 +594,18 @@ HOM_HTML_TEMPLATE = """
 
 async def generate_hom_report_pdf(db: AsyncSession, vehicle_id: uuid.UUID, org_id: uuid.UUID) -> bytes:
     """Homologacijsko poročilo za GR organ / TÜV (UNECE R155/R156)."""
-    result = await db.execute(
-        select(Vehicle).where(Vehicle.id == vehicle_id, Vehicle.organization_id == org_id)
-    )
+    result = await db.execute(select(Vehicle).where(Vehicle.id == vehicle_id, Vehicle.organization_id == org_id))
     vehicle = result.scalar_one_or_none()
     if not vehicle:
         raise ValueError("Vozilo ne obstaja")
 
     result = await db.execute(
-        select(Homologation)
-        .where(Homologation.vehicle_id == vehicle_id)
-        .order_by(Homologation.regulation)
+        select(Homologation).where(Homologation.vehicle_id == vehicle_id).order_by(Homologation.regulation)
     )
     homologations = result.scalars().all()
 
     result = await db.execute(
-        select(CoCCertificate)
-        .where(CoCCertificate.vehicle_id == vehicle_id)
-        .order_by(CoCCertificate.issued_at.desc())
+        select(CoCCertificate).where(CoCCertificate.vehicle_id == vehicle_id).order_by(CoCCertificate.issued_at.desc())
     )
     coc_certs = result.scalars().all()
 
@@ -635,6 +620,7 @@ async def generate_hom_report_pdf(db: AsyncSession, vehicle_id: uuid.UUID, org_i
 
     try:
         from weasyprint import HTML
+
         return HTML(string=html).write_pdf()
     except ImportError:
         return html.encode("utf-8")

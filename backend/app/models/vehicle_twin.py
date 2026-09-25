@@ -18,6 +18,7 @@ class VehicleTwin(Base):
         "battery_bms":   {"version": "3.1.0", "rxswin": "RXSWIN-EV-B1-310", "updated_at": "2026-02-17"}
     }
     """
+
     __tablename__ = "vehicle_twins"
 
     vehicle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("vehicles.id"), primary_key=True)
@@ -29,7 +30,9 @@ class VehicleTwin(Base):
     last_sw_update_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_obd_scan_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_snapshot_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
     # Relationships
     vehicle: Mapped["Vehicle"] = relationship("Vehicle", back_populates="twin")

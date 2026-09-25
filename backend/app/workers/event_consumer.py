@@ -5,10 +5,10 @@ Bere evente iz EVERSUM:EVENTS streama in jih procesira.
 Zaženi kot ločen proces:
     python -m app.workers.event_consumer
 """
+
 import asyncio
 import logging
 import signal
-import sys
 
 import redis.asyncio as aioredis
 
@@ -73,6 +73,7 @@ async def process_event(event_type: str, fields: dict) -> None:
     elif event_type == "vehicle.shipped":
         # Ustvari shipment snapshot
         from app.workers.twin_worker import update_vehicle_twin
+
         update_vehicle_twin.delay(vehicle_id, "manual", vehicle_id)
         log.info(f"Vehicle shipped event: vehicle={vehicle_id} — shipment snapshot created")
 

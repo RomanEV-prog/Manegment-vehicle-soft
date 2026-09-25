@@ -14,11 +14,14 @@ class OBDSession(Base):
     Vsebuje live PID podatke + seznam odkritih DTC kod.
     Adapter → POST /obd/{vehicle_id}/scan → ta zapis.
     """
+
     __tablename__ = "obd_sessions"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vehicle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("vehicles.id"), nullable=False)
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False
+    )
 
     adapter_type: Mapped[str] = mapped_column(String, nullable=False, default="ELM327")
     # 'ELM327' | 'J2534' | 'K-Line' | 'manual'

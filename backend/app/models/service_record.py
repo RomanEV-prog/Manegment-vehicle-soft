@@ -13,9 +13,13 @@ class ServiceRecord(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vehicle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("vehicles.id"), nullable=False)
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False
+    )
     date: Mapped[date] = mapped_column(Date, nullable=False)
-    service_type: Mapped[str] = mapped_column(String, nullable=False)   # 'maintenance' | 'brakes' | 'tyres' | 'electrical' | 'other'
+    service_type: Mapped[str] = mapped_column(
+        String, nullable=False
+    )  # 'maintenance' | 'brakes' | 'tyres' | 'electrical' | 'other'
     items: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False)
     technician: Mapped[str] = mapped_column(String, nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)

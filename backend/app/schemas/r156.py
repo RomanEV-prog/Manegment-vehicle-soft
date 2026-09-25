@@ -38,6 +38,7 @@ def normalize_sha256(v: Optional[str]) -> Optional[str]:
 
 # ─── Tip vozila ───────────────────────────────────────────────────────────────
 
+
 class VehicleTypeCreate(BaseModel):
     model_config = {"protected_namespaces": ()}
 
@@ -66,6 +67,7 @@ class VehicleTypeResponse(BaseModel):
 
 
 # ─── ECU register ─────────────────────────────────────────────────────────────
+
 
 class ECUCreate(BaseModel):
     vehicle_type_id: uuid.UUID
@@ -101,6 +103,7 @@ class ECUResponse(BaseModel):
 
 
 # ─── RXSWIN ───────────────────────────────────────────────────────────────────
+
 
 class RXSWINCreate(BaseModel):
     vehicle_type_id: uuid.UUID
@@ -146,6 +149,7 @@ class RXSWINListItem(BaseModel):
 
 
 # ─── Baseline in postavke ─────────────────────────────────────────────────────
+
 
 class BaselineItemBase(BaseModel):
     sw_version: Optional[str] = None
@@ -196,7 +200,7 @@ class BaselineItemResponse(BaseModel):
     compatible_hardware: Optional[str]
     change_log: Optional[str]
     description: Optional[str]
-    sha_valid: bool          # ali so vse kontrolne vsote veljavne SHA-256 (pogoj za izdajo)
+    sha_valid: bool  # ali so vse kontrolne vsote veljavne SHA-256 (pogoj za izdajo)
 
 
 class BaselineCreate(BaseModel):
@@ -233,10 +237,11 @@ class RXSWINDetail(BaseModel):
     status: str
     created_at: datetime
     updated_at: datetime
-    baselines: list[BaselineResponse]   # najnovejši najprej
+    baselines: list[BaselineResponse]  # najnovejši najprej
 
 
 # ─── Preverjanje SHA-256 ──────────────────────────────────────────────────────
+
 
 class VerifyRequest(BaseModel):
     target: Literal["sw", "config"] = "sw"

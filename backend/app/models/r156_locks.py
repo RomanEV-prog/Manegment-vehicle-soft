@@ -21,7 +21,7 @@ from app.database import Base
 from app.models.audit_log import AuditLog
 
 BASELINE_LOCK_SQL = [
-"""
+    """
 CREATE OR REPLACE FUNCTION rxswin_baseline_lock() RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'DELETE' THEN
@@ -58,7 +58,7 @@ $$ LANGUAGE plpgsql
 ]
 
 ITEM_LOCK_SQL = [
-"""
+    """
 CREATE OR REPLACE FUNCTION rxswin_baseline_item_lock() RETURNS trigger AS $$
 DECLARE
     st text;
@@ -87,7 +87,7 @@ $$ LANGUAGE plpgsql
 # Izdan dokument je samo za branje. Dovoljeno: prehod released → superseded in
 # zapis obvestila uporabniku (§7.1.1.11 — zgodi se po izdaji).
 SU_LOCK_SQL = [
-"""
+    """
 CREATE OR REPLACE FUNCTION software_update_lock() RETURNS trigger AS $$
 DECLARE
     allowed text[] := ARRAY['status', 'updated_at', 'user_notified_at', 'user_notified_by',
@@ -121,7 +121,7 @@ $$ LANGUAGE plpgsql
 # Prizadeti RXSWIN-i in ciljna vozila sledijo statusu dokumenta. Po izdaji se pri
 # ciljnem vozilu sme zapisati le izvedba (rezultat, kdaj, kdo).
 SU_CHILD_LOCK_SQL = [
-"""
+    """
 CREATE OR REPLACE FUNCTION software_update_child_lock() RETURNS trigger AS $$
 DECLARE
     st text;
@@ -165,7 +165,7 @@ $$ LANGUAGE plpgsql
 # ─── Konfiguracija vozila (R156 §7.1.2.2) ─────────────────────────────────────
 # Zapis je nespremenljiv: nova konfiguracija = nov zapis. Brez izjem.
 CONFIG_LOCK_SQL = [
-"""
+    """
 CREATE OR REPLACE FUNCTION vehicle_configuration_lock() RETURNS trigger AS $$
 BEGIN
     RAISE EXCEPTION 'Konfiguracija vozila % je nespremenljiva (nova konfiguracija = nov zapis)', OLD.config_id
@@ -184,7 +184,7 @@ $$ LANGUAGE plpgsql
 
 # ─── Revizijska sled: samo dodajanje ──────────────────────────────────────────
 AUDIT_LOCK_SQL = [
-"""
+    """
 CREATE OR REPLACE FUNCTION audit_log_append_only() RETURNS trigger AS $$
 BEGIN
     RAISE EXCEPTION 'Revizijska sled je samo za dodajanje (%)', TG_OP USING ERRCODE = 'check_violation';

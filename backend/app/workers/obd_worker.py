@@ -3,6 +3,7 @@ OBD worker — Celery task za asinhrono procesiranje OBD podatkov.
 Trenutno se obd_scan endpoint zaključi sinhrono, ta worker pa
 je namenjen za kasnejšo razširitev (polling adapter, scheduled scans).
 """
+
 import asyncio
 
 from app.workers.celery_app import celery_app
@@ -37,16 +38,12 @@ async def _process_session(session_id: str, vehicle_id: str):
     Session = async_sessionmaker(engine, expire_on_commit=False)
 
     async with Session() as db:
-        result = await db.execute(
-            select(OBDSession).where(OBDSession.id == uuid.UUID(session_id))
-        )
+        result = await db.execute(select(OBDSession).where(OBDSession.id == uuid.UUID(session_id)))
         session = result.scalar_one_or_none()
         if not session or not session.ecu_info:
             return
 
-        twin_result = await db.execute(
-            select(VehicleTwin).where(VehicleTwin.vehicle_id == uuid.UUID(vehicle_id))
-        )
+        twin_result = await db.execute(select(VehicleTwin).where(VehicleTwin.vehicle_id == uuid.UUID(vehicle_id)))
         twin = twin_result.scalar_one_or_none()
         if not twin:
             return
@@ -65,6 +62,7 @@ async def _process_session(session_id: str, vehicle_id: str):
         if mismatches:
             # Zapiši neskladja nazaj v sejo (za analizo)
             from sqlalchemy.orm.attributes import flag_modified
+
             updated_live = dict(session.live_data or {})
             updated_live["ecu_mismatches"] = mismatches
             session.live_data = updated_live

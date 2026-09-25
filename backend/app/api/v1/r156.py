@@ -50,15 +50,31 @@ router = APIRouter()
 ReleaseDep = Depends(require_role("admin", "qc_manager"))
 
 ITEM_FIELDS = (
-    "sw_version", "sw_file_name", "sw_file_sha256", "sw_config_version", "sw_config_file_name",
-    "sw_config_sha256", "egnyte_folder_url", "compatible_hardware", "change_log", "description",
+    "sw_version",
+    "sw_file_name",
+    "sw_file_sha256",
+    "sw_config_version",
+    "sw_config_file_name",
+    "sw_config_sha256",
+    "egnyte_folder_url",
+    "compatible_hardware",
+    "change_log",
+    "description",
 )
 
 
 async def _audit(db, user: dict, action: str, entity_type: str, entity_id, before=None, after=None):
     await write_audit_log(
-        db=db, org_id=user["org_id"], actor_id=user["user_id"], actor_type="user", actor_device="web",
-        action=action, entity_type=entity_type, entity_id=entity_id, before=before, after=after,
+        db=db,
+        org_id=user["org_id"],
+        actor_id=user["user_id"],
+        actor_type="user",
+        actor_device="web",
+        action=action,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        before=before,
+        after=after,
     )
 
 
@@ -82,6 +98,7 @@ def _item_sha_valid(item: RXSWINBaselineItem) -> bool:
 
 # ─── Tipi vozil ───────────────────────────────────────────────────────────────
 
+
 @router.get("/vehicle-types", response_model=list[VehicleTypeResponse])
 async def list_vehicle_types(user: CurrentUserDep, db: DbSession):
     result = await db.execute(
@@ -91,9 +108,7 @@ async def list_vehicle_types(user: CurrentUserDep, db: DbSession):
 
 
 async def _get_vehicle_type(db, type_id: uuid.UUID, org_id) -> VehicleType:
-    vt = await db.scalar(
-        select(VehicleType).where(VehicleType.id == type_id, VehicleType.organization_id == org_id)
-    )
+    vt = await db.scalar(select(VehicleType).where(VehicleType.id == type_id, VehicleType.organization_id == org_id))
     if not vt:
         raise HTTPException(status_code=404, detail="Tip vozila ne obstaja")
     return vt
@@ -182,12 +197,16 @@ async def update_ecu(ecu_id: uuid.UUID, data: ECUUpdate, user: NonPartnerDep, db
 
 # ─── RXSWIN ───────────────────────────────────────────────────────────────────
 
+
 def _summary(b: RXSWINBaseline | None) -> BaselineSummary | None:
     if b is None:
         return None
     return BaselineSummary(
-        id=b.id, baseline_number=b.baseline_number, status=b.status,
-        released_at=b.released_at, item_count=len(b.items),
+        id=b.id,
+        baseline_number=b.baseline_number,
+        status=b.status,
+        released_at=b.released_at,
+        item_count=len(b.items),
     )
 
 
@@ -210,14 +229,21 @@ async def list_rxswins(user: CurrentUserDep, db: DbSession, vehicle_type_id: uui
     for r in rxswins:
         released = [b for b in r.baselines if b.status == "released"]
         drafts = [b for b in r.baselines if b.status == "draft"]
-        out.append(RXSWINListItem(
-            id=r.id, vehicle_type_id=r.vehicle_type_id, vehicle_type_name=r.vehicle_type.name,
-            rxswin=r.rxswin, description=r.description, regulations_affected=r.regulations_affected or [],
-            status=r.status,
-            current_baseline=_summary(max(released, key=lambda b: b.baseline_number) if released else None),
-            draft_baseline=_summary(drafts[0] if drafts else None),
-            baseline_count=len(r.baselines), updated_at=r.updated_at,
-        ))
+        out.append(
+            RXSWINListItem(
+                id=r.id,
+                vehicle_type_id=r.vehicle_type_id,
+                vehicle_type_name=r.vehicle_type.name,
+                rxswin=r.rxswin,
+                description=r.description,
+                regulations_affected=r.regulations_affected or [],
+                status=r.status,
+                current_baseline=_summary(max(released, key=lambda b: b.baseline_number) if released else None),
+                draft_baseline=_summary(drafts[0] if drafts else None),
+                baseline_count=len(r.baselines),
+                updated_at=r.updated_at,
+            )
+        )
     return out
 
 
@@ -238,9 +264,13 @@ async def _load_rxswin(db, rxswin_id: uuid.UUID, org_id) -> RXSWIN:
 
 def _item_response(item: RXSWINBaselineItem) -> BaselineItemResponse:
     return BaselineItemResponse(
-        id=item.id, baseline_id=item.baseline_id, ecu_id=item.ecu_id,
-        ecu_name=item.ecu.ecu_name, eversum_part_number=item.ecu.eversum_part_number,
-        supplier=item.ecu.supplier, sha_valid=_item_sha_valid(item),
+        id=item.id,
+        baseline_id=item.baseline_id,
+        ecu_id=item.ecu_id,
+        ecu_name=item.ecu.ecu_name,
+        eversum_part_number=item.ecu.eversum_part_number,
+        supplier=item.ecu.supplier,
+        sha_valid=_item_sha_valid(item),
         **{f: getattr(item, f) for f in ITEM_FIELDS},
     )
 
@@ -253,18 +283,33 @@ async def _rxswin_detail(db, r: RXSWIN) -> RXSWINDetail:
         names = dict(rows.all())
     baselines = [
         BaselineResponse(
-            id=b.id, rxswin_id=b.rxswin_id, baseline_number=b.baseline_number, status=b.status,
-            integrity_method=b.integrity_method, notes=b.notes,
-            released_at=b.released_at, released_by=b.released_by, released_by_name=names.get(b.released_by),
-            created_by=b.created_by, created_by_name=names.get(b.created_by), created_at=b.created_at,
+            id=b.id,
+            rxswin_id=b.rxswin_id,
+            baseline_number=b.baseline_number,
+            status=b.status,
+            integrity_method=b.integrity_method,
+            notes=b.notes,
+            released_at=b.released_at,
+            released_by=b.released_by,
+            released_by_name=names.get(b.released_by),
+            created_by=b.created_by,
+            created_by_name=names.get(b.created_by),
+            created_at=b.created_at,
             items=[_item_response(i) for i in sorted(b.items, key=lambda i: i.ecu.ecu_name)],
         )
         for b in sorted(r.baselines, key=lambda b: b.baseline_number, reverse=True)
     ]
     return RXSWINDetail(
-        id=r.id, vehicle_type_id=r.vehicle_type_id, vehicle_type_name=r.vehicle_type.name,
-        rxswin=r.rxswin, description=r.description, regulations_affected=r.regulations_affected or [],
-        status=r.status, created_at=r.created_at, updated_at=r.updated_at, baselines=baselines,
+        id=r.id,
+        vehicle_type_id=r.vehicle_type_id,
+        vehicle_type_name=r.vehicle_type.name,
+        rxswin=r.rxswin,
+        description=r.description,
+        regulations_affected=r.regulations_affected or [],
+        status=r.status,
+        created_at=r.created_at,
+        updated_at=r.updated_at,
+        baselines=baselines,
     )
 
 
@@ -279,10 +324,19 @@ async def create_rxswin(data: RXSWINCreate, user: NonPartnerDep, db: DbSession):
     r = RXSWIN(organization_id=user["org_id"], status="active", **data.model_dump())
     db.add(r)
     await db.flush()
-    await _audit(db, user, "create", "rxswin", r.id, after={
-        "rxswin": r.rxswin, "vehicle_type_id": str(r.vehicle_type_id),
-        "description": r.description, "regulations_affected": r.regulations_affected,
-    })
+    await _audit(
+        db,
+        user,
+        "create",
+        "rxswin",
+        r.id,
+        after={
+            "rxswin": r.rxswin,
+            "vehicle_type_id": str(r.vehicle_type_id),
+            "description": r.description,
+            "regulations_affected": r.regulations_affected,
+        },
+    )
     await db.commit()
     return await _rxswin_detail(db, await _load_rxswin(db, r.id, user["org_id"]))
 
@@ -306,6 +360,7 @@ async def update_rxswin(rxswin_id: uuid.UUID, data: RXSWINUpdate, user: NonPartn
 
 # ─── Baseline-i ───────────────────────────────────────────────────────────────
 
+
 @router.post("/rxswins/{rxswin_id}/baselines", response_model=RXSWINDetail, status_code=status.HTTP_201_CREATED)
 async def create_baseline(rxswin_id: uuid.UUID, data: BaselineCreate, user: NonPartnerDep, db: DbSession):
     """Nov draft baseline. Če obstaja izdan baseline, se njegove postavke prekopirajo kot izhodišče."""
@@ -317,8 +372,13 @@ async def create_baseline(rxswin_id: uuid.UUID, data: BaselineCreate, user: NonP
 
     number = max((b.baseline_number for b in r.baselines), default=0) + 1
     baseline = RXSWINBaseline(
-        organization_id=user["org_id"], rxswin_id=r.id, baseline_number=number,
-        status="draft", integrity_method="SHA-256", notes=data.notes, created_by=user["user_id"],
+        organization_id=user["org_id"],
+        rxswin_id=r.id,
+        baseline_number=number,
+        status="draft",
+        integrity_method="SHA-256",
+        notes=data.notes,
+        created_by=user["user_id"],
     )
     db.add(baseline)
     await db.flush()
@@ -327,17 +387,29 @@ async def create_baseline(rxswin_id: uuid.UUID, data: BaselineCreate, user: NonP
     source = max(released, key=lambda b: b.baseline_number) if released else None
     if source:
         for item in source.items:
-            db.add(RXSWINBaselineItem(
-                baseline_id=baseline.id, ecu_id=item.ecu_id,
-                **{f: getattr(item, f) for f in ITEM_FIELDS},
-            ))
+            db.add(
+                RXSWINBaselineItem(
+                    baseline_id=baseline.id,
+                    ecu_id=item.ecu_id,
+                    **{f: getattr(item, f) for f in ITEM_FIELDS},
+                )
+            )
         await db.flush()
 
-    await _audit(db, user, "create", "rxswin_baseline", baseline.id, after={
-        "rxswin": r.rxswin, "baseline_number": number, "status": "draft",
-        "copied_from_baseline": source.baseline_number if source else None,
-        "notes": data.notes,
-    })
+    await _audit(
+        db,
+        user,
+        "create",
+        "rxswin_baseline",
+        baseline.id,
+        after={
+            "rxswin": r.rxswin,
+            "baseline_number": number,
+            "status": "draft",
+            "copied_from_baseline": source.baseline_number if source else None,
+            "notes": data.notes,
+        },
+    )
     await db.commit()
     return await _rxswin_detail(db, await _load_rxswin(db, rxswin_id, user["org_id"]))
 
@@ -346,8 +418,10 @@ async def _get_baseline(db, baseline_id: uuid.UUID, org_id, *, draft_only: bool)
     b = await db.scalar(
         select(RXSWINBaseline)
         .where(RXSWINBaseline.id == baseline_id, RXSWINBaseline.organization_id == org_id)
-        .options(selectinload(RXSWINBaseline.items).selectinload(RXSWINBaselineItem.ecu),
-                 selectinload(RXSWINBaseline.rxswin_ref))
+        .options(
+            selectinload(RXSWINBaseline.items).selectinload(RXSWINBaselineItem.ecu),
+            selectinload(RXSWINBaseline.rxswin_ref),
+        )
         .with_for_update(of=RXSWINBaseline)
     )
     if not b:
@@ -375,10 +449,19 @@ async def discard_draft_baseline(baseline_id: uuid.UUID, user: NonPartnerDep, db
     """Zavrže neizdan osnutek. Izdanih baseline-ov ni mogoče brisati."""
     b = await _get_baseline(db, baseline_id, user["org_id"], draft_only=True)
     rxswin_id = b.rxswin_id
-    await _audit(db, user, "delete", "rxswin_baseline", b.id, before={
-        "rxswin": b.rxswin_ref.rxswin, "baseline_number": b.baseline_number, "status": b.status,
-        "items": [{"ecu": i.ecu.ecu_name, **_snap(i, ITEM_FIELDS)} for i in b.items],
-    })
+    await _audit(
+        db,
+        user,
+        "delete",
+        "rxswin_baseline",
+        b.id,
+        before={
+            "rxswin": b.rxswin_ref.rxswin,
+            "baseline_number": b.baseline_number,
+            "status": b.status,
+            "items": [{"ecu": i.ecu.ecu_name, **_snap(i, ITEM_FIELDS)} for i in b.items],
+        },
+    )
     await db.delete(b)
     await db.commit()
     return await _rxswin_detail(db, await _load_rxswin(db, rxswin_id, user["org_id"]))
@@ -398,10 +481,19 @@ async def add_baseline_item(baseline_id: uuid.UUID, data: BaselineItemCreate, us
     item = RXSWINBaselineItem(baseline_id=b.id, **data.model_dump())
     db.add(item)
     await db.flush()
-    await _audit(db, user, "create", "rxswin_baseline_item", item.id, after={
-        "rxswin": b.rxswin_ref.rxswin, "baseline_number": b.baseline_number, "ecu": ecu.ecu_name,
-        **_snap(item, ITEM_FIELDS),
-    })
+    await _audit(
+        db,
+        user,
+        "create",
+        "rxswin_baseline_item",
+        item.id,
+        after={
+            "rxswin": b.rxswin_ref.rxswin,
+            "baseline_number": b.baseline_number,
+            "ecu": ecu.ecu_name,
+            **_snap(item, ITEM_FIELDS),
+        },
+    )
     await db.commit()
     return await _rxswin_detail(db, await _load_rxswin(db, b.rxswin_id, user["org_id"]))
 
@@ -415,7 +507,11 @@ def _find_item(b: RXSWINBaseline, item_id: uuid.UUID) -> RXSWINBaselineItem:
 
 @router.put("/rxswin-baselines/{baseline_id}/items/{item_id}", response_model=RXSWINDetail)
 async def update_baseline_item(
-    baseline_id: uuid.UUID, item_id: uuid.UUID, data: BaselineItemUpdate, user: NonPartnerDep, db: DbSession,
+    baseline_id: uuid.UUID,
+    item_id: uuid.UUID,
+    data: BaselineItemUpdate,
+    user: NonPartnerDep,
+    db: DbSession,
 ):
     b = await _get_baseline(db, baseline_id, user["org_id"], draft_only=True)
     item = _find_item(b, item_id)
@@ -425,9 +521,20 @@ async def update_baseline_item(
     before = _snap(item, changes.keys())
     for k, v in changes.items():
         setattr(item, k, v)
-    await _audit(db, user, "update", "rxswin_baseline_item", item.id, before=before, after={
-        "rxswin": b.rxswin_ref.rxswin, "baseline_number": b.baseline_number, "ecu": item.ecu.ecu_name, **changes,
-    })
+    await _audit(
+        db,
+        user,
+        "update",
+        "rxswin_baseline_item",
+        item.id,
+        before=before,
+        after={
+            "rxswin": b.rxswin_ref.rxswin,
+            "baseline_number": b.baseline_number,
+            "ecu": item.ecu.ecu_name,
+            **changes,
+        },
+    )
     await db.commit()
     return await _rxswin_detail(db, await _load_rxswin(db, b.rxswin_id, user["org_id"]))
 
@@ -436,10 +543,19 @@ async def update_baseline_item(
 async def delete_baseline_item(baseline_id: uuid.UUID, item_id: uuid.UUID, user: NonPartnerDep, db: DbSession):
     b = await _get_baseline(db, baseline_id, user["org_id"], draft_only=True)
     item = _find_item(b, item_id)
-    await _audit(db, user, "delete", "rxswin_baseline_item", item.id, before={
-        "rxswin": b.rxswin_ref.rxswin, "baseline_number": b.baseline_number, "ecu": item.ecu.ecu_name,
-        **_snap(item, ITEM_FIELDS),
-    })
+    await _audit(
+        db,
+        user,
+        "delete",
+        "rxswin_baseline_item",
+        item.id,
+        before={
+            "rxswin": b.rxswin_ref.rxswin,
+            "baseline_number": b.baseline_number,
+            "ecu": item.ecu.ecu_name,
+            **_snap(item, ITEM_FIELDS),
+        },
+    )
     await db.delete(item)
     await db.commit()
     return await _rxswin_detail(db, await _load_rxswin(db, b.rxswin_id, user["org_id"]))
@@ -461,33 +577,60 @@ async def release_baseline(baseline_id: uuid.UUID, db: DbSession, user: dict = R
             detail=f"Manjka ali ni veljavna SHA-256 za: {', '.join(invalid)}",
         )
 
-    previous = (await db.execute(
-        select(RXSWINBaseline)
-        .where(RXSWINBaseline.rxswin_id == b.rxswin_id, RXSWINBaseline.status == "released")
-        .with_for_update()
-    )).scalars().all()
+    previous = (
+        (
+            await db.execute(
+                select(RXSWINBaseline)
+                .where(RXSWINBaseline.rxswin_id == b.rxswin_id, RXSWINBaseline.status == "released")
+                .with_for_update()
+            )
+        )
+        .scalars()
+        .all()
+    )
     for p in previous:
         p.status = "superseded"
-        await _audit(db, user, "supersede", "rxswin_baseline", p.id,
-                     before={"status": "released"},
-                     after={"status": "superseded", "superseded_by_baseline": b.baseline_number})
+        await _audit(
+            db,
+            user,
+            "supersede",
+            "rxswin_baseline",
+            p.id,
+            before={"status": "released"},
+            after={"status": "superseded", "superseded_by_baseline": b.baseline_number},
+        )
 
     b.status = "released"
     b.released_at = datetime.now(timezone.utc)
     b.released_by = user["user_id"]
-    await _audit(db, user, "release", "rxswin_baseline", b.id, before={"status": "draft"}, after={
-        "status": "released", "rxswin": b.rxswin_ref.rxswin, "baseline_number": b.baseline_number,
-        "items": [{"ecu": i.ecu.ecu_name, **_snap(i, ITEM_FIELDS)} for i in b.items],
-    })
+    await _audit(
+        db,
+        user,
+        "release",
+        "rxswin_baseline",
+        b.id,
+        before={"status": "draft"},
+        after={
+            "status": "released",
+            "rxswin": b.rxswin_ref.rxswin,
+            "baseline_number": b.baseline_number,
+            "items": [{"ecu": i.ecu.ecu_name, **_snap(i, ITEM_FIELDS)} for i in b.items],
+        },
+    )
     await db.commit()
     return await _rxswin_detail(db, await _load_rxswin(db, b.rxswin_id, user["org_id"]))
 
 
 # ─── Preverjanje SHA-256 (R156 §7.1.3.1 — integriteta pred reflashem) ─────────
 
+
 @router.post("/rxswin-baselines/{baseline_id}/items/{item_id}/verify", response_model=VerifyResponse)
 async def verify_item_checksum(
-    baseline_id: uuid.UUID, item_id: uuid.UUID, data: VerifyRequest, user: NonPartnerDep, db: DbSession,
+    baseline_id: uuid.UUID,
+    item_id: uuid.UUID,
+    data: VerifyRequest,
+    user: NonPartnerDep,
+    db: DbSession,
 ):
     """
     Primerja SHA-256, ki jo je brskalnik izračunal iz datoteke, s shranjeno vrednostjo,
@@ -497,16 +640,30 @@ async def verify_item_checksum(
     item = _find_item(b, item_id)
     expected = item.sw_file_sha256 if data.target == "sw" else item.sw_config_sha256
     match = expected is not None and expected == data.computed_sha256
-    await _audit(db, user, "verify", "rxswin_baseline_item", item.id, after={
-        "rxswin": b.rxswin_ref.rxswin, "baseline_number": b.baseline_number, "ecu": item.ecu.ecu_name,
-        "target": data.target, "file_name": data.file_name, "file_size": data.file_size,
-        "expected_sha256": expected, "computed_sha256": data.computed_sha256, "match": match,
-    })
+    await _audit(
+        db,
+        user,
+        "verify",
+        "rxswin_baseline_item",
+        item.id,
+        after={
+            "rxswin": b.rxswin_ref.rxswin,
+            "baseline_number": b.baseline_number,
+            "ecu": item.ecu.ecu_name,
+            "target": data.target,
+            "file_name": data.file_name,
+            "file_size": data.file_size,
+            "expected_sha256": expected,
+            "computed_sha256": data.computed_sha256,
+            "match": match,
+        },
+    )
     await db.commit()
     return VerifyResponse(match=match, expected_sha256=expected, computed_sha256=data.computed_sha256, recorded=True)
 
 
 # ─── Readme za Egnyte (enaka zgradba kot readme iz Helix ALM) ─────────────────
+
 
 @router.get("/rxswin-baselines/{baseline_id}/items/{item_id}/readme.pdf")
 async def item_readme_pdf(baseline_id: uuid.UUID, item_id: uuid.UUID, user: CurrentUserDep, db: DbSession):
@@ -533,16 +690,20 @@ async def item_readme_pdf(baseline_id: uuid.UUID, item_id: uuid.UUID, user: Curr
     pdf = await run_in_threadpool(render_readme_pdf, detail, baseline, item)
     filename = f"{ecu_short_name(item.ecu_name)} {item.sw_version} - Readme.pdf"
     return Response(
-        content=pdf, media_type="application/pdf",
+        content=pdf,
+        media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
     )
 
 
 # ─── Izvozi za organ / tehnično službo (R156 §7.1.1.12) ───────────────────────
 
+
 @router.get("/rxswin-register.pdf")
 async def rxswin_register_pdf(
-    user: CurrentUserDep, db: DbSession, vehicle_type_id: uuid.UUID | None = Query(None),
+    user: CurrentUserDep,
+    db: DbSession,
+    vehicle_type_id: uuid.UUID | None = Query(None),
 ):
     """Celoten register RXSWIN z vsemi (tudi nadomeščenimi) baseline-i in povezanimi SU dokumenti."""
     from fastapi.responses import Response
@@ -559,33 +720,58 @@ async def rxswin_register_pdf(
     ids = (await db.execute(q)).scalars().all()
     details = [await _rxswin_detail(db, await _load_rxswin(db, i, user["org_id"])) for i in ids]
 
-    numbers = dict((await db.execute(
-        select(RXSWINBaseline.id, RXSWINBaseline.baseline_number).where(RXSWINBaseline.rxswin_id.in_(ids))
-    )).all()) if ids else {}
-    rows = (await db.execute(
-        select(SoftwareUpdateRXSWIN, SoftwareUpdateDocument)
-        .join(SoftwareUpdateDocument, SoftwareUpdateDocument.id == SoftwareUpdateRXSWIN.software_update_id)
-        .where(SoftwareUpdateRXSWIN.rxswin_id.in_(ids), SoftwareUpdateDocument.status != "draft")
-        .order_by(SoftwareUpdateDocument.document_id, SoftwareUpdateDocument.baseline_number)
-    )).all() if ids else []
+    numbers = (
+        dict(
+            (
+                await db.execute(
+                    select(RXSWINBaseline.id, RXSWINBaseline.baseline_number).where(RXSWINBaseline.rxswin_id.in_(ids))
+                )
+            ).all()
+        )
+        if ids
+        else {}
+    )
+    rows = (
+        (
+            await db.execute(
+                select(SoftwareUpdateRXSWIN, SoftwareUpdateDocument)
+                .join(SoftwareUpdateDocument, SoftwareUpdateDocument.id == SoftwareUpdateRXSWIN.software_update_id)
+                .where(SoftwareUpdateRXSWIN.rxswin_id.in_(ids), SoftwareUpdateDocument.status != "draft")
+                .order_by(SoftwareUpdateDocument.document_id, SoftwareUpdateDocument.baseline_number)
+            )
+        ).all()
+        if ids
+        else []
+    )
     updates: dict[str, list] = {}
     for link, doc in rows:
-        updates.setdefault(str(link.rxswin_id), []).append({
-            "document_id": doc.document_id, "revision": doc.baseline_number, "title": doc.title,
-            "status": doc.status, "released_at": doc.released_at,
-            "before": numbers.get(link.baseline_before_id), "after": numbers.get(link.baseline_after_id),
-        })
+        updates.setdefault(str(link.rxswin_id), []).append(
+            {
+                "document_id": doc.document_id,
+                "revision": doc.baseline_number,
+                "title": doc.title,
+                "status": doc.status,
+                "released_at": doc.released_at,
+                "before": numbers.get(link.baseline_before_id),
+                "after": numbers.get(link.baseline_after_id),
+            }
+        )
 
     from starlette.concurrency import run_in_threadpool
 
     pdf = await run_in_threadpool(render_register_pdf, details, updates, vt_name)
-    return Response(content=pdf, media_type="application/pdf",
-                    headers={"Content-Disposition": 'attachment; filename="RXSWIN-register.pdf"'})
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'attachment; filename="RXSWIN-register.pdf"'},
+    )
 
 
 @router.get("/vehicle-configurations.csv")
 async def vehicle_configurations_csv(
-    user: CurrentUserDep, db: DbSession, vehicle_type_id: uuid.UUID | None = Query(None),
+    user: CurrentUserDep,
+    db: DbSession,
+    vehicle_type_id: uuid.UUID | None = Query(None),
 ):
     """Zadnja znana konfiguracija vseh vozil — ena vrstica na VIN × ECU (R156 §7.1.2.2, §7.1.2.4)."""
     import csv
@@ -601,15 +787,37 @@ async def vehicle_configurations_csv(
     if vehicle_type_id:
         q = q.where(Vehicle.vehicle_type_id == vehicle_type_id)
     vehicles = (await db.execute(q)).scalars().all()
-    types = dict((await db.execute(
-        select(VehicleType.id, VehicleType.name).where(VehicleType.organization_id == user["org_id"])
-    )).all())
+    types = dict(
+        (
+            await db.execute(
+                select(VehicleType.id, VehicleType.name).where(VehicleType.organization_id == user["org_id"])
+            )
+        ).all()
+    )
 
     out = io.StringIO()
     w = csv.writer(out)
-    w.writerow(["vin", "vehicle", "vehicle_type", "config_id", "config_type", "recorded_utc", "reason",
-                "rxswin", "baseline", "ecu", "part_number", "sw_version", "sw_file_sha256",
-                "config_version", "config_sha256", "serial_number", "hw_version"])
+    w.writerow(
+        [
+            "vin",
+            "vehicle",
+            "vehicle_type",
+            "config_id",
+            "config_type",
+            "recorded_utc",
+            "reason",
+            "rxswin",
+            "baseline",
+            "ecu",
+            "part_number",
+            "sw_version",
+            "sw_file_sha256",
+            "config_version",
+            "config_sha256",
+            "serial_number",
+            "hw_version",
+        ]
+    )
     for v in vehicles:
         cfg = await current_configuration(db, v.id)
         base = [v.vin, v.name, types.get(v.vehicle_type_id, "")]
@@ -621,16 +829,34 @@ async def vehicle_configurations_csv(
         for r in cfg.snapshot.get("rxswins", []):
             for i in r["items"]:
                 e = hw.get(i["ecu_id"], {})
-                w.writerow([csv_safe(x) for x in base + meta + [
-                    r["rxswin"], r["baseline_number"], i["ecu"], i["part_number"], i["sw_version"],
-                    i.get("sw_file_sha256") or "", i.get("sw_config_version") or "", i.get("sw_config_sha256") or "",
-                    e.get("serial_number") or "", e.get("hardware_version") or "",
-                ]])
-    return Response(content=out.getvalue().encode("utf-8-sig"), media_type="text/csv; charset=utf-8",
-                    headers={"Content-Disposition": 'attachment; filename="vehicle-configurations.csv"'})
+                w.writerow(
+                    [
+                        csv_safe(x)
+                        for x in base
+                        + meta
+                        + [
+                            r["rxswin"],
+                            r["baseline_number"],
+                            i["ecu"],
+                            i["part_number"],
+                            i["sw_version"],
+                            i.get("sw_file_sha256") or "",
+                            i.get("sw_config_version") or "",
+                            i.get("sw_config_sha256") or "",
+                            e.get("serial_number") or "",
+                            e.get("hardware_version") or "",
+                        ]
+                    ]
+                )
+    return Response(
+        content=out.getvalue().encode("utf-8-sig"),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="vehicle-configurations.csv"'},
+    )
 
 
 # ─── Pregled (začetna stran) ──────────────────────────────────────────────────
+
 
 @router.get("/sums-overview")
 async def sums_overview(user: CurrentUserDep, db: DbSession):
@@ -640,54 +866,89 @@ async def sums_overview(user: CurrentUserDep, db: DbSession):
     from app.models.vehicle import Vehicle
 
     org = user["org_id"]
-    draft_baselines = (await db.execute(
-        select(RXSWIN.id, RXSWIN.rxswin, RXSWINBaseline.baseline_number, RXSWINBaseline.created_at)
-        .join(RXSWINBaseline, RXSWINBaseline.rxswin_id == RXSWIN.id)
-        .where(RXSWIN.organization_id == org, RXSWINBaseline.status == "draft")
-        .order_by(RXSWINBaseline.created_at)
-    )).all()
-    su_drafts = (await db.execute(
-        select(SoftwareUpdateDocument.id, SoftwareUpdateDocument.document_id, SoftwareUpdateDocument.baseline_number,
-               SoftwareUpdateDocument.title, SoftwareUpdateDocument.updated_at)
-        .where(SoftwareUpdateDocument.organization_id == org, SoftwareUpdateDocument.status == "draft")
-        .order_by(SoftwareUpdateDocument.updated_at.desc())
-    )).all()
-    pending = (await db.execute(
-        select(SoftwareUpdateDocument.id, SoftwareUpdateDocument.document_id, SoftwareUpdateDocument.baseline_number,
-               SoftwareUpdateDocument.title, func.count(SoftwareUpdateTarget.id))
-        .join(SoftwareUpdateTarget, SoftwareUpdateTarget.software_update_id == SoftwareUpdateDocument.id)
-        .where(SoftwareUpdateDocument.organization_id == org, SoftwareUpdateDocument.status == "released",
-               SoftwareUpdateTarget.result.is_(None))
-        .group_by(SoftwareUpdateDocument.id)
-        .order_by(SoftwareUpdateDocument.document_id)
-    )).all()
+    draft_baselines = (
+        await db.execute(
+            select(RXSWIN.id, RXSWIN.rxswin, RXSWINBaseline.baseline_number, RXSWINBaseline.created_at)
+            .join(RXSWINBaseline, RXSWINBaseline.rxswin_id == RXSWIN.id)
+            .where(RXSWIN.organization_id == org, RXSWINBaseline.status == "draft")
+            .order_by(RXSWINBaseline.created_at)
+        )
+    ).all()
+    su_drafts = (
+        await db.execute(
+            select(
+                SoftwareUpdateDocument.id,
+                SoftwareUpdateDocument.document_id,
+                SoftwareUpdateDocument.baseline_number,
+                SoftwareUpdateDocument.title,
+                SoftwareUpdateDocument.updated_at,
+            )
+            .where(SoftwareUpdateDocument.organization_id == org, SoftwareUpdateDocument.status == "draft")
+            .order_by(SoftwareUpdateDocument.updated_at.desc())
+        )
+    ).all()
+    pending = (
+        await db.execute(
+            select(
+                SoftwareUpdateDocument.id,
+                SoftwareUpdateDocument.document_id,
+                SoftwareUpdateDocument.baseline_number,
+                SoftwareUpdateDocument.title,
+                func.count(SoftwareUpdateTarget.id),
+            )
+            .join(SoftwareUpdateTarget, SoftwareUpdateTarget.software_update_id == SoftwareUpdateDocument.id)
+            .where(
+                SoftwareUpdateDocument.organization_id == org,
+                SoftwareUpdateDocument.status == "released",
+                SoftwareUpdateTarget.result.is_(None),
+            )
+            .group_by(SoftwareUpdateDocument.id)
+            .order_by(SoftwareUpdateDocument.document_id)
+        )
+    ).all()
     with_config = select(VehicleConfiguration.vehicle_id).where(VehicleConfiguration.config_type == "initial_eol")
-    no_eol = (await db.execute(
-        select(Vehicle.id, Vehicle.vin, Vehicle.name)
-        .where(Vehicle.organization_id == org, Vehicle.vehicle_type_id.is_not(None), Vehicle.id.not_in(with_config))
-        .order_by(Vehicle.vin)
-    )).all()
+    no_eol = (
+        await db.execute(
+            select(Vehicle.id, Vehicle.vin, Vehicle.name)
+            .where(Vehicle.organization_id == org, Vehicle.vehicle_type_id.is_not(None), Vehicle.id.not_in(with_config))
+            .order_by(Vehicle.vin)
+        )
+    ).all()
     counts = {
         "rxswins": await db.scalar(select(func.count()).select_from(RXSWIN).where(RXSWIN.organization_id == org)),
-        "released_baselines": await db.scalar(select(func.count()).select_from(RXSWINBaseline).where(
-            RXSWINBaseline.organization_id == org, RXSWINBaseline.status == "released")),
-        "released_updates": await db.scalar(select(func.count()).select_from(SoftwareUpdateDocument).where(
-            SoftwareUpdateDocument.organization_id == org, SoftwareUpdateDocument.status == "released")),
-        "vehicles": await db.scalar(select(func.count()).select_from(Vehicle).where(
-            Vehicle.organization_id == org, Vehicle.vehicle_type_id.is_not(None))),
+        "released_baselines": await db.scalar(
+            select(func.count())
+            .select_from(RXSWINBaseline)
+            .where(RXSWINBaseline.organization_id == org, RXSWINBaseline.status == "released")
+        ),
+        "released_updates": await db.scalar(
+            select(func.count())
+            .select_from(SoftwareUpdateDocument)
+            .where(SoftwareUpdateDocument.organization_id == org, SoftwareUpdateDocument.status == "released")
+        ),
+        "vehicles": await db.scalar(
+            select(func.count())
+            .select_from(Vehicle)
+            .where(Vehicle.organization_id == org, Vehicle.vehicle_type_id.is_not(None))
+        ),
     }
-    recent = (await db.execute(
-        select(AuditLog.created_at, AuditLog.action, AuditLog.entity_type, AuditLog.after, User.full_name)
-        .outerjoin(User, User.id == AuditLog.actor_id)
-        .where(AuditLog.org_id == org, AuditLog.action.not_in(["login", "logout"]))
-        .order_by(AuditLog.created_at.desc()).limit(12)
-    )).all()
+    recent = (
+        await db.execute(
+            select(AuditLog.created_at, AuditLog.action, AuditLog.entity_type, AuditLog.after, User.full_name)
+            .outerjoin(User, User.id == AuditLog.actor_id)
+            .where(AuditLog.org_id == org, AuditLog.action.not_in(["login", "logout"]))
+            .order_by(AuditLog.created_at.desc())
+            .limit(12)
+        )
+    ).all()
 
     def label(after: dict | None) -> str:
         if not after:
             return ""
         if "document_id" in after:
-            return f"{after['document_id']} rev. {after['revision']}" if "revision" in after else str(after["document_id"])
+            return (
+                f"{after['document_id']} rev. {after['revision']}" if "revision" in after else str(after["document_id"])
+            )
         if "rxswin" in after and "baseline_number" in after:
             return f"{after['rxswin']} B{after['baseline_number']}"
         for k in ("vin", "rxswin", "ecu_name", "email"):
@@ -697,17 +958,26 @@ async def sums_overview(user: CurrentUserDep, db: DbSession):
 
     return {
         "counts": counts,
-        "draft_baselines": [{"rxswin_id": str(i), "rxswin": r, "baseline_number": n, "created_at": c} for i, r, n, c in draft_baselines],
-        "su_drafts": [{"id": str(i), "document_id": d, "revision": n, "title": t, "updated_at": u} for i, d, n, t, u in su_drafts],
-        "pending_execution": [{"id": str(i), "document_id": d, "revision": n, "title": t, "pending": c} for i, d, n, t, c in pending],
+        "draft_baselines": [
+            {"rxswin_id": str(i), "rxswin": r, "baseline_number": n, "created_at": c} for i, r, n, c in draft_baselines
+        ],
+        "su_drafts": [
+            {"id": str(i), "document_id": d, "revision": n, "title": t, "updated_at": u} for i, d, n, t, u in su_drafts
+        ],
+        "pending_execution": [
+            {"id": str(i), "document_id": d, "revision": n, "title": t, "pending": c} for i, d, n, t, c in pending
+        ],
         "vehicles_without_eol": [{"id": str(i), "vin": v, "name": n} for i, v, n in no_eol],
-        "recent": [{"at": a, "action": ac, "entity_type": et, "label": label(af), "user": un} for a, ac, et, af, un in recent],
+        "recent": [
+            {"at": a, "action": ac, "entity_type": et, "label": label(af), "user": un} for a, ac, et, af, un in recent
+        ],
     }
 
 
 # ─── Uvoz iz CSV (selitev iz ERP / Helix) ─────────────────────────────────────
 # Odjemalec prebere CSV v brskalniku in pošlje vrstice. Najprej dry_run (predogled),
 # nato uvoz. Uvoz steče samo, če so vse vrstice veljavne (vse ali nič).
+
 
 class VehicleImportRow(BaseModel):
     vin: str
@@ -722,7 +992,7 @@ class VehicleImportRequest(BaseModel):
 
 
 class ItemImportRow(BaseModel):
-    ecu: str                      # ime ECU ali eVersum številka dela
+    ecu: str  # ime ECU ali eVersum številka dela
     sw_version: str
     sw_file_name: str | None = None
     sw_file_sha256: str | None = None
@@ -758,7 +1028,7 @@ async def import_vehicles(data: VehicleImportRequest, user: NonPartnerDep, db: D
         if vin in seen:
             errors.append({"row": i, "vin": vin, "error": "VIN se v datoteki ponovi"})
         elif vin in existing:
-            skipped.append(vin)   # že v registru — ne glede na obliko
+            skipped.append(vin)  # že v registru — ne glede na obliko
         elif not VIN_RE.match(vin):
             errors.append({"row": i, "vin": vin, "error": "VIN: 11–17 znakov, velike črke in številke (brez I, O, Q)"})
         elif r.year is not None and not (1990 <= r.year <= _date.today().year + 1):
@@ -771,14 +1041,29 @@ async def import_vehicles(data: VehicleImportRequest, user: NonPartnerDep, db: D
     if data.dry_run or errors:
         return result
     for vin, r in new:
-        v = Vehicle(organization_id=user["org_id"], vehicle_type_id=vt.id, vin=vin,
-                    name=(r.name or vin[-6:]).strip(), model=vt.name, year=r.year or _date.today().year)
+        v = Vehicle(
+            organization_id=user["org_id"],
+            vehicle_type_id=vt.id,
+            vin=vin,
+            name=(r.name or vin[-6:]).strip(),
+            model=vt.name,
+            year=r.year or _date.today().year,
+        )
         db.add(v)
         await db.flush()
         db.add(VehicleTwin(vehicle_id=v.id))
-    await _audit(db, user, "import", "vehicle", vt.id, after={
-        "vehicle_type": vt.name, "created": [v for v, _ in new], "skipped_existing": skipped,
-    })
+    await _audit(
+        db,
+        user,
+        "import",
+        "vehicle",
+        vt.id,
+        after={
+            "vehicle_type": vt.name,
+            "created": [v for v, _ in new],
+            "skipped_existing": skipped,
+        },
+    )
     await db.commit()
     result["created"] = len(new)
     return result
@@ -800,8 +1085,13 @@ async def import_baseline_items(baseline_id: uuid.UUID, data: ItemImportRequest,
     for n, r in enumerate(data.rows, start=1):
         matches = by_key.get(r.ecu.strip().lower(), [])
         if len({m.id for m in matches}) != 1:
-            errors.append({"row": n, "ecu": r.ecu, "error": "ECU ni v registru" if not matches
-                           else "Številka dela ni enolična — uporabi ime ECU"})
+            errors.append(
+                {
+                    "row": n,
+                    "ecu": r.ecu,
+                    "error": "ECU ni v registru" if not matches else "Številka dela ni enolična — uporabi ime ECU",
+                }
+            )
             continue
         ecu = matches[0]
         if ecu.id in seen:
@@ -811,14 +1101,22 @@ async def import_baseline_items(baseline_id: uuid.UUID, data: ItemImportRequest,
         try:
             fields = BaselineItemCreate(ecu_id=ecu.id, **r.model_dump(exclude={"ecu"}))
         except ValidationError as ex:
-            errors.append({"row": n, "ecu": r.ecu, "error": "; ".join(
-                f"{e['loc'][-1]}: {e['msg'].removeprefix('Value error, ')}" for e in ex.errors())})
+            errors.append(
+                {
+                    "row": n,
+                    "ecu": r.ecu,
+                    "error": "; ".join(
+                        f"{e['loc'][-1]}: {e['msg'].removeprefix('Value error, ')}" for e in ex.errors()
+                    ),
+                }
+            )
             continue
         plan.append((ecu, fields, "update" if ecu.id in current else "create"))
 
     result = {
         "plan": [{"ecu": e.ecu_name, "action": a, "sw_version": f.sw_version} for e, f, a in plan],
-        "errors": errors, "applied": 0,
+        "errors": errors,
+        "applied": 0,
     }
     if data.dry_run or errors:
         return result
@@ -831,11 +1129,21 @@ async def import_baseline_items(baseline_id: uuid.UUID, data: ItemImportRequest,
         else:
             db.add(RXSWINBaselineItem(baseline_id=b.id, ecu_id=ecu.id, **values))
     await db.flush()
-    await _audit(db, user, "import", "rxswin_baseline", b.id, after={
-        "rxswin": b.rxswin_ref.rxswin, "baseline_number": b.baseline_number,
-        "items": [{"ecu": e.ecu_name, "action": a, "sw_version": f.sw_version, "sw_file_sha256": f.sw_file_sha256}
-                  for e, f, a in plan],
-    })
+    await _audit(
+        db,
+        user,
+        "import",
+        "rxswin_baseline",
+        b.id,
+        after={
+            "rxswin": b.rxswin_ref.rxswin,
+            "baseline_number": b.baseline_number,
+            "items": [
+                {"ecu": e.ecu_name, "action": a, "sw_version": f.sw_version, "sw_file_sha256": f.sw_file_sha256}
+                for e, f, a in plan
+            ],
+        },
+    )
     await db.commit()
     result["applied"] = len(plan)
     return result

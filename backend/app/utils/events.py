@@ -2,7 +2,7 @@
 Event publisher — piše evente v Redis Streams.
 Routerji klicejo publish_event() po uspešnem DB write.
 """
-import json
+
 import logging
 import uuid
 from typing import Any

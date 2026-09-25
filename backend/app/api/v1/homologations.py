@@ -87,6 +87,7 @@ async def create_homologation(data: HomologationCreate, user: NonPartnerDep, db:
     await db.refresh(hom)
     # Posodobi digital twin
     from app.workers.twin_worker import update_vehicle_twin
+
     update_vehicle_twin.delay(str(hom.vehicle_id), "homologation", str(hom.id))
     return hom
 
@@ -142,5 +143,6 @@ async def update_homologation(hom_id: uuid.UUID, data: HomologationUpdate, user:
     await db.refresh(hom)
     # Posodobi digital twin ob vsaki spremembi homologacije
     from app.workers.twin_worker import update_vehicle_twin
+
     update_vehicle_twin.delay(str(hom.vehicle_id), "homologation", str(hom.id))
     return hom

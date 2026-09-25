@@ -1,5 +1,4 @@
 from fastapi import APIRouter
-from app.api.deps import CurrentUserDep, DbSession
 
 router = APIRouter()
 

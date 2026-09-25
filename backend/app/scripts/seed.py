@@ -5,6 +5,7 @@ Zaženi: docker compose exec api python -m app.scripts.seed
 Skripta je idempotentna: obstoječih zapisov ne podvaja in ne prepisuje.
 Ključi za prepoznavo — organizacija po imenu, uporabnik po e-pošti, vozilo po VIN.
 """
+
 import asyncio
 
 from sqlalchemy import select
@@ -43,14 +44,40 @@ USERS = [
 ]
 
 VEHICLES = [
-    {"name": "Harlander #1", "model": "e-Shuttle MK II-400", "year": 2024,
-     "vin": "WEV1234567890001", "project_name": "Imagry Japan", "status": "active"},
-    {"name": "Harlander #2", "model": "e-Shuttle MK II-400", "year": 2024,
-     "vin": "WEV1234567890002", "project_name": "Navya France", "status": "active"},
-    {"name": "eShuttle Prototip #1", "model": "e-Shuttle MK II", "year": 2023,
-     "vin": "WEV1234567890003", "project_name": "Arriva Koper", "status": "in_service", "seats": 22},
-    {"name": "eShuttle Prototip #2", "model": "e-Shuttle MK II", "year": 2023,
-     "vin": "WEV1234567890004", "project_name": "Arriva Koper", "status": "active", "seats": 22},
+    {
+        "name": "Harlander #1",
+        "model": "e-Shuttle MK II-400",
+        "year": 2024,
+        "vin": "WEV1234567890001",
+        "project_name": "Imagry Japan",
+        "status": "active",
+    },
+    {
+        "name": "Harlander #2",
+        "model": "e-Shuttle MK II-400",
+        "year": 2024,
+        "vin": "WEV1234567890002",
+        "project_name": "Navya France",
+        "status": "active",
+    },
+    {
+        "name": "eShuttle Prototip #1",
+        "model": "e-Shuttle MK II",
+        "year": 2023,
+        "vin": "WEV1234567890003",
+        "project_name": "Arriva Koper",
+        "status": "in_service",
+        "seats": 22,
+    },
+    {
+        "name": "eShuttle Prototip #2",
+        "model": "e-Shuttle MK II",
+        "year": 2023,
+        "vin": "WEV1234567890004",
+        "project_name": "Arriva Koper",
+        "status": "active",
+        "seats": 22,
+    },
 ]
 
 
@@ -62,9 +89,7 @@ async def seed():
     async with Session() as db:
         orgs = {}
         for data in ORGANIZATIONS:
-            org, is_new = await get_or_create(
-                db, Organization, {"name": data["name"]}, {"type": data["type"]}
-            )
+            org, is_new = await get_or_create(db, Organization, {"name": data["name"]}, {"type": data["type"]})
             orgs[data["name"]] = org
             created["organizations"] += is_new
 
@@ -72,7 +97,9 @@ async def seed():
 
         for data in USERS:
             _, is_new = await get_or_create(
-                db, User, {"email": data["email"]},
+                db,
+                User,
+                {"email": data["email"]},
                 {
                     "organization_id": eversum.id,
                     "full_name": data["full_name"],
@@ -85,14 +112,10 @@ async def seed():
         for data in VEHICLES:
             vdata = dict(data)
             vin = vdata.pop("vin")
-            vehicle, is_new = await get_or_create(
-                db, Vehicle, {"vin": vin}, {"organization_id": eversum.id, **vdata}
-            )
+            vehicle, is_new = await get_or_create(db, Vehicle, {"vin": vin}, {"organization_id": eversum.id, **vdata})
             created["vehicles"] += is_new
 
-            _, twin_is_new = await get_or_create(
-                db, VehicleTwin, {"vehicle_id": vehicle.id}
-            )
+            _, twin_is_new = await get_or_create(db, VehicleTwin, {"vehicle_id": vehicle.id})
             created["vehicle_twins"] += twin_is_new
 
         await db.commit()

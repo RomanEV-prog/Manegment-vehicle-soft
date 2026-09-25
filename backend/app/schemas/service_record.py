@@ -8,7 +8,7 @@ from pydantic import BaseModel
 class ServiceRecordCreate(BaseModel):
     vehicle_id: uuid.UUID
     date: Date
-    service_type: str               # 'maintenance' | 'brakes' | 'tyres' | 'electrical' | 'other'
+    service_type: str  # 'maintenance' | 'brakes' | 'tyres' | 'electrical' | 'other'
     items: list[str]
     technician: str
     notes: Optional[str] = None

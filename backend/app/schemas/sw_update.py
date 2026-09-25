@@ -17,23 +17,21 @@ class SWUpdateCreate(BaseModel):
     ecu_module: str
     version_before: str
     version_after: str
-    rxswin: str                     # obvezno — R156 §7.2
-    method: str                     # 'OTA' | 'Workshop' | 'J2534'
-    status: str = "pending"         # 'success' | 'failed' | 'pending'
+    rxswin: str  # obvezno — R156 §7.2
+    method: str  # 'OTA' | 'Workshop' | 'J2534'
+    status: str = "pending"  # 'success' | 'failed' | 'pending'
     notes: Optional[str] = None
 
     @field_validator("rxswin")
     @classmethod
     def validate_rxswin(cls, v: str) -> str:
         if not RXSWIN_PATTERN.match(v):
-            raise ValueError(
-                "RXSWIN sme vsebovati le velike črke, številke in - _ . (3–64 znakov), npr. R48SWIN001"
-            )
+            raise ValueError("RXSWIN sme vsebovati le velike črke, številke in - _ . (3–64 znakov), npr. R48SWIN001")
         return v
 
 
 class SWUpdateUpdate(BaseModel):
-    status: Optional[str] = None       # 'pending' | 'in_progress' | 'success' | 'failed' | 'rolled_back'
+    status: Optional[str] = None  # 'pending' | 'in_progress' | 'success' | 'failed' | 'rolled_back'
     notes: Optional[str] = None
 
 

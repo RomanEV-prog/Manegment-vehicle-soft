@@ -46,19 +46,21 @@ async def list_photos(
         except Exception:
             signed_url = photo.url
 
-        response.append({
-            "id": str(photo.id),
-            "vehicle_id": str(photo.vehicle_id),
-            "linked_to_type": photo.linked_to_type,
-            "linked_to_id": str(photo.linked_to_id) if photo.linked_to_id else None,
-            "filename": photo.filename,
-            "url": signed_url,
-            "photo_type": photo.photo_type,
-            "gps_lat": float(photo.gps_lat) if photo.gps_lat else None,
-            "gps_lng": float(photo.gps_lng) if photo.gps_lng else None,
-            "taken_at": photo.taken_at.isoformat() if photo.taken_at else None,
-            "created_at": photo.created_at.isoformat(),
-        })
+        response.append(
+            {
+                "id": str(photo.id),
+                "vehicle_id": str(photo.vehicle_id),
+                "linked_to_type": photo.linked_to_type,
+                "linked_to_id": str(photo.linked_to_id) if photo.linked_to_id else None,
+                "filename": photo.filename,
+                "url": signed_url,
+                "photo_type": photo.photo_type,
+                "gps_lat": float(photo.gps_lat) if photo.gps_lat else None,
+                "gps_lng": float(photo.gps_lng) if photo.gps_lng else None,
+                "taken_at": photo.taken_at.isoformat() if photo.taken_at else None,
+                "created_at": photo.created_at.isoformat(),
+            }
+        )
 
     return response
 

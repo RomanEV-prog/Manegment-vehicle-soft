@@ -38,10 +38,12 @@ async def main() -> None:
         if not exists:
             await conn.execute(text(f"CREATE ROLE {ROLE}"))
         # geslo je preverjeno zgoraj (samo varni znaki) — ALTER ROLE ne sprejme parametra
-        await conn.execute(text(
-            f"ALTER ROLE {ROLE} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS NOREPLICATION "
-            f"PASSWORD '{password}'"
-        ))
+        await conn.execute(
+            text(
+                f"ALTER ROLE {ROLE} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS NOREPLICATION "
+                f"PASSWORD '{password}'"
+            )
+        )
         for stmt in (
             f"GRANT CONNECT ON DATABASE {await conn.scalar(text('SELECT current_database()'))} TO {ROLE}",
             f"GRANT USAGE ON SCHEMA public TO {ROLE}",

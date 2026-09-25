@@ -1,6 +1,4 @@
-import functools
 import uuid
-from typing import Any, Callable
 
 from sqlalchemy.ext.asyncio import AsyncSession
 

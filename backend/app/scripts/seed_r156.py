@@ -164,14 +164,13 @@ async def seed_r156() -> None:
     created = {"vehicle_types": 0, "ecus": 0, "rxswins": 0, "baselines": 0, "baseline_items": 0}
 
     async with Session() as db:
-        org = (
-            await db.execute(select(Organization).where(Organization.name == "eVersum"))
-        ).scalar_one_or_none()
+        org = (await db.execute(select(Organization).where(Organization.name == "eVersum"))).scalar_one_or_none()
         if org is None:
             raise SystemExit("Organizacija 'eVersum' ne obstaja — najprej poženi app.scripts.seed")
 
         vtype, is_new = await get_or_create(
-            db, VehicleType,
+            db,
+            VehicleType,
             {"organization_id": org.id, "name": VEHICLE_TYPE["name"]},
             {"model_code": VEHICLE_TYPE["model_code"], "description": VEHICLE_TYPE["description"]},
         )
@@ -182,7 +181,8 @@ async def seed_r156() -> None:
             payload = dict(data)
             name = payload.pop("ecu_name")
             ecu, is_new = await get_or_create(
-                db, ECU,
+                db,
+                ECU,
                 {"vehicle_type_id": vtype.id, "ecu_name": name},
                 {"organization_id": org.id, **payload},
             )
@@ -191,7 +191,8 @@ async def seed_r156() -> None:
 
         # --- RXSWIN R48SWIN001, baseline 1 (izdan) ---
         rxswin, is_new = await get_or_create(
-            db, RXSWIN,
+            db,
+            RXSWIN,
             {"organization_id": org.id, "rxswin": "R48SWIN001"},
             {
                 "vehicle_type_id": vtype.id,
@@ -203,14 +204,15 @@ async def seed_r156() -> None:
         created["rxswins"] += is_new
 
         baseline, is_new = await get_or_create(
-            db, RXSWINBaseline,
+            db,
+            RXSWINBaseline,
             {"rxswin_id": rxswin.id, "baseline_number": 1},
             {
                 "organization_id": org.id,
                 "status": "draft",  # postavke se lahko dodajo le v draft (trigger)
                 "integrity_method": "SHA-256",
                 "notes": "Transcribed from 'R156 SUMS Overview.drawio', sheet 'Example'. "
-                         "Checksums are truncated in the source and are NOT real values.",
+                "Checksums are truncated in the source and are NOT real values.",
             },
         )
         created["baselines"] += is_new
@@ -219,7 +221,8 @@ async def seed_r156() -> None:
             payload = dict(item)
             ecu = ecus[payload.pop("ecu_name")]
             _, is_new = await get_or_create(
-                db, RXSWINBaselineItem,
+                db,
+                RXSWINBaselineItem,
                 {"baseline_id": baseline.id, "ecu_id": ecu.id},
                 payload,
             )
@@ -228,19 +231,21 @@ async def seed_r156() -> None:
 
         # --- VCU: lastni RXSWIN, ker readme ne navaja pripadnosti R48 ---
         vcu_rxswin, is_new = await get_or_create(
-            db, RXSWIN,
+            db,
+            RXSWIN,
             {"organization_id": org.id, "rxswin": "VCUSWIN001"},
             {
                 "vehicle_type_id": vtype.id,
                 "description": "Vehicle Control Unit software (Helix ALM readme). PROVISIONAL RXSWIN — "
-                               "the regulation / RXSWIN assignment is not stated in the source and is to be confirmed.",
+                "the regulation / RXSWIN assignment is not stated in the source and is to be confirmed.",
                 "status": "active",
             },
         )
         created["rxswins"] += is_new
 
         vcu_baseline, is_new = await get_or_create(
-            db, RXSWINBaseline,
+            db,
+            RXSWINBaseline,
             {"rxswin_id": vcu_rxswin.id, "baseline_number": 1},
             {
                 "organization_id": org.id,
@@ -254,7 +259,8 @@ async def seed_r156() -> None:
         payload = dict(VCU_ITEM)
         ecu = ecus[payload.pop("ecu_name")]
         _, is_new = await get_or_create(
-            db, RXSWINBaselineItem,
+            db,
+            RXSWINBaselineItem,
             {"baseline_id": vcu_baseline.id, "ecu_id": ecu.id},
             payload,
         )

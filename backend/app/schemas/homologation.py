@@ -6,8 +6,8 @@ from pydantic import BaseModel
 
 class HomologationCreate(BaseModel):
     vehicle_id: uuid.UUID
-    regulation: str         # 'UNECE R155', 'UNECE R156', 'UNECE R100', 'UNECE R136', 'EC 2018/858', 'ISO 21434'
-    status: str             # 'pending' | 'in_progress' | 'approved' | 'expired' | 'rejected'
+    regulation: str  # 'UNECE R155', 'UNECE R156', 'UNECE R100', 'UNECE R136', 'EC 2018/858', 'ISO 21434'
+    status: str  # 'pending' | 'in_progress' | 'approved' | 'expired' | 'rejected'
     authority: str | None = None
     country: str | None = None
     valid_from: date | None = None

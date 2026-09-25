@@ -193,8 +193,13 @@ def ecu_short_name(ecu_name: str) -> str:
 def render_readme_pdf(rxswin, baseline, item) -> bytes:
     config_file = item.sw_config_file_name or (item.sw_config_version if item.sw_config_version else "N/A")
     html = _env.from_string(README_TEMPLATE).render(
-        css=BASE_CSS, rxswin=rxswin, baseline=baseline, item=item, config_file=config_file,
-        ecu_short=ecu_short_name(item.ecu_name), generated=datetime.now(timezone.utc),
+        css=BASE_CSS,
+        rxswin=rxswin,
+        baseline=baseline,
+        item=item,
+        config_file=config_file,
+        ecu_short=ecu_short_name(item.ecu_name),
+        generated=datetime.now(timezone.utc),
     )
     return _pdf(html)
 
@@ -251,7 +256,10 @@ OTA updates are excluded from the scope of the eVersum SUMS.</p>
 
 def render_register_pdf(rxswins, updates: dict, vehicle_type: str | None) -> bytes:
     html = _env.from_string(REGISTER_TEMPLATE).render(
-        css=BASE_CSS, rxswins=rxswins, updates=updates, vehicle_type=vehicle_type,
+        css=BASE_CSS,
+        rxswins=rxswins,
+        updates=updates,
+        vehicle_type=vehicle_type,
         generated=datetime.now(timezone.utc),
     )
     return _pdf(html)
