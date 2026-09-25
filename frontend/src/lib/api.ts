@@ -3,6 +3,10 @@ import Cookies from "js-cookie";
 import type {
   BaselineItemFields,
   Ecu,
+  FleetVehicle,
+  SuDetail,
+  SuEditable,
+  SuListItem,
   RxswinDetail,
   RxswinListItem,
   VehicleType,
@@ -307,4 +311,63 @@ export const r156Api = {
     itemId: string,
     data: { target: "sw" | "config"; computed_sha256: string; file_name?: string; file_size?: number }
   ) => api.post<VerifyResult>(`/rxswin-baselines/${baselineId}/items/${itemId}/verify`, data).then((r) => r.data),
+};
+
+// Prenos PDF z avtentikacijo (povezava <a href> ne pošlje Bearer žetona)
+async function downloadBlob(url: string, fallbackName: string) {
+  const res = await api.get(url, { responseType: "blob" });
+  const cd: string = res.headers["content-disposition"] ?? "";
+  const star = /filename\*=UTF-8''([^;]+)/i.exec(cd);
+  const plain = /filename="([^"]+)"/i.exec(cd);
+  const name = star ? decodeURIComponent(star[1]) : plain ? plain[1] : fallbackName;
+  const href = URL.createObjectURL(res.data as Blob);
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(href);
+}
+
+export const fleetApi = {
+  list: (vehicleTypeId?: string) =>
+    api
+      .get<FleetVehicle[]>("/vehicles", { params: vehicleTypeId ? { vehicle_type_id: vehicleTypeId } : {} })
+      .then((r) => r.data),
+  create: (data: { name: string; model: string; year: number; vin: string; vehicle_type_id: string }) =>
+    api.post<FleetVehicle>("/vehicles", data).then((r) => r.data),
+};
+
+export const suApi = {
+  list: (params?: { vehicle_type_id?: string; include_superseded?: boolean }) =>
+    api.get<SuListItem[]>("/software-updates", { params }).then((r) => r.data),
+  get: (id: string) => api.get<SuDetail>(`/software-updates/${id}`).then((r) => r.data),
+  create: (data: { vehicle_type_id: string; title: string; description_purpose: string }) =>
+    api.post<SuDetail>("/software-updates", data).then((r) => r.data),
+  update: (id: string, data: Partial<SuEditable>) =>
+    api.put<SuDetail>(`/software-updates/${id}`, data).then((r) => r.data),
+  discard: (id: string) => api.delete(`/software-updates/${id}`),
+  signVv: (id: string, data: { vv_status: "pass" | "fail"; vv_method: string }) =>
+    api.post<SuDetail>(`/software-updates/${id}/vv`, data).then((r) => r.data),
+  addRxswin: (id: string, data: { rxswin_id: string; baseline_after_id: string }) =>
+    api.post<SuDetail>(`/software-updates/${id}/rxswins`, data).then((r) => r.data),
+  removeRxswin: (id: string, linkId: string) =>
+    api.delete<SuDetail>(`/software-updates/${id}/rxswins/${linkId}`).then((r) => r.data),
+  addTargets: (id: string, vehicleIds: string[]) =>
+    api.post<SuDetail>(`/software-updates/${id}/targets`, { vehicle_ids: vehicleIds }).then((r) => r.data),
+  setCompatibility: (id: string, targetId: string, data: { compatibility_confirmed: boolean; compatibility_notes?: string | null }) =>
+    api.put<SuDetail>(`/software-updates/${id}/targets/${targetId}`, data).then((r) => r.data),
+  removeTarget: (id: string, targetId: string) =>
+    api.delete<SuDetail>(`/software-updates/${id}/targets/${targetId}`).then((r) => r.data),
+  recordResult: (id: string, targetId: string, result: "success" | "failed" | "rolled_back") =>
+    api.post<SuDetail>(`/software-updates/${id}/targets/${targetId}/result`, { result }).then((r) => r.data),
+  recordNotification: (id: string, method: string) =>
+    api.post<SuDetail>(`/software-updates/${id}/notification`, { method }).then((r) => r.data),
+  release: (id: string) => api.post<SuDetail>(`/software-updates/${id}/release`).then((r) => r.data),
+  revise: (id: string) => api.post<SuDetail>(`/software-updates/${id}/revise`).then((r) => r.data),
+  downloadReport: (id: string) => downloadBlob(`/software-updates/${id}/report.pdf`, "software-update.pdf"),
+};
+
+export const readmeApi = {
+  download: (baselineId: string, itemId: string) =>
+    downloadBlob(`/rxswin-baselines/${baselineId}/items/${itemId}/readme.pdf`, "readme.pdf"),
 };

@@ -503,3 +503,33 @@ async def verify_item_checksum(
     })
     await db.commit()
     return VerifyResponse(match=match, expected_sha256=expected, computed_sha256=data.computed_sha256, recorded=True)
+
+
+# ─── Readme za Egnyte (enaka zgradba kot readme iz Helix ALM) ─────────────────
+
+@router.get("/rxswin-baselines/{baseline_id}/items/{item_id}/readme.pdf")
+async def item_readme_pdf(baseline_id: uuid.UUID, item_id: uuid.UUID, user: CurrentUserDep, db: DbSession):
+    from urllib.parse import quote
+
+    from fastapi.responses import Response
+
+    from app.services.r156_reports import ecu_short_name, render_readme_pdf
+
+    rxswin_id = await db.scalar(
+        select(RXSWINBaseline.rxswin_id).where(
+            RXSWINBaseline.id == baseline_id, RXSWINBaseline.organization_id == user["org_id"]
+        )
+    )
+    if not rxswin_id:
+        raise HTTPException(status_code=404, detail="Baseline ne obstaja")
+    detail = await _rxswin_detail(db, await _load_rxswin(db, rxswin_id, user["org_id"]))
+    baseline = next(b for b in detail.baselines if b.id == baseline_id)
+    item = next((i for i in baseline.items if i.id == item_id), None)
+    if not item:
+        raise HTTPException(status_code=404, detail="Postavka ne obstaja")
+    pdf = render_readme_pdf(detail, baseline, item)
+    filename = f"{ecu_short_name(item.ecu_name)} {item.sw_version} - Readme.pdf"
+    return Response(
+        content=pdf, media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
+    )

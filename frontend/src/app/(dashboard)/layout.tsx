@@ -38,11 +38,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     "/rxswins": t("rxswins"),
     "/ecus": t("ecus"),
     "/sha256": t("sha256"),
+    "/software-updates": t("softwareUpdates"),
+    "/fleet": t("fleet"),
   };
 
   function getTitle(pathname: string): string {
     if (pathname.startsWith("/vehicles/")) return t("vehicles");
     if (pathname.startsWith("/rxswins/")) return t("rxswins");
+    if (pathname.startsWith("/software-updates/")) return t("softwareUpdates");
     return PAGE_TITLES[pathname] ?? "eVersum";
   }
 

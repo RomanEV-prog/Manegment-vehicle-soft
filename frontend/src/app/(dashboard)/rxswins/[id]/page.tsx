@@ -19,11 +19,12 @@ import {
   AlertTriangle,
   CheckCircle2,
   FileSearch,
+  FileDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { r156Api } from "@/lib/api";
+import { r156Api, readmeApi } from "@/lib/api";
 import { useTranslations } from "@/lib/i18n";
 import { cn, formatDateTime } from "@/lib/utils";
 import type { Baseline, BaselineItem, RxswinDetail } from "@/types/r156";
@@ -123,6 +124,15 @@ function ItemRow({
         </td>
         <td className="whitespace-nowrap px-3 py-3 text-right">
           <div className="flex justify-end gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              title={t("readme")}
+              onClick={() => readmeApi.download(baseline.id, item.id).catch(() => toast.error(t("readme")))}
+            >
+              <FileDown className="h-3.5 w-3.5" />
+              {t("readme")}
+            </Button>
             {baseline.status !== "draft" && (
               <Button variant="outline" size="sm" onClick={onVerify} title={t("verify")}>
                 <FileSearch className="h-3.5 w-3.5" />

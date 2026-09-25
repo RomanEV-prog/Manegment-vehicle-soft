@@ -28,15 +28,19 @@ const ACTION_COLORS: Record<AuditAction | string, string> = {
   release: "bg-emerald-100 text-emerald-800",
   supersede: "bg-amber-100 text-amber-800",
   verify: "bg-cyan-100 text-cyan-800",
+  sign: "bg-violet-100 text-violet-800",
+  apply: "bg-teal-100 text-teal-800",
+  notify: "bg-sky-100 text-sky-800",
 };
 
 const ACTIONS: AuditAction[] = [
   "create", "update", "delete", "resolve", "approve",
   "upload", "snapshot", "export", "login", "logout",
-  "release", "supersede", "verify",
+  "release", "supersede", "verify", "sign", "apply", "notify",
 ];
 
 const ENTITY_TYPES: AuditEntityType[] = [
+  "software_update", "software_update_target", "software_update_rxswin",
   "rxswin", "rxswin_baseline", "rxswin_baseline_item", "ecu", "vehicle_type",
   "vehicle", "sw_update", "dtc_record", "service_record",
   "homologation", "coc_certificate", "photo", "vehicle_twin", "user",
@@ -117,6 +121,9 @@ export default function AuditPage() {
     rxswin: t("entityRxswin"),
     rxswin_baseline: t("entityRxswinBaseline"),
     rxswin_baseline_item: t("entityRxswinBaselineItem"),
+    software_update: t("entitySoftwareUpdate"),
+    software_update_rxswin: t("entitySoftwareUpdateRxswin"),
+    software_update_target: t("entitySoftwareUpdateTarget"),
   };
 
   const isAllowed = payload?.role === "admin" || payload?.role === "qc_manager";

@@ -309,7 +309,10 @@ export type AuditAction =
   | "logout"
   | "release"
   | "supersede"
-  | "verify";
+  | "verify"
+  | "sign"
+  | "apply"
+  | "notify";
 
 export type AuditEntityType =
   | "vehicle"
@@ -328,7 +331,10 @@ export type AuditEntityType =
   | "ecu"
   | "rxswin"
   | "rxswin_baseline"
-  | "rxswin_baseline_item";
+  | "rxswin_baseline_item"
+  | "software_update"
+  | "software_update_rxswin"
+  | "software_update_target";
 
 export interface AuditLog {
   id: string;

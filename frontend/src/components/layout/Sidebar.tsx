@@ -18,6 +18,8 @@ import {
   ShieldCheck,
   CircuitBoard,
   Hash,
+  FileCheck2,
+  Truck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -44,7 +46,9 @@ export function Sidebar() {
     showBadge?: boolean;
   }[] = [
     { href: "/rxswins", label: t("rxswins"), icon: ShieldCheck, module: "r156", partnerVisible: true },
+    { href: "/software-updates", label: t("softwareUpdates"), icon: FileCheck2, module: "r156", partnerVisible: true },
     { href: "/ecus", label: t("ecus"), icon: CircuitBoard, module: "r156", partnerVisible: true },
+    { href: "/fleet", label: t("fleet"), icon: Truck, module: "r156", partnerVisible: true },
     { href: "/sha256", label: t("sha256"), icon: Hash, module: "r156", partnerVisible: true },
     { href: "/", label: t("overview"), icon: Home, module: "overview", partnerVisible: true },
     { href: "/vehicles", label: t("vehicles"), icon: Car, module: "vehicles", partnerVisible: true },

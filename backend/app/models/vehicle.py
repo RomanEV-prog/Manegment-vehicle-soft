@@ -20,6 +20,10 @@ class Vehicle(Base):
     seats: Mapped[int | None] = mapped_column(Integer, nullable=True)
     project_name: Mapped[str | None] = mapped_column(String, nullable=True)  # "Imagry Japan", "Navya France"
     status: Mapped[str] = mapped_column(String, default="active")       # 'active' | 'in_service' | 'shipped' | 'decommissioned'
+    # R156: tip vozila, na katerega so vezani RXSWIN-i in Software Update dokumenti
+    vehicle_type_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("vehicle_types.id"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

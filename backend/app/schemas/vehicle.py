@@ -13,6 +13,7 @@ class VehicleCreate(BaseModel):
     seats: int | None = None
     project_name: str | None = None
     status: str = "active"
+    vehicle_type_id: uuid.UUID | None = None
 
 
 class VehicleUpdate(BaseModel):
@@ -22,6 +23,7 @@ class VehicleUpdate(BaseModel):
     seats: int | None = None
     project_name: str | None = None
     status: str | None = None
+    vehicle_type_id: uuid.UUID | None = None
 
 
 class VehicleResponse(BaseModel):
@@ -34,6 +36,7 @@ class VehicleResponse(BaseModel):
     seats: int | None
     project_name: str | None
     status: str
+    vehicle_type_id: uuid.UUID | None = None
     created_at: datetime
     updated_at: datetime
 

@@ -14,6 +14,17 @@ from app.utils.audit import write_audit_log
 router = APIRouter()
 
 
+async def _check_vehicle_type(db, vehicle_type_id: uuid.UUID | None, org_id) -> None:
+    if vehicle_type_id is None:
+        return
+    from app.models.r156 import VehicleType
+    exists = await db.scalar(
+        select(VehicleType.id).where(VehicleType.id == vehicle_type_id, VehicleType.organization_id == org_id)
+    )
+    if not exists:
+        raise HTTPException(status_code=404, detail="Tip vozila ne obstaja")
+
+
 @router.get("", response_model=list[VehicleResponse])
 async def list_vehicles(
     user: CurrentUserDep,
@@ -21,6 +32,7 @@ async def list_vehicles(
     status: str | None = Query(None),
     project_name: str | None = Query(None),
     search: str | None = Query(None),
+    vehicle_type_id: uuid.UUID | None = Query(None),
     limit: int = Query(200, le=500),
     offset: int = Query(0, ge=0),
 ):
@@ -29,6 +41,8 @@ async def list_vehicles(
         q = q.where(Vehicle.status == status)
     if project_name:
         q = q.where(Vehicle.project_name.ilike(f"%{project_name}%"))
+    if vehicle_type_id:
+        q = q.where(Vehicle.vehicle_type_id == vehicle_type_id)
     if search:
         term = f"%{search}%"
         q = q.where(or_(
@@ -42,6 +56,9 @@ async def list_vehicles(
 
 @router.post("", response_model=VehicleResponse, status_code=status.HTTP_201_CREATED)
 async def create_vehicle(data: VehicleCreate, user: NonPartnerDep, db: DbSession):
+    if await db.scalar(select(Vehicle.id).where(Vehicle.vin == data.vin)):
+        raise HTTPException(status_code=409, detail=f"Vozilo z VIN {data.vin} že obstaja")
+    await _check_vehicle_type(db, data.vehicle_type_id, user["org_id"])
     vehicle = Vehicle(**data.model_dump(), organization_id=user["org_id"])
     db.add(vehicle)
     await db.flush()
@@ -64,6 +81,7 @@ async def create_vehicle(data: VehicleCreate, user: NonPartnerDep, db: DbSession
             "year": vehicle.year,
             "project_name": vehicle.project_name,
             "status": vehicle.status,
+            "vehicle_type_id": str(vehicle.vehicle_type_id) if vehicle.vehicle_type_id else None,
         },
     )
     await db.commit()
@@ -91,8 +109,11 @@ async def update_vehicle(vehicle_id: uuid.UUID, data: VehicleUpdate, user: NonPa
     if not vehicle:
         raise HTTPException(status_code=404, detail="Vozilo ne obstaja")
 
+    if data.vehicle_type_id is not None:
+        await _check_vehicle_type(db, data.vehicle_type_id, user["org_id"])
     prev_status = vehicle.status
-    before = {"status": vehicle.status, "name": vehicle.name}
+    before = {"status": vehicle.status, "name": vehicle.name,
+              "vehicle_type_id": str(vehicle.vehicle_type_id) if vehicle.vehicle_type_id else None}
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(vehicle, field, value)
 
@@ -106,7 +127,8 @@ async def update_vehicle(vehicle_id: uuid.UUID, data: VehicleUpdate, user: NonPa
         entity_type="vehicle",
         entity_id=vehicle.id,
         before=before,
-        after={"status": vehicle.status, "name": vehicle.name},
+        after={"status": vehicle.status, "name": vehicle.name,
+               "vehicle_type_id": str(vehicle.vehicle_type_id) if vehicle.vehicle_type_id else None},
     )
 
     await db.commit()

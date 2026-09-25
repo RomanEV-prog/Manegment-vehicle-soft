@@ -11,7 +11,12 @@ testna baza, ki se gradi s create_all.
 
 from sqlalchemy import DDL, event
 
-from app.models.r156 import RXSWINBaseline, RXSWINBaselineItem
+from app.models.r156 import (
+    RXSWINBaseline,
+    RXSWINBaselineItem,
+    SoftwareUpdateDocument,
+)
+from app.database import Base
 
 BASELINE_LOCK_SQL = [
 """
@@ -76,9 +81,82 @@ $$ LANGUAGE plpgsql
     FOR EACH ROW EXECUTE FUNCTION rxswin_baseline_item_lock()""",
 ]
 
+# ─── Software Update dokument (R156 §7.1.2.5) ────────────────────────────────
+# Izdan dokument je samo za branje. Dovoljeno: prehod released → superseded in
+# zapis obvestila uporabniku (§7.1.1.11 — zgodi se po izdaji).
+SU_LOCK_SQL = [
+"""
+CREATE OR REPLACE FUNCTION software_update_lock() RETURNS trigger AS $$
+DECLARE
+    allowed text[] := ARRAY['status', 'updated_at', 'user_notified_at', 'user_notified_by',
+                            'user_notification_method'];
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        IF OLD.status <> 'draft' THEN
+            RAISE EXCEPTION 'Software Update % rev. % je zaklenjen (%)', OLD.document_id, OLD.baseline_number, OLD.status
+                USING ERRCODE = 'check_violation';
+        END IF;
+        RETURN OLD;
+    END IF;
+    IF OLD.status = 'draft' THEN
+        RETURN NEW;
+    END IF;
+    IF (to_jsonb(NEW) - allowed) <> (to_jsonb(OLD) - allowed)
+       OR NOT (NEW.status = OLD.status OR (OLD.status = 'released' AND NEW.status = 'superseded')) THEN
+        RAISE EXCEPTION 'Software Update % rev. % je izdan in samo za branje', OLD.document_id, OLD.baseline_number
+            USING ERRCODE = 'check_violation';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql
+""",
+    "DROP TRIGGER IF EXISTS trg_software_update_lock ON software_updates",
+    """CREATE TRIGGER trg_software_update_lock
+    BEFORE UPDATE OR DELETE ON software_updates
+    FOR EACH ROW EXECUTE FUNCTION software_update_lock()""",
+]
+
+# Prizadeti RXSWIN-i in ciljna vozila sledijo statusu dokumenta. Po izdaji se pri
+# ciljnem vozilu sme zapisati le izvedba (rezultat, kdaj, kdo).
+SU_CHILD_LOCK_SQL = [
+"""
+CREATE OR REPLACE FUNCTION software_update_child_lock() RETURNS trigger AS $$
+DECLARE
+    st text;
+    allowed text[] := ARRAY['result', 'applied_at', 'applied_by'];
+BEGIN
+    SELECT status INTO st FROM software_updates
+        WHERE id = CASE WHEN TG_OP = 'DELETE' THEN OLD.software_update_id ELSE NEW.software_update_id END;
+    IF st IS NULL OR st = 'draft' THEN
+        RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+    END IF;
+    IF TG_TABLE_NAME = 'software_update_targets' AND TG_OP = 'UPDATE'
+       AND (to_jsonb(NEW) - allowed) = (to_jsonb(OLD) - allowed) THEN
+        RETURN NEW;
+    END IF;
+    RAISE EXCEPTION 'Software Update je izdan — % ni mogoče spreminjati', TG_TABLE_NAME
+        USING ERRCODE = 'check_violation';
+END;
+$$ LANGUAGE plpgsql
+""",
+    "DROP TRIGGER IF EXISTS trg_su_rxswin_lock ON software_update_rxswins",
+    """CREATE TRIGGER trg_su_rxswin_lock
+    BEFORE INSERT OR UPDATE OR DELETE ON software_update_rxswins
+    FOR EACH ROW EXECUTE FUNCTION software_update_child_lock()""",
+    "DROP TRIGGER IF EXISTS trg_su_target_lock ON software_update_targets",
+    """CREATE TRIGGER trg_su_target_lock
+    BEFORE INSERT OR UPDATE OR DELETE ON software_update_targets
+    FOR EACH ROW EXECUTE FUNCTION software_update_child_lock()""",
+]
+
 # asyncpg ne sprejme več ukazov v enem klicu — vsak ukaz posebej.
 # DDL() formatira niz z %, zato se % iz RAISE podvoji.
 for _stmt in BASELINE_LOCK_SQL:
     event.listen(RXSWINBaseline.__table__, "after_create", DDL(_stmt.replace("%", "%%")))
 for _stmt in ITEM_LOCK_SQL:
     event.listen(RXSWINBaselineItem.__table__, "after_create", DDL(_stmt.replace("%", "%%")))
+for _stmt in SU_LOCK_SQL:
+    event.listen(SoftwareUpdateDocument.__table__, "after_create", DDL(_stmt.replace("%", "%%")))
+# otroški tabeli morata obstajati obe — trigger se ustvari po celotnem create_all
+for _stmt in SU_CHILD_LOCK_SQL:
+    event.listen(Base.metadata, "after_create", DDL(_stmt.replace("%", "%%")))
