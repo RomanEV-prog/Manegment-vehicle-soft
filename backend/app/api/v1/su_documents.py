@@ -90,6 +90,18 @@ async def _load(db, doc_id: uuid.UUID, org_id, *, lock: bool = False) -> Softwar
     return doc
 
 
+async def _invalidate_vv(db, user: dict, doc: SoftwareUpdateDocument, why: str) -> None:
+    """Podpis V&V se nanaša na vsebino dokumenta — po spremembi ga je treba ponoviti."""
+    if doc.vv_signed_by is None and doc.vv_status == "pending":
+        return
+    before = {"vv_status": doc.vv_status, "vv_signed_by": str(doc.vv_signed_by) if doc.vv_signed_by else None}
+    doc.vv_status = "pending"
+    doc.vv_signed_by = None
+    doc.vv_signed_at = None
+    await _audit(db, user, "update", "software_update", doc.id, before=before,
+                 after={"vv_status": "pending", "reason": f"V&V sign-off reset: {why}"})
+
+
 def _require_draft(doc: SoftwareUpdateDocument) -> None:
     if doc.status != "draft":
         raise HTTPException(
@@ -330,11 +342,14 @@ async def update_document(doc_id: uuid.UUID, data: SUDocumentUpdate, user: NonPa
     doc = await _load(db, doc_id, user["org_id"], lock=True)
     _require_draft(doc)
     changes = {k: v for k, v in data.model_dump(exclude_unset=True).items() if k in EDITABLE_FIELDS}
+    changes = {k: v for k, v in changes.items() if getattr(doc, k) != v}
     before = {k: _jsonable(getattr(doc, k)) for k in changes}
     for k, v in changes.items():
         setattr(doc, k, v)
-    await _audit(db, user, "update", "software_update", doc.id,
-                 before=before, after={k: _jsonable(v) for k, v in changes.items()})
+    if changes:
+        await _audit(db, user, "update", "software_update", doc.id,
+                     before=before, after={k: _jsonable(v) for k, v in changes.items()})
+        await _invalidate_vv(db, user, doc, "content changed (" + ", ".join(sorted(changes)) + ")")
     await db.commit()
     return await _reload(db, doc_id, user["org_id"])
 
@@ -398,6 +413,7 @@ async def add_affected_rxswin(doc_id: uuid.UUID, data: AffectedRxswinCreate, use
             .order_by(RXSWINBaseline.baseline_number.desc()).limit(1)
         )
         before_id = prev.id if prev else None
+    await _invalidate_vv(db, user, doc, f"affected RXSWIN {rx.rxswin} added")
     link = SoftwareUpdateRXSWIN(
         software_update_id=doc.id, rxswin_id=rx.id, baseline_before_id=before_id, baseline_after_id=after.id,
     )
@@ -420,6 +436,7 @@ async def remove_affected_rxswin(doc_id: uuid.UUID, link_id: uuid.UUID, user: No
         raise HTTPException(status_code=404, detail="Povezava ne obstaja")
     await _audit(db, user, "delete", "software_update_rxswin", link.id,
                  before={"document_id": doc.document_id, "rxswin": link.rxswin_ref.rxswin})
+    await _invalidate_vv(db, user, doc, f"affected RXSWIN {link.rxswin_ref.rxswin} removed")
     await db.delete(link)
     await db.commit()
     return await _reload(db, doc_id, user["org_id"])
@@ -511,7 +528,7 @@ async def record_result(
         # zapis izvedbe je dokaz — ne prepisuje se
         raise HTTPException(status_code=409, detail="Izvedba za to vozilo je že zapisana")
     t.result = data.result
-    t.applied_at = data.applied_at or _now()
+    t.applied_at = _now()   # strežniški čas — zapis se ne da predatirati
     t.applied_by = user["user_id"]
     after = {
         "document_id": doc.document_id, "revision": doc.baseline_number, "vin": await _vin(db, t.vehicle_id),
@@ -542,9 +559,11 @@ async def record_notification(doc_id: uuid.UUID, data: UserNotification, user: N
     doc = await _load(db, doc_id, user["org_id"], lock=True)
     if doc.status == "superseded":
         raise HTTPException(status_code=409, detail="Dokument je nadomeščen")
+    if doc.user_notified_at:
+        raise HTTPException(status_code=409, detail="Obvestilo je že zapisano")
     before = {"user_notification_method": doc.user_notification_method, "user_notified_at": _jsonable(doc.user_notified_at)}
     doc.user_notification_method = data.method
-    doc.user_notified_at = data.notified_at or _now()
+    doc.user_notified_at = _now()
     doc.user_notified_by = user["user_id"]
     await _audit(db, user, "notify", "software_update", doc.id, before=before, after={
         "document_id": doc.document_id, "method": data.method, "notified_at": _jsonable(doc.user_notified_at),
@@ -634,7 +653,9 @@ async def document_report(doc_id: uuid.UUID, user: CurrentUserDep, db: DbSession
     from app.services.r156_reports import render_software_update_pdf
 
     detail = await _reload(db, doc_id, user["org_id"])
-    pdf = render_software_update_pdf(detail)
+    from starlette.concurrency import run_in_threadpool
+
+    pdf = await run_in_threadpool(render_software_update_pdf, detail)
     filename = f"{detail.document_id} rev{detail.revision} - Software Update.pdf"
     return Response(content=pdf, media_type="application/pdf",
                     headers={"Content-Disposition": f'attachment; filename="{filename}"'})

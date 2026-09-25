@@ -11,6 +11,7 @@ Obstoječemu uporabniku z --reset-password nastavi novo naključno geslo.
 import argparse
 import asyncio
 import secrets
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -42,6 +43,7 @@ async def main(email: str, name: str, role: str, org_name: str, reset_password: 
             if not reset_password:
                 raise SystemExit(f"Uporabnik {email} že obstaja (za novo geslo dodaj --reset-password)")
             user.password_hash = hash_password(password)
+            user.password_changed_at = datetime.now(timezone.utc).replace(microsecond=0)
             user.is_active = True
             action = "reset_password"
         else:

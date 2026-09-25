@@ -18,7 +18,7 @@ class Settings(BaseSettings):
 
     # JWT — v produkciji MORA biti nastavljen prek .env (openssl rand -hex 32)
     secret_key: str = _INSECURE_DEFAULT_KEY
-    access_token_expire_minutes: int = 60
+    access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 30
 
     @model_validator(mode="after")

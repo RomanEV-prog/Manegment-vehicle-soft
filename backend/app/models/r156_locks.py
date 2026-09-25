@@ -18,6 +18,7 @@ from app.models.r156 import (
     VehicleConfiguration,
 )
 from app.database import Base
+from app.models.audit_log import AuditLog
 
 BASELINE_LOCK_SQL = [
 """
@@ -124,12 +125,23 @@ SU_CHILD_LOCK_SQL = [
 CREATE OR REPLACE FUNCTION software_update_child_lock() RETURNS trigger AS $$
 DECLARE
     st text;
+    st_old text;
     allowed text[] := ARRAY['result', 'applied_at', 'applied_by'];
 BEGIN
     SELECT status INTO st FROM software_updates
         WHERE id = CASE WHEN TG_OP = 'DELETE' THEN OLD.software_update_id ELSE NEW.software_update_id END;
+    -- pri UPDATE tudi dokument, iz katerega zapis prihaja (prestavitev iz izdanega v osnutek)
+    IF TG_OP = 'UPDATE' THEN
+        SELECT status INTO st_old FROM software_updates WHERE id = OLD.software_update_id;
+        IF st_old IS NOT NULL AND st_old <> 'draft' THEN
+            st := st_old;
+        END IF;
+    END IF;
     IF st IS NULL OR st = 'draft' THEN
         RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+    END IF;
+    IF TG_OP = 'UPDATE' AND NEW.software_update_id <> OLD.software_update_id THEN
+        RAISE EXCEPTION 'Zapisa ni mogoče prestaviti v drug dokument' USING ERRCODE = 'check_violation';
     END IF;
     IF TG_TABLE_NAME = 'software_update_targets' AND TG_OP = 'UPDATE'
        AND (to_jsonb(NEW) - allowed) = (to_jsonb(OLD) - allowed) THEN
@@ -170,12 +182,29 @@ $$ LANGUAGE plpgsql
     ON vehicle_configurations (vehicle_id) WHERE config_type = 'initial_eol'""",
 ]
 
+# ─── Revizijska sled: samo dodajanje ──────────────────────────────────────────
+AUDIT_LOCK_SQL = [
+"""
+CREATE OR REPLACE FUNCTION audit_log_append_only() RETURNS trigger AS $$
+BEGIN
+    RAISE EXCEPTION 'Revizijska sled je samo za dodajanje (%)', TG_OP USING ERRCODE = 'check_violation';
+END;
+$$ LANGUAGE plpgsql
+""",
+    "DROP TRIGGER IF EXISTS trg_audit_log_append_only ON audit_logs",
+    """CREATE TRIGGER trg_audit_log_append_only
+    BEFORE UPDATE OR DELETE ON audit_logs
+    FOR EACH ROW EXECUTE FUNCTION audit_log_append_only()""",
+]
+
 # asyncpg ne sprejme več ukazov v enem klicu — vsak ukaz posebej.
 # DDL() formatira niz z %, zato se % iz RAISE podvoji.
 for _stmt in BASELINE_LOCK_SQL:
     event.listen(RXSWINBaseline.__table__, "after_create", DDL(_stmt.replace("%", "%%")))
 for _stmt in ITEM_LOCK_SQL:
     event.listen(RXSWINBaselineItem.__table__, "after_create", DDL(_stmt.replace("%", "%%")))
+for _stmt in AUDIT_LOCK_SQL:
+    event.listen(AuditLog.__table__, "after_create", DDL(_stmt.replace("%", "%%")))
 for _stmt in CONFIG_LOCK_SQL:
     event.listen(VehicleConfiguration.__table__, "after_create", DDL(_stmt.replace("%", "%%")))
 for _stmt in SU_LOCK_SQL:

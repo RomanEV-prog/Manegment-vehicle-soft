@@ -19,6 +19,8 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     fcm_token: Mapped[str | None] = mapped_column(String, nullable=True)  # Firebase push token
+    # refresh žetoni, izdani pred menjavo gesla, ne veljajo več
+    password_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships

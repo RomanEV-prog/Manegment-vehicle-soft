@@ -57,7 +57,8 @@
     "sectionSums": "R156 SUMS",
     "sectionOther": "Other",
     "softwareUpdates": "Software Updates",
-    "fleet": "Vehicles (VIN)"
+    "fleet": "Vehicles (VIN)",
+    "sumsOverview": "Overview"
   },
   "login": {
     "title": "eVersum",
@@ -521,7 +522,8 @@
     "entitySoftwareUpdateRxswin": "SU — affected RXSWIN",
     "entitySoftwareUpdateTarget": "SU — target vehicle",
     "entityVehicleConfiguration": "Vehicle configuration",
-    "entityVehicleEcu": "Vehicle ECUs"
+    "entityVehicleEcu": "Vehicle ECUs",
+    "exportCsv": "Export CSV"
   },
   "settings": {
     "title": "Settings",
@@ -543,13 +545,25 @@
     "fieldFullName": "Full name *",
     "fieldEmail": "Email *",
     "fieldPassword": "Password *",
-    "passwordHint": "min. 8 characters",
+    "passwordHint": "At least 12 characters",
     "fieldRole": "Role",
     "userCreatedSuccess": "User created",
     "userDeactivatedSuccess": "User deactivated",
     "deactivateError": "Error deactivating user",
     "alarmUpdateError": "Error updating alarm",
-    "createUserError": "Error"
+    "createUserError": "Error",
+    "changePassword": "Change password",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "repeatPassword": "Repeat new password",
+    "passwordRule": "At least 12 characters.",
+    "passwordMismatch": "Passwords do not match.",
+    "passwordChanged": "Password changed",
+    "resetPassword": "Reset password",
+    "resetConfirm": "Set a new random password for {email}? The current password stops working immediately.",
+    "tempPasswordHint": "New password for {email}. It is shown only once — pass it on securely; the user should change it after logging in.",
+    "copied": "Copied",
+    "generate": "Generate"
   },
   "homologation": {
     "createTitle": "New homologation",
@@ -766,7 +780,8 @@
     "rxswinSettings": "RXSWIN details",
     "retire": "Retire RXSWIN",
     "reactivate": "Reactivate",
-    "readme": "Readme PDF"
+    "readme": "Readme PDF",
+    "registerPdf": "Register PDF"
   },
   "fleet": {
     "title": "Vehicles",
@@ -778,7 +793,8 @@
     "status": "Status",
     "noVehicles": "No vehicles of this type",
     "created": "Vehicle added",
-    "vinHint": "17 characters, uppercase"
+    "vinHint": "17 characters, uppercase",
+    "exportCsv": "Configurations CSV"
   },
   "su": {
     "title": "Software Updates",
@@ -940,5 +956,20 @@
     "software": "Software",
     "viaSu": "Software Update",
     "erpApi": "ERP read access: GET /api/v1/integration/vehicles/{vin}/last-known-configuration"
+  },
+  "sums": {
+    "title": "SUMS overview",
+    "subtitle": "What needs attention — UN R156 Software Update Management System",
+    "rxswins": "RXSWINs",
+    "releasedBaselines": "Released baselines",
+    "releasedUpdates": "Released software updates",
+    "vehicles": "Vehicles",
+    "suDrafts": "Software Updates in draft",
+    "pendingExecution": "Released updates not yet executed",
+    "vehiclesPending": "{n} vehicle(s) pending",
+    "draftBaselines": "Baselines in draft",
+    "noEol": "Vehicles without end-of-line configuration",
+    "recent": "Recent activity",
+    "nothing": "Nothing pending"
   }
 }

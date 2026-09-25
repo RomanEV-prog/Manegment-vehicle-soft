@@ -34,6 +34,14 @@ async def login(request: Request, data: LoginRequest, db: DbSession):
 
     if not user or not verify_password(data.password, user.password_hash):
         login_limit.record_failure(data.email, client_ip)
+        if user:
+            # neuspela prijava na obstoječ račun — sled za presojo in odkrivanje napadov
+            await write_audit_log(
+                db=db, org_id=user.organization_id, actor_id=None, actor_type="system", actor_device="web",
+                actor_ip=client_ip, action="login_failed", entity_type="user", entity_id=user.id,
+                after={"email": user.email},
+            )
+            await db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Napačen email ali geslo",
@@ -79,6 +87,10 @@ async def refresh_token(data: RefreshRequest, db: DbSession):
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Uporabnik ne obstaja")
+    # po menjavi gesla stare seje ne smejo več podaljševati žetonov
+    issued = payload.get("iat")
+    if user.password_changed_at and (issued is None or issued < int(user.password_changed_at.timestamp())):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Seja je potekla — prijavi se znova")
 
     token_data = {
         "sub": str(user.id),

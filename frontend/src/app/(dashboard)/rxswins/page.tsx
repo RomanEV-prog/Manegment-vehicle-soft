@@ -4,11 +4,11 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, ShieldCheck, ChevronRight } from "lucide-react";
+import { FileDown, Plus, ShieldCheck, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { r156Api } from "@/lib/api";
+import { exportApi, r156Api } from "@/lib/api";
 import { useTranslations } from "@/lib/i18n";
 import { formatDate } from "@/lib/utils";
 import type { RxswinListItem, VehicleType } from "@/types/r156";
@@ -54,6 +54,10 @@ export default function RxswinsPage() {
               ))}
             </Select>
           )}
+          <Button variant="outline" onClick={() => exportApi.rxswinRegister(typeFilter || undefined)} disabled={rxswins.length === 0}>
+            <FileDown className="h-4 w-4" />
+            {t("registerPdf")}
+          </Button>
           {canEdit && (
             <Button onClick={() => setCreateOpen(true)} disabled={vehicleTypes.length === 0}>
               <Plus className="h-4 w-4" />

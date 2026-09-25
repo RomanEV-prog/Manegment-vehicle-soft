@@ -5,11 +5,12 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
-import { auditApi } from "@/lib/api";
+import { auditApi, exportApi } from "@/lib/api";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { formatDateTime } from "@/lib/utils";
 import type { AuditLog, AuditAction, AuditEntityType } from "@/types";
-import { ClipboardList, ChevronDown, ChevronRight, Filter } from "lucide-react";
+import { ClipboardList, ChevronDown, ChevronRight, Filter, FileDown } from "lucide-react";
 import { useTranslations } from "@/lib/i18n";
 
 // ─── Action colors ────────────────────────────────────────────────────────────
@@ -142,12 +143,17 @@ export default function AuditPage() {
     enabled: isAllowed,
   });
 
+  // isti filtri za števec in izvoz kot za seznam
+  const filters: Record<string, string | undefined> = {
+    action: filterAction || undefined,
+    entity_type: filterEntityType || undefined,
+    from_date: filterFromDate || undefined,
+    to_date: filterToDate || undefined,
+  };
   const { data: countData } = useQuery<{ count: number }>({
-    queryKey: ["audit-count", filterAction, filterEntityType],
-    queryFn: () => auditApi.count({
-      ...(filterAction ? { action: filterAction } : {}),
-      ...(filterEntityType ? { entity_type: filterEntityType } : {}),
-    }),
+    queryKey: ["audit-count", filters],
+    queryFn: () =>
+      auditApi.count(Object.fromEntries(Object.entries(filters).filter(([, v]) => v)) as Record<string, string>),
     enabled: isAllowed,
   });
 
@@ -164,9 +170,15 @@ export default function AuditPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">{t("title")}</h2>
-        <p className="text-sm text-gray-500">{t("subtitle")}</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">{t("title")}</h2>
+          <p className="text-sm text-gray-500">{t("subtitle")}</p>
+        </div>
+        <Button variant="outline" onClick={() => exportApi.auditTrail(filters)}>
+          <FileDown className="h-4 w-4" />
+          {t("exportCsv")}
+        </Button>
       </div>
 
       {/* Filters */}

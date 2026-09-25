@@ -36,3 +36,9 @@ async def write_audit_log(
     )
     db.add(log)
     # Ne commitamo tukaj — caller je odgovoren za commit
+
+
+def csv_safe(v) -> str:
+    """Celica, ki se začne z = + - @ ali tab/CR, bi se v Excelu izvedla kot formula."""
+    s = "" if v is None else str(v)
+    return "'" + s if s[:1] in ("=", "+", "-", "@", "\t", "\r") else s

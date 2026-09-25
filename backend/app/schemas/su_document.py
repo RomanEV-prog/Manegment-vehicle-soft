@@ -4,7 +4,9 @@ import uuid
 from datetime import date, datetime
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from app.schemas.r156 import http_url
 
 # Polja, ki jih ureja uporabnik v osnutku — vrstni red sledi §7.1.2.5
 EDITABLE_FIELDS = (
@@ -57,6 +59,11 @@ class SUDocumentUpdate(BaseModel):
     erp_work_order_url: Optional[str] = None
     egnyte_folder_url: Optional[str] = None
 
+    @field_validator("erp_work_order_url", "egnyte_folder_url")
+    @classmethod
+    def validate_url(cls, v: Optional[str]) -> Optional[str]:
+        return http_url(v)
+
 
 class VVSignRequest(BaseModel):
     vv_status: Literal["pass", "fail"]
@@ -79,12 +86,10 @@ class TargetCompatibility(BaseModel):
 
 class TargetResult(BaseModel):
     result: Literal["success", "failed", "rolled_back"]
-    applied_at: Optional[datetime] = None
 
 
 class UserNotification(BaseModel):
     method: str = Field(min_length=1)    # npr. "E-mail to fleet manager"
-    notified_at: Optional[datetime] = None
 
 
 # ─── Odgovori ─────────────────────────────────────────────────────────────────

@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 async function getI18nProps() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   // DEFAULT_LOCALE (runtime env) določi jezik, dokler uporabnik ne izbere drugega
   const fallback = process.env.DEFAULT_LOCALE === "en" ? "en" : "sl";
   const raw = cookieStore.get("NEXT_LOCALE")?.value ?? fallback;

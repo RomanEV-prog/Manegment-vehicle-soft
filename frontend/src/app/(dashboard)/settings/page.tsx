@@ -16,13 +16,63 @@ import {
 import { usersApi, alarmsApi } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { formatDate } from "@/lib/utils";
-import { Users, Plus, UserX, Bell, Mail, Wifi, CheckCircle2, XCircle } from "lucide-react";
+import { Users, Plus, UserX, Bell, Mail, Wifi, CheckCircle2, XCircle, KeyRound, Copy } from "lucide-react";
+import { setTokens } from "@/lib/auth";
+import { moduleEnabled } from "@/lib/modules";
 import type { User, AlarmConfig } from "@/types";
 import toast from "react-hot-toast";
 import type { AxiosError } from "axios";
 import { useTranslations } from "@/lib/i18n";
 
 const ROLES = ["admin", "qc_manager", "technician", "partner_viewer"];
+
+// Naključno geslo (16 znakov) — admin ga posreduje uporabniku, ta ga zamenja
+function randomPassword(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(bytes, (b) => chars[b % chars.length]).join("");
+}
+
+function ChangePasswordCard() {
+  const t = useTranslations("settings");
+  const tCommon = useTranslations("common");
+  const [form, setForm] = useState({ current: "", next: "", repeat: "" });
+  const mismatch = form.repeat.length > 0 && form.next !== form.repeat;
+  const mutation = useMutation({
+    mutationFn: () => usersApi.changePassword(form.current, form.next),
+    onSuccess: (tokens) => {
+      setTokens(tokens.access_token, tokens.refresh_token);
+      setForm({ current: "", next: "", repeat: "" });
+      toast.success(t("passwordChanged"));
+    },
+    onError: (e: AxiosError<{ detail: string }>) =>
+      toast.error(typeof e.response?.data?.detail === "string" ? e.response.data.detail : tCommon("error")),
+  });
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <KeyRound className="h-4 w-4" />
+          {t("changePassword")}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid max-w-3xl gap-3 sm:grid-cols-3">
+          <Input type="password" autoComplete="current-password" placeholder={t("currentPassword")} value={form.current} onChange={(e) => setForm({ ...form, current: e.target.value })} />
+          <Input type="password" autoComplete="new-password" placeholder={t("newPassword")} value={form.next} onChange={(e) => setForm({ ...form, next: e.target.value })} />
+          <Input type="password" autoComplete="new-password" placeholder={t("repeatPassword")} value={form.repeat} onChange={(e) => setForm({ ...form, repeat: e.target.value })} className={mismatch ? "border-red-300" : ""} />
+        </div>
+        <div className="mt-3 flex items-center gap-3">
+          <Button size="sm" onClick={() => mutation.mutate()} disabled={mutation.isPending || !form.current || form.next.length < 12 || form.next !== form.repeat}>
+            {mutation.isPending && <Spinner className="mr-2 h-4 w-4" />}
+            {t("changePassword")}
+          </Button>
+          <span className="text-xs text-gray-400">{mismatch ? t("passwordMismatch") : t("passwordRule")}</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 const ROLE_COLORS: Record<string, string> = {
   admin: "bg-purple-100 text-purple-800",
@@ -68,7 +118,12 @@ function CreateUserDialog({ open, onClose }: { open: boolean; onClose: () => voi
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldPassword")}</label>
-            <Input type="password" value={form.password} onChange={(e) => set("password", e.target.value)} placeholder={t("passwordHint")} />
+            <div className="flex gap-2">
+              <Input type="text" value={form.password} onChange={(e) => set("password", e.target.value)} placeholder={t("passwordHint")} className="font-mono" />
+              <Button type="button" variant="outline" size="sm" className="h-9" onClick={() => set("password", randomPassword())}>
+                {t("generate")}
+              </Button>
+            </div>
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldRole")}</label>
@@ -85,7 +140,7 @@ function CreateUserDialog({ open, onClose }: { open: boolean; onClose: () => voi
           <Button variant="outline" onClick={onClose}>{tCommon("cancel")}</Button>
           <Button
             onClick={() => mutation.mutate()}
-            disabled={mutation.isPending || !form.email || !form.full_name || form.password.length < 8}
+            disabled={mutation.isPending || !form.email || !form.full_name || form.password.length < 12}
           >
             {mutation.isPending ? <Spinner className="mr-2 h-4 w-4" /> : null}
             {tCommon("create")}
@@ -119,11 +174,21 @@ export default function SettingsPage() {
   });
 
   const isAdmin = payload?.role === "admin";
+  const [temp, setTemp] = useState<{ email: string; temporary_password: string } | null>(null);
+  const [resetUser, setResetUser] = useState<User | null>(null);
+  const resetMutation = useMutation({
+    mutationFn: (id: string) => usersApi.resetPassword(id),
+    onSuccess: (d) => {
+      setResetUser(null);
+      setTemp(d);
+    },
+    onError: () => toast.error(tCommon("error")),
+  });
 
   const { data: alarmConfigs } = useQuery<AlarmConfig[]>({
     queryKey: ["alarm-configs"],
     queryFn: () => alarmsApi.listConfigs(),
-    enabled: isAdmin || payload?.role === "qc_manager",
+    enabled: moduleEnabled("alarms") && (isAdmin || payload?.role === "qc_manager"),
   });
 
   const toggleAlarmMutation = useMutation({
@@ -233,6 +298,17 @@ export default function SettingsPage() {
                             <Button
                               variant="ghost"
                               size="sm"
+                              className="h-7 text-xs"
+                              onClick={() => setResetUser(u)}
+                            >
+                              <KeyRound className="mr-1 h-3.5 w-3.5" />
+                              {t("resetPassword")}
+                            </Button>
+                          )}
+                          {u.is_active && u.id !== payload?.sub && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               className="h-7 text-xs text-red-500 hover:text-red-700"
                               onClick={() => deactivateMutation.mutate(u.id)}
                             >
@@ -253,8 +329,44 @@ export default function SettingsPage() {
 
       <CreateUserDialog open={createOpen} onClose={() => setCreateOpen(false)} />
 
+      <ChangePasswordCard />
+
+      <Dialog open={!!resetUser} onOpenChange={(o) => !o && setResetUser(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("resetPassword")}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">{t("resetConfirm", { email: resetUser?.email ?? "" })}</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetUser(null)}>{tCommon("cancel")}</Button>
+            <Button onClick={() => resetUser && resetMutation.mutate(resetUser.id)} disabled={resetMutation.isPending}>
+              {resetMutation.isPending && <Spinner className="mr-2 h-4 w-4" />}
+              {t("resetPassword")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!temp} onOpenChange={(o) => !o && setTemp(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("resetPassword")}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">{t("tempPasswordHint", { email: temp?.email ?? "" })}</p>
+          <div className="mt-2 flex items-center gap-2">
+            <code className="flex-1 rounded bg-gray-50 px-3 py-2 font-mono text-sm">{temp?.temporary_password}</code>
+            <Button variant="outline" size="sm" onClick={() => temp && navigator.clipboard.writeText(temp.temporary_password).then(() => toast.success(t("copied")))}>
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setTemp(null)}>{tCommon("close")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Alarm configurations */}
-      {(isAdmin || payload?.role === "qc_manager") && (
+      {moduleEnabled("alarms") && (isAdmin || payload?.role === "qc_manager") && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">

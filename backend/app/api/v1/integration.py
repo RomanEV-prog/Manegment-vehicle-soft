@@ -29,8 +29,11 @@ async def integration_org(request: Request, db: DbSession):
     """org_id iz API ključa (ERP) ali iz JWT (prijavljen uporabnik)."""
     key = request.headers.get("X-API-Key")
     if key:
-        if not settings.erp_api_key or not hmac.compare_digest(key, settings.erp_api_key):
+        if not settings.erp_api_key or not hmac.compare_digest(
+            key.encode("utf-8", "replace"), settings.erp_api_key.encode("utf-8")
+        ):
             raise HTTPException(status_code=401, detail="Neveljaven API ključ")
+        request.state.erp_read = True
         org_id = await db.scalar(select(Organization.id).where(Organization.name == settings.erp_org_name))
         if not org_id:
             raise HTTPException(status_code=500, detail="Organizacija za integracijo ni nastavljena")
@@ -57,7 +60,7 @@ class LastKnownConfiguration(BaseModel):
 
 
 @router.get("/vehicles/{vin}/last-known-configuration", response_model=LastKnownConfiguration)
-async def last_known_configuration(vin: str, db: DbSession, org_id=Depends(integration_org)):
+async def last_known_configuration(vin: str, request: Request, db: DbSession, org_id=Depends(integration_org)):
     v = await db.scalar(select(Vehicle).where(Vehicle.vin == vin.strip().upper(), Vehicle.organization_id == org_id))
     if not v:
         raise HTTPException(status_code=404, detail="Vozilo s tem VIN ne obstaja")
@@ -65,6 +68,15 @@ async def last_known_configuration(vin: str, db: DbSession, org_id=Depends(integ
     if not cfg:
         raise HTTPException(status_code=404, detail="Za vozilo še ni zapisane konfiguracije")
     vt = await db.get(VehicleType, v.vehicle_type_id) if v.vehicle_type_id else None
+    if getattr(request.state, "erp_read", False):
+        from app.utils.audit import write_audit_log
+
+        await write_audit_log(
+            db=db, org_id=org_id, actor_id=None, actor_type="api_key", actor_device="erp",
+            action="export", entity_type="vehicle_configuration", entity_id=cfg.id,
+            after={"vin": v.vin, "config_id": cfg.config_id, "via": "ERP integration"},
+        )
+        await db.commit()
     from app.api.v1.vehicle_config import su_label
 
     return LastKnownConfiguration(

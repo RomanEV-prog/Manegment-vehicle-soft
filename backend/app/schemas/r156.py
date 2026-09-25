@@ -12,6 +12,18 @@ from app.schemas.sw_update import RXSWIN_PATTERN
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 
 
+def http_url(v: Optional[str]) -> Optional[str]:
+    """Povezave (Egnyte, ERP) smejo biti le http(s) — javascript: ipd. bi bil XSS ob kliku."""
+    if v is None:
+        return None
+    v = v.strip()
+    if not v:
+        return None
+    if not re.match(r"^https?://[^\s]+$", v, re.IGNORECASE):
+        raise ValueError("Povezava mora začeti s http:// ali https://")
+    return v
+
+
 def normalize_sha256(v: Optional[str]) -> Optional[str]:
     """SHA-256 shranjujemo z malimi črkami; prazen niz pomeni 'ni vrednosti'."""
     if v is None:
@@ -151,6 +163,11 @@ class BaselineItemBase(BaseModel):
     @classmethod
     def validate_sha(cls, v: Optional[str]) -> Optional[str]:
         return normalize_sha256(v)
+
+    @field_validator("egnyte_folder_url")
+    @classmethod
+    def validate_url(cls, v: Optional[str]) -> Optional[str]:
+        return http_url(v)
 
 
 class BaselineItemCreate(BaselineItemBase):

@@ -34,6 +34,17 @@ export function apiError(e: unknown, fallback: string): string {
   return fallback;
 }
 
+// Povezava se izpiše le, če je http(s) — javascript: ipd. bi bil XSS ob kliku
+export function safeHref(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  try {
+    const u = new URL(url);
+    return u.protocol === "http:" || u.protocol === "https:" ? u.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function usePermissions() {
   const { user, payload } = useAuth();
   const role = user?.role ?? payload?.role;

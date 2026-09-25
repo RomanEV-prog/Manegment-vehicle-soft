@@ -26,7 +26,7 @@ import { suApi } from "@/lib/api";
 import { useTranslations } from "@/lib/i18n";
 import { cn, formatDate, formatDateTime } from "@/lib/utils";
 import type { SuDetail, SuEditable, SuTarget } from "@/types/r156";
-import { apiError, BaselineStatusBadge, ConfirmDialog, Field, Textarea, usePermissions } from "@/components/r156/shared";
+import { apiError, BaselineStatusBadge, ConfirmDialog, Field, safeHref, Textarea, usePermissions } from "@/components/r156/shared";
 import {
   AddRxswinDialog,
   AddTargetsDialog,
@@ -592,8 +592,8 @@ export default function SoftwareUpdateDetailPage() {
         <div className="grid gap-4 md:grid-cols-3">
           <Field label={t("erpWorkOrder")}>{line("erp_work_order", "WO-2026-0142")}</Field>
           <Field label={t("erpWorkOrderUrl")}>
-            {editable ? line("erp_work_order_url", "https://") : doc.erp_work_order_url ? (
-              <a href={doc.erp_work_order_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline">
+            {editable ? line("erp_work_order_url", "https://") : safeHref(doc.erp_work_order_url) ? (
+              <a href={safeHref(doc.erp_work_order_url)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline">
                 <ExternalLink className="h-3.5 w-3.5" /> ERP
               </a>
             ) : (
@@ -601,8 +601,8 @@ export default function SoftwareUpdateDetailPage() {
             )}
           </Field>
           <Field label={t("egnyte")}>
-            {editable ? line("egnyte_folder_url", "https://evision.egnyte.com/...") : doc.egnyte_folder_url ? (
-              <a href={doc.egnyte_folder_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline">
+            {editable ? line("egnyte_folder_url", "https://evision.egnyte.com/...") : safeHref(doc.egnyte_folder_url) ? (
+              <a href={safeHref(doc.egnyte_folder_url)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline">
                 <ExternalLink className="h-3.5 w-3.5" /> Egnyte
               </a>
             ) : (

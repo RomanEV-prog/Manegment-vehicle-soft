@@ -133,11 +133,12 @@ async def test_type_approval_needed_requires_grant(client, su, org_and_user):
     d = await _ready(client, su, org_and_user)
     d = (await client.put(f"/api/v1/software-updates/{d['id']}",
                           json={"type_approval_update_necessary": True}, headers=su["h"])).json()
-    assert d["release_blockers"] == ["ta_not_granted"]
+    # sprememba vsebine razveljavi podpis V&V
+    assert d["release_blockers"] == ["vv_not_passed", "ta_not_granted"]
     d = (await client.put(f"/api/v1/software-updates/{d['id']}", json={
         "type_approval_granted": True, "type_approval_number": "E1*156R00/00*0042", "type_approval_date": "2026-09-20",
     }, headers=su["h"])).json()
-    assert d["release_blockers"] == []
+    assert d["release_blockers"] == ["vv_not_passed"]
 
 
 async def test_full_release(client, su, org_and_user):
@@ -161,7 +162,7 @@ async def test_draft_rxswin_baseline_blocks_release(client, su, org_and_user):
     await client.delete(f"{url}/rxswins/{d['affected_rxswins'][0]['id']}", headers=su["h"])
     d = (await client.post(f"{url}/rxswins", json={"rxswin_id": su["rx"]["id"], "baseline_after_id": draft["id"]},
                            headers=su["h"])).json()
-    assert d["release_blockers"] == ["baseline_not_released:VCUSWIN001"]
+    assert d["release_blockers"] == ["baseline_not_released:VCUSWIN001", "vv_not_passed"]
 
 
 async def test_unconfirmed_target_blocks_release(client, su, org_and_user):
@@ -287,3 +288,34 @@ async def test_duplicate_vin_rejected(client, su):
 async def test_vehicles_filter_by_type(client, su):
     r = await client.get("/api/v1/vehicles", params={"vehicle_type_id": su["vt"]["id"]}, headers=su["h"])
     assert sorted(v["vin"] for v in r.json()) == ["VIN0000000000001", "VIN0000000000002"]
+
+
+async def test_content_change_resets_vv_sign_off(client, su, org_and_user):
+    d = await _ready(client, su, org_and_user)
+    assert d["vv_status"] == "pass"
+    url = f"/api/v1/software-updates/{d['id']}"
+    # isti podatki ponovno = brez spremembe, podpis ostane
+    same = (await client.put(url, json={"title": d["title"]}, headers=org_and_user["tech_headers"])).json()
+    assert same["vv_status"] == "pass"
+    changed = (await client.put(url, json={"execution_conditions": "Changed after sign-off"},
+                                headers=org_and_user["tech_headers"])).json()
+    assert changed["vv_status"] == "pending" and changed["vv_signed_by_name"] is None
+    assert "vv_not_passed" in changed["release_blockers"]
+    logs = (await client.get("/api/v1/audit-logs", params={"entity_id": d["id"]}, headers=su["h"])).json()
+    assert any("V&V sign-off reset" in (l["after"] or {}).get("reason", "") for l in logs)
+
+
+async def test_notification_cannot_be_overwritten(client, su, org_and_user):
+    d = await _ready(client, su, org_and_user)
+    url = f"/api/v1/software-updates/{d['id']}"
+    await client.post(f"{url}/release", headers=su["h"])
+    assert (await client.post(f"{url}/notification", json={"method": "E-mail"}, headers=su["h"])).status_code == 200
+    assert (await client.post(f"{url}/notification", json={"method": "Other"}, headers=su["h"])).status_code == 409
+
+
+async def test_link_fields_reject_javascript_urls(client, su):
+    d = await _doc(client, su)
+    r = await client.put(f"/api/v1/software-updates/{d['id']}", json={"egnyte_folder_url": "javascript:alert(1)"}, headers=su["h"])
+    assert r.status_code == 422
+    ok = await client.put(f"/api/v1/software-updates/{d['id']}", json={"egnyte_folder_url": "https://evision.egnyte.com/x"}, headers=su["h"])
+    assert ok.status_code == 200

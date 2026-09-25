@@ -4,13 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { Plus, Truck } from "lucide-react";
+import { FileDown, Plus, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { fleetApi, r156Api } from "@/lib/api";
+import { exportApi, fleetApi, r156Api } from "@/lib/api";
 import { useTranslations } from "@/lib/i18n";
 import { cn, formatDate } from "@/lib/utils";
 import type { FleetVehicle, VehicleType } from "@/types/r156";
@@ -117,12 +117,20 @@ export default function FleetPage() {
           <h2 className="text-xl font-semibold text-gray-900">{t("title")}</h2>
           <p className="text-sm text-gray-500">{t("subtitle")}</p>
         </div>
-        {canEdit && vehicleType && (
-          <Button onClick={() => setOpen(true)}>
-            <Plus className="h-4 w-4" />
-            {t("newVehicle")}
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {typeId && (
+            <Button variant="outline" onClick={() => exportApi.vehicleConfigurations(typeId)}>
+              <FileDown className="h-4 w-4" />
+              {t("exportCsv")}
+            </Button>
+          )}
+          {canEdit && vehicleType && (
+            <Button onClick={() => setOpen(true)}>
+              <Plus className="h-4 w-4" />
+              {t("newVehicle")}
+            </Button>
+          )}
+        </div>
       </div>
 
       {typesLoading ? (

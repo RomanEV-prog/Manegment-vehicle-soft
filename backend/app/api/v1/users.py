@@ -1,13 +1,17 @@
+import secrets
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
 
 from app.api.deps import CurrentUserDep, DbSession, require_role
 from app.models.user import User
+from app.schemas.auth import TokenResponse
+from app.schemas.user import PASSWORD_MIN, PasswordChange, PasswordResetResponse
 from app.utils.audit import write_audit_log
-from app.utils.security import hash_password
+from app.utils.security import create_access_token, create_refresh_token, hash_password, verify_password
 
 router = APIRouter()
 
@@ -16,9 +20,9 @@ AdminOrQC = Depends(require_role("admin", "qc_manager"))
 
 class UserCreate(BaseModel):
     email: EmailStr
-    full_name: str
+    full_name: str = Field(min_length=1)
     role: str       # 'admin' | 'qc_manager' | 'technician' | 'partner_viewer'
-    password: str
+    password: str = Field(min_length=PASSWORD_MIN)
 
 
 class UserUpdate(BaseModel):
@@ -183,3 +187,50 @@ async def deactivate_user(user_id: uuid.UUID, user: CurrentUserDep, db: DbSessio
     await db.commit()
     await db.refresh(u)
     return u
+
+
+# ─── Gesla ────────────────────────────────────────────────────────────────────
+
+@router.put("/me/password", response_model=TokenResponse)
+async def change_own_password(data: PasswordChange, user: CurrentUserDep, db: DbSession):
+    """Menjava lastnega gesla. Vrne nove žetone; stare refresh žetone zavrne /auth/refresh."""
+    from app.utils import login_limit
+
+    u = await db.scalar(select(User).where(User.id == user["user_id"]))
+    if not u:
+        raise HTTPException(status_code=401, detail="Seja ni več veljavna")
+    if login_limit.retry_after(u.email, None):
+        raise HTTPException(status_code=429, detail="Preveč neuspelih poskusov — poskusi znova čez nekaj minut")
+    if not verify_password(data.current_password, u.password_hash):
+        login_limit.record_failure(u.email, None)
+        raise HTTPException(status_code=400, detail="Trenutno geslo ni pravilno")
+    if data.new_password == data.current_password:
+        raise HTTPException(status_code=422, detail="Novo geslo mora biti drugačno od trenutnega")
+    u.password_hash = hash_password(data.new_password)
+    # zaokroženo navzdol na sekundo — nov žeton (iat) ne sme biti starejši od tega
+    u.password_changed_at = datetime.now(timezone.utc).replace(microsecond=0)
+    await write_audit_log(
+        db=db, org_id=user["org_id"], actor_id=user["user_id"], actor_type="user", actor_device="web",
+        action="update", entity_type="user", entity_id=u.id, after={"email": u.email, "password": "changed"},
+    )
+    await db.commit()
+    token_data = {"sub": str(u.id), "org_id": str(u.organization_id), "role": u.role}
+    return TokenResponse(access_token=create_access_token(token_data), refresh_token=create_refresh_token(token_data))
+
+
+@router.post("/{user_id}/reset-password", response_model=PasswordResetResponse,
+             dependencies=[Depends(require_role("admin"))])
+async def reset_password(user_id: uuid.UUID, user: CurrentUserDep, db: DbSession):
+    """Admin nastavi novo naključno geslo — izpiše se enkrat, v revizijsko sled ne gre."""
+    u = await db.scalar(select(User).where(User.id == user_id, User.organization_id == user["org_id"]))
+    if not u:
+        raise HTTPException(status_code=404, detail="Uporabnik ne obstaja")
+    temporary = secrets.token_urlsafe(12)
+    u.password_hash = hash_password(temporary)
+    u.password_changed_at = datetime.now(timezone.utc).replace(microsecond=0)
+    await write_audit_log(
+        db=db, org_id=user["org_id"], actor_id=user["user_id"], actor_type="user", actor_device="web",
+        action="update", entity_type="user", entity_id=u.id, after={"email": u.email, "password": "reset by admin"},
+    )
+    await db.commit()
+    return PasswordResetResponse(email=u.email, temporary_password=temporary)

@@ -202,3 +202,56 @@ def render_readme_pdf(rxswin, baseline, item) -> bytes:
 def render_software_update_pdf(detail) -> bytes:
     html = _env.from_string(SU_TEMPLATE).render(css=BASE_CSS, d=detail, generated=datetime.now(timezone.utc))
     return _pdf(html)
+
+
+REGISTER_TEMPLATE = """
+<html><head><meta charset="utf-8"><style>{{ css|safe }}</style></head><body>
+<div class="brand">e<span>V</span>ersum</div>
+<h1>RXSWIN Register{% if vehicle_type %} — {{ vehicle_type }}{% endif %}</h1>
+<p class="small">Auditable register of all software relevant to each RXSWIN (UN R156 §7.1.2.3), including all
+superseded baselines. Integrity validation data: SHA-256. Generated {{ generated|dt }} from eVersum SUMS.
+OTA updates are excluded from the scope of the eVersum SUMS.</p>
+
+{% for r in rxswins %}
+<h2>{{ r.rxswin }}{% if r.status == "retired" %} (retired){% endif %}</h2>
+<table class="kv">
+  <tr><td class="k">Vehicle type</td><td>{{ r.vehicle_type_name }}</td></tr>
+  <tr><td class="k">Description</td><td class="pre">{{ r.description or "—" }}</td></tr>
+  <tr><td class="k">Regulations affected</td><td>{{ r.regulations_affected|join(", ") or "—" }}</td></tr>
+</table>
+
+{% for b in r.baselines if b.status != "draft" %}
+<p><b>Baseline {{ b.baseline_number }}</b> — <span class="status {{ b.status }}">{{ b.status|upper }}</span>
+&nbsp; released {{ b.released_at|dt }}{% if b.released_by_name %} by {{ b.released_by_name }}{% endif %}
+{% if b.notes %}<br><span class="small">{{ b.notes }}</span>{% endif %}</p>
+<table class="grid">
+  <tr><th>ECU / part no.</th><th>SW version / file</th><th>SW SHA-256</th><th>Config version / SHA-256</th><th>Compatible HW</th></tr>
+  {% for i in b.items %}
+  <tr><td>{{ i.ecu_name }}<br><span class="small">{{ i.eversum_part_number }}</span></td>
+      <td>{{ i.sw_version }}<br><span class="small">{{ i.sw_file_name or "" }}</span></td>
+      <td class="mono">{{ i.sw_file_sha256 or "—" }}</td>
+      <td>{{ i.sw_config_version or "N/A" }}<br><span class="mono">{{ i.sw_config_sha256 or "" }}</span></td>
+      <td>{{ i.compatible_hardware or "—" }}</td></tr>
+  {% endfor %}
+</table>
+{% else %}<p class="small">No released baseline.</p>{% endfor %}
+
+<p><b>Software Updates affecting {{ r.rxswin }}</b></p>
+<table class="grid">
+  <tr><th>Document</th><th>Title</th><th>Status</th><th>Baseline before → after</th><th>Released</th></tr>
+  {% for s in updates.get(r.id|string, []) %}
+  <tr><td>{{ s.document_id }} rev. {{ s.revision }}</td><td>{{ s.title }}</td><td>{{ s.status }}</td>
+      <td>{{ s.before or "—" }} → {{ s.after or "—" }}</td><td>{{ s.released_at|dt }}</td></tr>
+  {% else %}<tr><td colspan="5">—</td></tr>{% endfor %}
+</table>
+{% endfor %}
+</body></html>
+"""
+
+
+def render_register_pdf(rxswins, updates: dict, vehicle_type: str | None) -> bytes:
+    html = _env.from_string(REGISTER_TEMPLATE).render(
+        css=BASE_CSS, rxswins=rxswins, updates=updates, vehicle_type=vehicle_type,
+        generated=datetime.now(timezone.utc),
+    )
+    return _pdf(html)

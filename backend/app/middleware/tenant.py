@@ -50,5 +50,6 @@ class TenantMiddleware(BaseHTTPMiddleware):
         request.state.org_id = payload.get("org_id")
         request.state.role = payload.get("role")
         request.state.user_id = payload.get("sub")
+        request.state.iat = payload.get("iat")
 
         return await call_next(request)

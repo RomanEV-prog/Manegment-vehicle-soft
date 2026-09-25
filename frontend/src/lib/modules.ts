@@ -29,4 +29,4 @@ export function moduleEnabled(key: ModuleKey): boolean {
 }
 
 // Začetna stran po prijavi
-export const HOME_PATH = moduleEnabled("overview") ? "/" : "/rxswins";
+export const HOME_PATH = moduleEnabled("overview") ? "/" : "/sums";

@@ -40,6 +40,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     "/sha256": t("sha256"),
     "/software-updates": t("softwareUpdates"),
     "/fleet": t("fleet"),
+    "/sums": t("sumsOverview"),
   };
 
   function getTitle(pathname: string): string {

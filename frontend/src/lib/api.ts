@@ -198,6 +198,12 @@ export const usersApi = {
     api.put(`/users/${id}`, data).then((r) => r.data),
   deactivate: (id: string) =>
     api.delete(`/users/${id}`).then((r) => r.data),
+  changePassword: (current_password: string, new_password: string) =>
+    api
+      .put<{ access_token: string; refresh_token: string }>("/users/me/password", { current_password, new_password })
+      .then((r) => r.data),
+  resetPassword: (id: string) =>
+    api.post<{ email: string; temporary_password: string }>(`/users/${id}/reset-password`).then((r) => r.data),
 };
 
 // ─── Audit Log ────────────────────────────────────────────────────────────────
@@ -381,6 +387,20 @@ export const suApi = {
   release: (id: string) => api.post<SuDetail>(`/software-updates/${id}/release`).then((r) => r.data),
   revise: (id: string) => api.post<SuDetail>(`/software-updates/${id}/revise`).then((r) => r.data),
   downloadReport: (id: string) => downloadBlob(`/software-updates/${id}/report.pdf`, "software-update.pdf"),
+};
+
+const qs = (params: Record<string, string | undefined>) => {
+  const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v) as [string, string][]).toString();
+  return q ? `?${q}` : "";
+};
+
+export const exportApi = {
+  rxswinRegister: (vehicleTypeId?: string) =>
+    downloadBlob(`/rxswin-register.pdf${qs({ vehicle_type_id: vehicleTypeId })}`, "RXSWIN-register.pdf"),
+  vehicleConfigurations: (vehicleTypeId?: string) =>
+    downloadBlob(`/vehicle-configurations.csv${qs({ vehicle_type_id: vehicleTypeId })}`, "vehicle-configurations.csv"),
+  auditTrail: (params: Record<string, string | undefined>) =>
+    downloadBlob(`/audit-logs/export.csv${qs(params)}`, "audit-trail.csv"),
 };
 
 export const readmeApi = {

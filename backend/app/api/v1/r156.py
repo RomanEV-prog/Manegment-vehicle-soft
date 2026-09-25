@@ -527,9 +527,178 @@ async def item_readme_pdf(baseline_id: uuid.UUID, item_id: uuid.UUID, user: Curr
     item = next((i for i in baseline.items if i.id == item_id), None)
     if not item:
         raise HTTPException(status_code=404, detail="Postavka ne obstaja")
-    pdf = render_readme_pdf(detail, baseline, item)
+    from starlette.concurrency import run_in_threadpool
+
+    pdf = await run_in_threadpool(render_readme_pdf, detail, baseline, item)
     filename = f"{ecu_short_name(item.ecu_name)} {item.sw_version} - Readme.pdf"
     return Response(
         content=pdf, media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
     )
+
+
+# ─── Izvozi za organ / tehnično službo (R156 §7.1.1.12) ───────────────────────
+
+@router.get("/rxswin-register.pdf")
+async def rxswin_register_pdf(
+    user: CurrentUserDep, db: DbSession, vehicle_type_id: uuid.UUID | None = Query(None),
+):
+    """Celoten register RXSWIN z vsemi (tudi nadomeščenimi) baseline-i in povezanimi SU dokumenti."""
+    from fastapi.responses import Response
+
+    from app.models.r156 import SoftwareUpdateDocument, SoftwareUpdateRXSWIN
+    from app.services.r156_reports import render_register_pdf
+
+    q = select(RXSWIN.id).where(RXSWIN.organization_id == user["org_id"]).order_by(RXSWIN.rxswin)
+    vt_name = None
+    if vehicle_type_id:
+        vt = await _get_vehicle_type(db, vehicle_type_id, user["org_id"])
+        vt_name = vt.name
+        q = q.where(RXSWIN.vehicle_type_id == vehicle_type_id)
+    ids = (await db.execute(q)).scalars().all()
+    details = [await _rxswin_detail(db, await _load_rxswin(db, i, user["org_id"])) for i in ids]
+
+    numbers = dict((await db.execute(
+        select(RXSWINBaseline.id, RXSWINBaseline.baseline_number).where(RXSWINBaseline.rxswin_id.in_(ids))
+    )).all()) if ids else {}
+    rows = (await db.execute(
+        select(SoftwareUpdateRXSWIN, SoftwareUpdateDocument)
+        .join(SoftwareUpdateDocument, SoftwareUpdateDocument.id == SoftwareUpdateRXSWIN.software_update_id)
+        .where(SoftwareUpdateRXSWIN.rxswin_id.in_(ids), SoftwareUpdateDocument.status != "draft")
+        .order_by(SoftwareUpdateDocument.document_id, SoftwareUpdateDocument.baseline_number)
+    )).all() if ids else []
+    updates: dict[str, list] = {}
+    for link, doc in rows:
+        updates.setdefault(str(link.rxswin_id), []).append({
+            "document_id": doc.document_id, "revision": doc.baseline_number, "title": doc.title,
+            "status": doc.status, "released_at": doc.released_at,
+            "before": numbers.get(link.baseline_before_id), "after": numbers.get(link.baseline_after_id),
+        })
+
+    from starlette.concurrency import run_in_threadpool
+
+    pdf = await run_in_threadpool(render_register_pdf, details, updates, vt_name)
+    return Response(content=pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": 'attachment; filename="RXSWIN-register.pdf"'})
+
+
+@router.get("/vehicle-configurations.csv")
+async def vehicle_configurations_csv(
+    user: CurrentUserDep, db: DbSession, vehicle_type_id: uuid.UUID | None = Query(None),
+):
+    """Zadnja znana konfiguracija vseh vozil — ena vrstica na VIN × ECU (R156 §7.1.2.2, §7.1.2.4)."""
+    import csv
+    import io
+
+    from fastapi.responses import Response
+
+    from app.models.vehicle import Vehicle
+    from app.services.vehicle_config import current_configuration
+    from app.utils.audit import csv_safe
+
+    q = select(Vehicle).where(Vehicle.organization_id == user["org_id"]).order_by(Vehicle.vin)
+    if vehicle_type_id:
+        q = q.where(Vehicle.vehicle_type_id == vehicle_type_id)
+    vehicles = (await db.execute(q)).scalars().all()
+    types = dict((await db.execute(
+        select(VehicleType.id, VehicleType.name).where(VehicleType.organization_id == user["org_id"])
+    )).all())
+
+    out = io.StringIO()
+    w = csv.writer(out)
+    w.writerow(["vin", "vehicle", "vehicle_type", "config_id", "config_type", "recorded_utc", "reason",
+                "rxswin", "baseline", "ecu", "part_number", "sw_version", "sw_file_sha256",
+                "config_version", "config_sha256", "serial_number", "hw_version"])
+    for v in vehicles:
+        cfg = await current_configuration(db, v.id)
+        base = [v.vin, v.name, types.get(v.vehicle_type_id, "")]
+        if not cfg:
+            w.writerow([csv_safe(x) for x in base + ["", "", "", "no configuration recorded"] + [""] * 10])
+            continue
+        hw = {e["ecu_id"]: e for e in cfg.snapshot.get("ecus", [])}
+        meta = [cfg.config_id, cfg.config_type, cfg.created_at.isoformat(), cfg.reason or ""]
+        for r in cfg.snapshot.get("rxswins", []):
+            for i in r["items"]:
+                e = hw.get(i["ecu_id"], {})
+                w.writerow([csv_safe(x) for x in base + meta + [
+                    r["rxswin"], r["baseline_number"], i["ecu"], i["part_number"], i["sw_version"],
+                    i.get("sw_file_sha256") or "", i.get("sw_config_version") or "", i.get("sw_config_sha256") or "",
+                    e.get("serial_number") or "", e.get("hardware_version") or "",
+                ]])
+    return Response(content=out.getvalue().encode("utf-8-sig"), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="vehicle-configurations.csv"'})
+
+
+# ─── Pregled (začetna stran) ──────────────────────────────────────────────────
+
+@router.get("/sums-overview")
+async def sums_overview(user: CurrentUserDep, db: DbSession):
+    """Kaj čaka na koga: osnutki, neizvedene posodobitve, vozila brez EOL konfiguracije."""
+    from app.models.audit_log import AuditLog
+    from app.models.r156 import SoftwareUpdateDocument, SoftwareUpdateTarget, VehicleConfiguration
+    from app.models.vehicle import Vehicle
+
+    org = user["org_id"]
+    draft_baselines = (await db.execute(
+        select(RXSWIN.id, RXSWIN.rxswin, RXSWINBaseline.baseline_number, RXSWINBaseline.created_at)
+        .join(RXSWINBaseline, RXSWINBaseline.rxswin_id == RXSWIN.id)
+        .where(RXSWIN.organization_id == org, RXSWINBaseline.status == "draft")
+        .order_by(RXSWINBaseline.created_at)
+    )).all()
+    su_drafts = (await db.execute(
+        select(SoftwareUpdateDocument.id, SoftwareUpdateDocument.document_id, SoftwareUpdateDocument.baseline_number,
+               SoftwareUpdateDocument.title, SoftwareUpdateDocument.updated_at)
+        .where(SoftwareUpdateDocument.organization_id == org, SoftwareUpdateDocument.status == "draft")
+        .order_by(SoftwareUpdateDocument.updated_at.desc())
+    )).all()
+    pending = (await db.execute(
+        select(SoftwareUpdateDocument.id, SoftwareUpdateDocument.document_id, SoftwareUpdateDocument.baseline_number,
+               SoftwareUpdateDocument.title, func.count(SoftwareUpdateTarget.id))
+        .join(SoftwareUpdateTarget, SoftwareUpdateTarget.software_update_id == SoftwareUpdateDocument.id)
+        .where(SoftwareUpdateDocument.organization_id == org, SoftwareUpdateDocument.status == "released",
+               SoftwareUpdateTarget.result.is_(None))
+        .group_by(SoftwareUpdateDocument.id)
+        .order_by(SoftwareUpdateDocument.document_id)
+    )).all()
+    with_config = select(VehicleConfiguration.vehicle_id).where(VehicleConfiguration.config_type == "initial_eol")
+    no_eol = (await db.execute(
+        select(Vehicle.id, Vehicle.vin, Vehicle.name)
+        .where(Vehicle.organization_id == org, Vehicle.vehicle_type_id.is_not(None), Vehicle.id.not_in(with_config))
+        .order_by(Vehicle.vin)
+    )).all()
+    counts = {
+        "rxswins": await db.scalar(select(func.count()).select_from(RXSWIN).where(RXSWIN.organization_id == org)),
+        "released_baselines": await db.scalar(select(func.count()).select_from(RXSWINBaseline).where(
+            RXSWINBaseline.organization_id == org, RXSWINBaseline.status == "released")),
+        "released_updates": await db.scalar(select(func.count()).select_from(SoftwareUpdateDocument).where(
+            SoftwareUpdateDocument.organization_id == org, SoftwareUpdateDocument.status == "released")),
+        "vehicles": await db.scalar(select(func.count()).select_from(Vehicle).where(
+            Vehicle.organization_id == org, Vehicle.vehicle_type_id.is_not(None))),
+    }
+    recent = (await db.execute(
+        select(AuditLog.created_at, AuditLog.action, AuditLog.entity_type, AuditLog.after, User.full_name)
+        .outerjoin(User, User.id == AuditLog.actor_id)
+        .where(AuditLog.org_id == org, AuditLog.action.not_in(["login", "logout"]))
+        .order_by(AuditLog.created_at.desc()).limit(12)
+    )).all()
+
+    def label(after: dict | None) -> str:
+        if not after:
+            return ""
+        if "document_id" in after:
+            return f"{after['document_id']} rev. {after['revision']}" if "revision" in after else str(after["document_id"])
+        if "rxswin" in after and "baseline_number" in after:
+            return f"{after['rxswin']} B{after['baseline_number']}"
+        for k in ("vin", "rxswin", "ecu_name", "email"):
+            if k in after:
+                return str(after[k])
+        return ""
+
+    return {
+        "counts": counts,
+        "draft_baselines": [{"rxswin_id": str(i), "rxswin": r, "baseline_number": n, "created_at": c} for i, r, n, c in draft_baselines],
+        "su_drafts": [{"id": str(i), "document_id": d, "revision": n, "title": t, "updated_at": u} for i, d, n, t, u in su_drafts],
+        "pending_execution": [{"id": str(i), "document_id": d, "revision": n, "title": t, "pending": c} for i, d, n, t, c in pending],
+        "vehicles_without_eol": [{"id": str(i), "vin": v, "name": n} for i, v, n in no_eol],
+        "recent": [{"at": a, "action": ac, "entity_type": et, "label": label(af), "user": un} for a, ac, et, af, un in recent],
+    }

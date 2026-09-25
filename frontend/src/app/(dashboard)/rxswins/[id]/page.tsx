@@ -33,6 +33,7 @@ import {
   BaselineStatusBadge,
   ConfirmDialog,
   Field,
+  safeHref,
   Textarea,
   usePermissions,
 } from "@/components/r156/shared";
@@ -156,9 +157,9 @@ function ItemRow({
         <tr className="bg-gray-50/60">
           <td />
           <td colSpan={5} className="space-y-2 px-3 pb-4 text-xs">
-            {item.egnyte_folder_url && (
+            {safeHref(item.egnyte_folder_url) && (
               <a
-                href={item.egnyte_folder_url}
+                href={safeHref(item.egnyte_folder_url)}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 text-blue-600 hover:underline"

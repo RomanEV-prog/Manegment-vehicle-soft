@@ -20,6 +20,7 @@ import {
   Hash,
   FileCheck2,
   Truck,
+  LayoutDashboard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -45,6 +46,7 @@ export function Sidebar() {
     partnerVisible: boolean;
     showBadge?: boolean;
   }[] = [
+    { href: "/sums", label: t("sumsOverview"), icon: LayoutDashboard, module: "r156", partnerVisible: true },
     { href: "/rxswins", label: t("rxswins"), icon: ShieldCheck, module: "r156", partnerVisible: true },
     { href: "/software-updates", label: t("softwareUpdates"), icon: FileCheck2, module: "r156", partnerVisible: true },
     { href: "/ecus", label: t("ecus"), icon: CircuitBoard, module: "r156", partnerVisible: true },

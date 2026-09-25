@@ -57,7 +57,8 @@
     "sectionSums": "R156 SUMS",
     "sectionOther": "Ostalo",
     "softwareUpdates": "Software Update",
-    "fleet": "Vozila (VIN)"
+    "fleet": "Vozila (VIN)",
+    "sumsOverview": "Pregled"
   },
   "login": {
     "title": "eVersum",
@@ -521,7 +522,8 @@
     "entitySoftwareUpdateRxswin": "SU — prizadet RXSWIN",
     "entitySoftwareUpdateTarget": "SU — ciljno vozilo",
     "entityVehicleConfiguration": "Konfiguracija vozila",
-    "entityVehicleEcu": "ECU-ji vozila"
+    "entityVehicleEcu": "ECU-ji vozila",
+    "exportCsv": "Izvozi CSV"
   },
   "settings": {
     "title": "Nastavitve",
@@ -543,13 +545,25 @@
     "fieldFullName": "Ime in priimek *",
     "fieldEmail": "E-pošta *",
     "fieldPassword": "Geslo *",
-    "passwordHint": "min. 8 znakov",
+    "passwordHint": "Vsaj 12 znakov",
     "fieldRole": "Vloga",
     "userCreatedSuccess": "Uporabnik ustvarjen",
     "userDeactivatedSuccess": "Uporabnik deaktiviran",
     "deactivateError": "Napaka pri deaktivaciji",
     "alarmUpdateError": "Napaka pri posodabljanju alarma",
-    "createUserError": "Napaka"
+    "createUserError": "Napaka",
+    "changePassword": "Zamenjaj geslo",
+    "currentPassword": "Trenutno geslo",
+    "newPassword": "Novo geslo",
+    "repeatPassword": "Ponovi novo geslo",
+    "passwordRule": "Vsaj 12 znakov.",
+    "passwordMismatch": "Gesli se ne ujemata.",
+    "passwordChanged": "Geslo zamenjano",
+    "resetPassword": "Ponastavi geslo",
+    "resetConfirm": "Nastavim novo naključno geslo za {email}? Trenutno geslo takoj preneha delovati.",
+    "tempPasswordHint": "Novo geslo za {email}. Prikazano je samo enkrat — posreduj ga varno; uporabnik naj ga po prijavi zamenja.",
+    "copied": "Kopirano",
+    "generate": "Ustvari"
   },
   "homologation": {
     "createTitle": "Nova homologacija",
@@ -766,7 +780,8 @@
     "rxswinSettings": "Podatki RXSWIN",
     "retire": "Umakni RXSWIN",
     "reactivate": "Ponovno aktiviraj",
-    "readme": "Readme PDF"
+    "readme": "Readme PDF",
+    "registerPdf": "Register PDF"
   },
   "fleet": {
     "title": "Vozila",
@@ -778,7 +793,8 @@
     "status": "Status",
     "noVehicles": "Ni vozil tega tipa",
     "created": "Vozilo dodano",
-    "vinHint": "17 znakov, velike črke"
+    "vinHint": "17 znakov, velike črke",
+    "exportCsv": "Konfiguracije CSV"
   },
   "su": {
     "title": "Software Update",
@@ -940,5 +956,20 @@
     "software": "Programska oprema",
     "viaSu": "Software Update",
     "erpApi": "Branje za ERP: GET /api/v1/integration/vehicles/{vin}/last-known-configuration"
+  },
+  "sums": {
+    "title": "Pregled SUMS",
+    "subtitle": "Kaj čaka — UN R156 Software Update Management System",
+    "rxswins": "RXSWIN-i",
+    "releasedBaselines": "Izdani baseline-i",
+    "releasedUpdates": "Izdani Software Update-i",
+    "vehicles": "Vozila",
+    "suDrafts": "Software Update v osnutku",
+    "pendingExecution": "Izdane posodobitve, še neizvedene",
+    "vehiclesPending": "{n} vozil čaka",
+    "draftBaselines": "Baseline-i v osnutku",
+    "noEol": "Vozila brez konfiguracije ob koncu linije",
+    "recent": "Zadnja aktivnost",
+    "nothing": "Nič ne čaka"
   }
 }
