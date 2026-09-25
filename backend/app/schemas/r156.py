@@ -27,12 +27,16 @@ def normalize_sha256(v: Optional[str]) -> Optional[str]:
 # ─── Tip vozila ───────────────────────────────────────────────────────────────
 
 class VehicleTypeCreate(BaseModel):
+    model_config = {"protected_namespaces": ()}
+
     name: str = Field(min_length=1)
     model_code: Optional[str] = None
     description: Optional[str] = None
 
 
 class VehicleTypeUpdate(BaseModel):
+    model_config = {"protected_namespaces": ()}
+
     name: Optional[str] = Field(default=None, min_length=1)
     model_code: Optional[str] = None
     description: Optional[str] = None
@@ -45,7 +49,8 @@ class VehicleTypeResponse(BaseModel):
     description: Optional[str]
     created_at: datetime
 
-    model_config = {"from_attributes": True}
+    # model_code je ime polja iz Helixa, ne pydantic interni "model_" prostor
+    model_config = {"from_attributes": True, "protected_namespaces": ()}
 
 
 # ─── ECU register ─────────────────────────────────────────────────────────────
