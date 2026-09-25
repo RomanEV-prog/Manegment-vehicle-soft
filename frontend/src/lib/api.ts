@@ -1,5 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import Cookies from "js-cookie";
+import { clearTokens, refreshAccessToken } from "@/lib/auth";
 import type {
   BaselineItemFields,
   Ecu,
@@ -28,30 +29,20 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
-// Auto-refresh on 401
+// Ob 401 enkrat poskusi osvežiti dostopni žeton prek httpOnly piškota
 api.interceptors.response.use(
   (res) => res,
   async (error: AxiosError) => {
     const original = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
-    if (error.response?.status === 401 && !original._retry) {
+    const isAuthCall = original?.url?.startsWith("/auth/");
+    if (error.response?.status === 401 && original && !original._retry && !isAuthCall) {
       original._retry = true;
-      const refresh = Cookies.get("refresh_token");
-      if (refresh) {
-        try {
-          const { data } = await axios.post(`${BASE_URL}/api/v1/auth/refresh`, {
-            refresh_token: refresh,
-          });
-          Cookies.set("access_token", data.access_token, { secure: true, sameSite: "strict" });
-          original.headers.Authorization = `Bearer ${data.access_token}`;
-          return api(original);
-        } catch {
-          Cookies.remove("access_token");
-          Cookies.remove("refresh_token");
-          window.location.href = "/login";
-        }
-      } else {
-        window.location.href = "/login";
+      if (await refreshAccessToken()) {
+        original.headers.Authorization = `Bearer ${Cookies.get("access_token")}`;
+        return api(original);
       }
+      clearTokens();
+      if (typeof window !== "undefined" && window.location.pathname !== "/login") window.location.href = "/login";
     }
     return Promise.reject(error);
   }

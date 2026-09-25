@@ -781,7 +781,8 @@
     "retire": "Retire RXSWIN",
     "reactivate": "Reactivate",
     "readme": "Readme PDF",
-    "registerPdf": "Register PDF"
+    "registerPdf": "Register PDF",
+    "importCsv": "Import CSV"
   },
   "fleet": {
     "title": "Vehicles",
@@ -794,7 +795,8 @@
     "noVehicles": "No vehicles of this type",
     "created": "Vehicle added",
     "vinHint": "17 characters, uppercase",
-    "exportCsv": "Configurations CSV"
+    "exportCsv": "Configurations CSV",
+    "importCsv": "Import CSV"
   },
   "su": {
     "title": "Software Updates",
@@ -971,5 +973,21 @@
     "noEol": "Vehicles without end-of-line configuration",
     "recent": "Recent activity",
     "nothing": "Nothing pending"
+  },
+  "csvImport": {
+    "hintVehicles": "CSV with columns vin, name, year (comma or semicolon separated). Existing VINs are skipped. Nothing is saved until you confirm the preview.",
+    "hintItems": "CSV with one row per ECU: ecu (name or eVersum part number), sw_version, SHA-256 and the other baseline fields. Existing ECU entries in this draft are updated. Nothing is saved until you confirm the preview.",
+    "choose": "Choose CSV file",
+    "template": "Download template",
+    "empty": "The file contains no rows",
+    "badHeader": "Missing columns: {cols}",
+    "errors": "{n} row(s) with errors — fix the file and choose it again",
+    "row": "Row",
+    "ready": "{n} row(s) ready to import",
+    "skipped": "{n} already registered, skipped",
+    "action_create": "new",
+    "action_update": "update",
+    "import": "Import {n}",
+    "done": "{n} imported"
   }
 }

@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { authApi } from "@/lib/api";
-import { setTokens, clearTokens, getCurrentUser } from "@/lib/auth";
+import { setTokens, clearTokens, getCurrentUser, refreshAccessToken } from "@/lib/auth";
 import type { JwtPayload, User } from "@/types";
 
 interface AuthState {
@@ -20,6 +20,8 @@ export const useAuth = create<AuthState>((set) => ({
   isLoading: false,
 
   init: async () => {
+    // dostopni žeton je kratkotrajen — ob ponovnem nalaganju strani ga obnovi iz httpOnly piškota
+    if (!getCurrentUser()) await refreshAccessToken();
     const payload = getCurrentUser();
     if (!payload) {
       set({ user: null, payload: null });
@@ -38,7 +40,7 @@ export const useAuth = create<AuthState>((set) => ({
     set({ isLoading: true });
     try {
       const tokens = await authApi.login(email, password);
-      setTokens(tokens.access_token, tokens.refresh_token);
+      setTokens(tokens.access_token);
       const user = await authApi.me();
       const payload = getCurrentUser();
       set({ user, payload, isLoading: false });

@@ -781,7 +781,8 @@
     "retire": "Umakni RXSWIN",
     "reactivate": "Ponovno aktiviraj",
     "readme": "Readme PDF",
-    "registerPdf": "Register PDF"
+    "registerPdf": "Register PDF",
+    "importCsv": "Uvozi CSV"
   },
   "fleet": {
     "title": "Vozila",
@@ -794,7 +795,8 @@
     "noVehicles": "Ni vozil tega tipa",
     "created": "Vozilo dodano",
     "vinHint": "17 znakov, velike črke",
-    "exportCsv": "Konfiguracije CSV"
+    "exportCsv": "Konfiguracije CSV",
+    "importCsv": "Uvozi CSV"
   },
   "su": {
     "title": "Software Update",
@@ -971,5 +973,21 @@
     "noEol": "Vozila brez konfiguracije ob koncu linije",
     "recent": "Zadnja aktivnost",
     "nothing": "Nič ne čaka"
+  },
+  "csvImport": {
+    "hintVehicles": "CSV s stolpci vin, name, year (ločilo vejica ali podpičje). Obstoječi VIN-i se preskočijo. Nič se ne zapiše, dokler ne potrdiš predogleda.",
+    "hintItems": "CSV z eno vrstico na ECU: ecu (ime ali eVersum številka dela), sw_version, SHA-256 in ostala polja baseline-a. Obstoječe postavke v osnutku se posodobijo. Nič se ne zapiše, dokler ne potrdiš predogleda.",
+    "choose": "Izberi CSV datoteko",
+    "template": "Prenesi predlogo",
+    "empty": "Datoteka nima vrstic",
+    "badHeader": "Manjkajo stolpci: {cols}",
+    "errors": "{n} vrstic z napakami — popravi datoteko in jo izberi znova",
+    "row": "Vrstica",
+    "ready": "{n} vrstic pripravljenih za uvoz",
+    "skipped": "{n} že v registru, preskočeno",
+    "action_create": "nova",
+    "action_update": "posodobitev",
+    "import": "Uvozi {n}",
+    "done": "Uvoženo: {n}"
   }
 }

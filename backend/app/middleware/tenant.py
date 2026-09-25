@@ -8,6 +8,7 @@ PUBLIC_PATHS = {
     "/health",
     "/api/v1/auth/login",
     "/api/v1/auth/refresh",
+    "/api/v1/auth/logout",   # odjava mora izbrisati piškot tudi, ko je dostopni žeton že potekel
 }
 
 # Dev-only dokumentacija (v produkciji je FastAPI ne servira)

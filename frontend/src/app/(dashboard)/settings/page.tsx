@@ -41,7 +41,7 @@ function ChangePasswordCard() {
   const mutation = useMutation({
     mutationFn: () => usersApi.changePassword(form.current, form.next),
     onSuccess: (tokens) => {
-      setTokens(tokens.access_token, tokens.refresh_token);
+      setTokens(tokens.access_token);
       setForm({ current: "", next: "", repeat: "" });
       toast.success(t("passwordChanged"));
     },

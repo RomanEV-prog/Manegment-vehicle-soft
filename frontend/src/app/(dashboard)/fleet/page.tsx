@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { FileDown, Plus, Truck } from "lucide-react";
+import { FileDown, FileUp, Plus, Truck } from "lucide-react";
+import { CsvImportDialog } from "@/components/r156/import";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -94,6 +95,7 @@ export default function FleetPage() {
   const { canEdit } = usePermissions();
   const [typeId, setTypeId] = useState("");
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const { data: types = [], isLoading: typesLoading } = useQuery<VehicleType[]>({
     queryKey: ["vehicle-types"],
@@ -122,6 +124,12 @@ export default function FleetPage() {
             <Button variant="outline" onClick={() => exportApi.vehicleConfigurations(typeId)}>
               <FileDown className="h-4 w-4" />
               {t("exportCsv")}
+            </Button>
+          )}
+          {canEdit && vehicleType && (
+            <Button variant="outline" onClick={() => setImportOpen(true)}>
+              <FileUp className="h-4 w-4" />
+              {t("importCsv")}
             </Button>
           )}
           {canEdit && vehicleType && (
@@ -193,6 +201,17 @@ export default function FleetPage() {
       )}
 
       {vehicleType && <NewVehicleDialog open={open} onClose={() => setOpen(false)} vehicleType={vehicleType} />}
+      {vehicleType && (
+        <CsvImportDialog
+          open={importOpen}
+          onClose={() => setImportOpen(false)}
+          kind="vehicles"
+          url="/vehicle-import"
+          extra={{ vehicle_type_id: vehicleType.id }}
+          title={`${t("importCsv")} · ${vehicleType.name}`}
+          invalidate={[["fleet"]]}
+        />
+      )}
     </div>
   );
 }

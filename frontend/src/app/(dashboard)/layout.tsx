@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
@@ -21,7 +21,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const pathname = usePathname();
   const setAlarms = useAlarmsStore((s) => s.setAlarms);
-  const initDone = useRef(false);
+  const initStarted = useRef(false);
+  // true šele, ko init (vključno z obnovo seje iz httpOnly piškota) res konča
+  const [ready, setReady] = useState(false);
   const t = useTranslations("nav");
   const alarmsOn = moduleEnabled("alarms");
 
@@ -52,23 +54,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   useEffect(() => {
-    if (initDone.current) return;
-    initDone.current = true;
+    if (initStarted.current) return;
+    initStarted.current = true;
     init().then(() => {
       // After init, if still no user → redirect to login
       const state = useAuth.getState();
       if (!state.user && !state.payload) {
         router.replace("/login");
       }
+      setReady(true);
     });
   }, [init, router]);
 
   // Redirect if tokens get cleared while on dashboard
   useEffect(() => {
-    if (initDone.current && payload === null && !user) {
+    if (ready && payload === null && !user) {
       router.replace("/login");
     }
-  }, [payload, user, router]);
+  }, [ready, payload, user, router]);
 
   // Load unread alarms on mount
   useEffect(() => {
@@ -81,7 +84,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [user, setAlarms, alarmsOn]);
 
   // Show spinner until init completes
-  if (!initDone.current || (!user && payload === null)) {
+  if (!ready || (!user && payload === null)) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50">
         <Spinner className="h-8 w-8" />

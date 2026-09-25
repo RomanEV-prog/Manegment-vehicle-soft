@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,9 +17,23 @@ from app.utils.audit import write_audit_log
 
 router = APIRouter()
 
+# Refresh žeton v httpOnly piškotu — JavaScript (in morebiten XSS) ga ne more prebrati.
+# Pot je omejena na /api/v1/auth, zato se ne pošilja z drugimi zahtevki.
+REFRESH_COOKIE = "sums_refresh"
+REFRESH_COOKIE_PATH = "/api/v1/auth"
+
+
+def set_refresh_cookie(response: Response, token: str) -> None:
+    from app.config import settings
+
+    response.set_cookie(
+        REFRESH_COOKIE, token, httponly=True, secure=settings.environment == "production",
+        samesite="strict", path=REFRESH_COOKIE_PATH, max_age=settings.refresh_token_expire_days * 86400,
+    )
+
 
 @router.post("/login", response_model=TokenResponse)
-async def login(request: Request, data: LoginRequest, db: DbSession):
+async def login(request: Request, response: Response, data: LoginRequest, db: DbSession):
     client_ip = request.client.host if request.client else None
     wait = login_limit.retry_after(data.email, client_ip)
     if wait:
@@ -71,15 +85,17 @@ async def login(request: Request, data: LoginRequest, db: DbSession):
     )
     await db.commit()
 
-    return TokenResponse(
-        access_token=create_access_token(token_data),
-        refresh_token=create_refresh_token(token_data),
-    )
+    refresh = create_refresh_token(token_data)
+    set_refresh_cookie(response, refresh)
+    return TokenResponse(access_token=create_access_token(token_data), refresh_token=refresh)
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh_token(data: RefreshRequest, db: DbSession):
-    payload = decode_refresh_token(data.refresh_token)
+async def refresh_token(request: Request, response: Response, db: DbSession, data: RefreshRequest | None = None):
+    token = (data.refresh_token if data else None) or request.cookies.get(REFRESH_COOKIE)
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Ni seje")
+    payload = decode_refresh_token(token)
     if not payload:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Neveljaven refresh token")
 
@@ -98,14 +114,14 @@ async def refresh_token(data: RefreshRequest, db: DbSession):
         "role": user.role,
     }
 
-    return TokenResponse(
-        access_token=create_access_token(token_data),
-        refresh_token=create_refresh_token(token_data),
-    )
+    refresh = create_refresh_token(token_data)   # rotacija ob vsakem osveževanju
+    set_refresh_cookie(response, refresh)
+    return TokenResponse(access_token=create_access_token(token_data), refresh_token=refresh)
 
 
 @router.post("/logout")
-async def logout(request: Request, db: DbSession):
+async def logout(request: Request, response: Response, db: DbSession):
+    response.delete_cookie(REFRESH_COOKIE, path=REFRESH_COOKIE_PATH)
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Bearer "):
         token = auth_header.split(" ", 1)[1]

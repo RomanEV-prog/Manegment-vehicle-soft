@@ -20,8 +20,13 @@ target_metadata = Base.metadata
 
 
 def _database_url() -> str:
+    # Migracije kot lastnik tabel (MIGRATION_DATABASE_URL); aplikacija na strežniku
+    # teče z omejeno vlogo (DATABASE_URL, glej app/scripts/db_roles.py).
+    import os
+
     from app.config import settings
-    return settings.database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    url = os.environ.get("MIGRATION_DATABASE_URL") or settings.database_url
+    return url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
 
 def run_migrations_offline() -> None:

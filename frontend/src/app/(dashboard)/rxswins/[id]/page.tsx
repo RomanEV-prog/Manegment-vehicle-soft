@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   FileSearch,
   FileDown,
+  FileUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -38,6 +39,7 @@ import {
   usePermissions,
 } from "@/components/r156/shared";
 import { ItemDialog, VerifyDialog } from "@/components/r156/dialogs";
+import { CsvImportDialog } from "@/components/r156/import";
 import {
   Dialog,
   DialogContent,
@@ -202,6 +204,7 @@ export default function RxswinDetailPage() {
   const [deleteItem, setDeleteItem] = useState<BaselineItem | null>(null);
   const [confirm, setConfirm] = useState<"release" | "discard" | null>(null);
   const [newOpen, setNewOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [newNotes, setNewNotes] = useState("");
 
   // Privzeto izberi odprt osnutek, sicer najnovejši baseline
@@ -370,6 +373,10 @@ export default function RxswinDetailPage() {
                     <Trash2 className="h-3.5 w-3.5" />
                     {t("discard")}
                   </Button>
+                  <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+                    <FileUp className="h-3.5 w-3.5" />
+                    {t("importCsv")}
+                  </Button>
                   <Button variant="outline" size="sm" onClick={() => setItemDialog({ open: true, item: null })}>
                     <Plus className="h-3.5 w-3.5" />
                     {t("addItem")}
@@ -443,6 +450,16 @@ export default function RxswinDetailPage() {
           rxswin={rx}
           baseline={baseline}
           item={itemDialog.item}
+        />
+      )}
+      {baseline && baseline.status === "draft" && (
+        <CsvImportDialog
+          open={importOpen}
+          onClose={() => setImportOpen(false)}
+          kind="items"
+          url={`/rxswin-baselines/${baseline.id}/items/import`}
+          title={`${t("importCsv")} · ${rx.rxswin} · ${t("baseline", { number: baseline.baseline_number })}`}
+          invalidate={[["rxswin", rx.id], ["rxswins"]]}
         />
       )}
       {baseline && verifyItem && (

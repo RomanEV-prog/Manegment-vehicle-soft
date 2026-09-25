@@ -185,3 +185,24 @@ async def test_successful_login_resets_failure_count(client, org_and_user):
         await client.post("/api/v1/auth/login", json={"email": "test.admin@eversum.com", "password": "narobe"})
     ok = await client.post("/api/v1/auth/login", json={"email": "test.admin@eversum.com", "password": "test1234"})
     assert ok.status_code == 200
+
+
+async def test_refresh_token_in_httponly_cookie(client, org_and_user):
+    r = await client.post("/api/v1/auth/login", json={"email": "test.admin@eversum.com", "password": "test1234"})
+    cookie = r.headers["set-cookie"]
+    assert "sums_refresh=" in cookie and "HttpOnly" in cookie and "Path=/api/v1/auth" in cookie
+    assert "samesite=strict" in cookie.lower()
+    token = cookie.split("sums_refresh=")[1].split(";")[0]
+    # osvežitev samo s piškotom (brez telesa), kot jo naredi spletni odjemalec
+    r2 = await client.post("/api/v1/auth/refresh", cookies={"sums_refresh": token})
+    assert r2.status_code == 200 and r2.json()["access_token"]
+    assert "sums_refresh=" in r2.headers["set-cookie"]   # rotacija
+    # brez piškota in telesa
+    client.cookies.clear()
+    assert (await client.post("/api/v1/auth/refresh")).status_code == 401
+
+
+async def test_logout_clears_cookie_without_valid_access_token(client, org_and_user):
+    r = await client.post("/api/v1/auth/logout")
+    assert r.status_code == 200
+    assert 'sums_refresh=""' in r.headers["set-cookie"] or "Max-Age=0" in r.headers["set-cookie"]

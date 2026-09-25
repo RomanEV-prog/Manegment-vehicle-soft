@@ -13,7 +13,7 @@ const {
   PageNumber, Paragraph, ShadingType, Table, TableCell, TableOfContents, TableRow, TextRun, WidthType,
 } = require("docx");
 
-const VERSION = "0.1 (draft)";
+const VERSION = "0.2 (draft)";
 const DATE = "25 September 2026";
 const TBC = "[TO BE CONFIRMED]";
 
@@ -103,7 +103,8 @@ const cover = [
 const docControl = [
   h1("1 Document control"),
   table(["Version", "Date", "Author", "Change"], [
-    [VERSION, DATE, "R. Adler", "First draft — describes the SUMS tool and maps it to UN R156 §7.1 and the TÜV SÜD self-assessment."],
+    ["0.1 (draft)", DATE, "R. Adler", "First draft — describes the SUMS tool and maps it to UN R156 §7.1 and the TÜV SÜD self-assessment."],
+    [VERSION, DATE, "R. Adler", "Exports for authorities (register PDF, CSV), CSV import for migration (5.9), security controls extended (5.8, 4.9)."],
   ], [15, 18, 17, 50]),
   gap(),
   table(["Role", "Name", "Signature / date"], [
@@ -235,10 +236,13 @@ const records = [
     "**Readme** per ECU software in a baseline — same structure as the Helix readme; stored in the ECU folder on Egnyte.",
     "**Software Update report** (PDF) — the complete SU record per §7.1.2.5 including target vehicles and results.",
     "**Last Known Configuration** per VIN — in the tool and through the ERP interface (JSON).",
-    "**Audit trail** — filterable by record, action, user and date.",
+    "**RXSWIN register** (PDF) — all RXSWINs of a vehicle type with every baseline (including superseded ones), all software versions and SHA-256 checksums, and the Software Update documents that changed them.",
+    "**Vehicle configurations** (CSV) — the Last Known Configuration of every vehicle, one row per VIN and ECU.",
+    "**Audit trail** — filterable by record, action, user and date; exportable as CSV.",
   ]),
   h2("4.9 Audit trail"),
-  p("Every creation, change, release, supersession, signature, verification, execution and notification is written to the audit trail with: user (name), action, record, time, state before and after, and client IP address. Audit entries cannot be edited or deleted through the tool."),
+  p("Every creation, change, release, supersession, signature, verification, execution, notification, import, failed login and ERP read access is written to the audit trail with: user (name), action, record, time, state before and after, and client IP address."),
+  p("The audit trail is append-only and this is enforced by the database: the application connects with a restricted database role that may only read and insert audit entries, and a database trigger rejects any update or deletion. The restricted role is not the owner of the tables and therefore cannot disable the protection triggers of released records either."),
 ];
 
 const processes = [
@@ -308,13 +312,15 @@ const processes = [
   h2("5.6 End-of-line configuration"),
   p("When a vehicle leaves production, the technician records the Initial End of Line configuration: the installed baseline of every RXSWIN, the configuration ID, the system schemes baseline, the V&V status and the ERP work order. The installed ECUs (serial number, hardware version, batch) are entered per vehicle. The EOL configuration can be recorded only once and is read-only."),
   h2("5.7 Information for the Approval Authority and the Technical Service"),
-  p("On request, the following information is provided directly from the tool: the RXSWIN register with all baselines (tool view and readme PDFs), the SU documents with target vehicles and results (Software Update report PDF), the Last Known Configuration of any VIN and the audit trail. Access for an assessor can be granted through a read-only account."),
+  p("On request, the following information is provided directly from the tool: the RXSWIN register with all baselines (RXSWIN register PDF, readme PDFs), the SU documents with target vehicles and results (Software Update report PDF), the Last Known Configuration of every vehicle (CSV) or of a single VIN, and the audit trail (CSV). Access for an assessor can be granted through a read-only account."),
   h2("5.8 Access management, integrity and backup"),
   ...bullets([
-    "Personal user accounts with role-based permissions (3.2); accounts are deactivated, not deleted, when a person leaves.",
-    "Login protection: limited number of failed login attempts; HTTPS only; server firewall allows only HTTPS and SSH (key-based).",
-    "Released records are protected against modification by database triggers; the audit trail records every change.",
-    `Database backup: automatic daily dump at 03:30, kept for 14 days on the server. Off-site copy, retention period for production and periodic restore test ${TBC}.`,
+    "Personal user accounts with role-based permissions (3.2); accounts are deactivated, not deleted, when a person leaves. Passwords of at least 12 characters; users change their own password, administrators can reset it to a one-time random password.",
+    "Deactivation, role changes and password changes take effect immediately: every request is checked against the user record; access tokens are valid for 15 minutes; the long-lived session token is held in an HttpOnly cookie that scripts cannot read.",
+    "Login protection: limited number of failed login attempts; failed logins are recorded in the audit trail; HTTPS only; server firewall allows only HTTPS and SSH (key-based).",
+    "Released records and the audit trail are protected against modification by database triggers; the application uses a restricted database role that cannot disable them.",
+    "Links to external systems (Egnyte, ERP) accept only http(s) addresses; CSV exports are protected against spreadsheet formula injection.",
+    `Database backup: automatic daily dump at 03:30, verified before it replaces the previous copy, kept for 14 days on the server. Off-site copy, retention period for production and periodic restore test ${TBC}.`,
     "ERP read access uses a dedicated API key stored only on the server.",
   ]),
 ];
@@ -332,7 +338,7 @@ const mapping = [
   ["7.1.1.9 Changed functionality", "Same assessment as 7.1.1.8; justification must address information package, test results and functions.", "SU report section 4", `Guidance text for the justification ${TBC}`],
   ["7.1.1.10 Changes compared to registration", "Dependencies and type approval assessment in the SU document.", "SU report sections 1 and 4", ""],
   ["7.1.1.11 User information", "Notification required flag; notification recorded (who, when, method); one notification per SU document; no user action needed (workshop update).", "SU report section 6", `E-mail sent by the tool or only recorded ${TBC}`],
-  ["7.1.1.12 Information to authorities", "RXSWIN register, SU documents and target vehicles are exported directly from the tool (PDF, views).", "5.7", ""],
+  ["7.1.1.12 Information to authorities", "RXSWIN register (PDF), SU documents with target vehicles (PDF), vehicle configurations and audit trail (CSV) are exported directly from the tool.", "5.7", ""],
   ["7.1.2.1 Documentation of processes", "This handbook; processes 5.1–5.8 apply to every vehicle type in scope.", "This document", `List of vehicle types ${TBC}`],
   ["7.1.2.2 Configuration before/after update", "EOL configuration and LKC snapshots per VIN with SW versions, SHA-256, ECU hardware identification; SU document records baseline before/after.", "Vehicle configuration history", `Type approval relevant vehicle / system parameters ${TBC}`],
   ["7.1.2.3 RXSWIN register", "Auditable register: baselines numbered, released baselines read-only, superseded baselines kept; SW versions and SHA-256 for all software of each RXSWIN; method SHA-256; SU document lists affected RXSWINs.", "RXSWIN register, audit trail", ""],
@@ -345,6 +351,15 @@ const mapping = [
   ["7.1.3.2 Protection of the update process", "Restricted repository access; SHA-256 cross-check; physical protection of vehicle update access points (covers, security bolts, tamper-evident seals); tool access control and audit trail.", "5.4, 5.8", `ISO 27001 evidence ${TBC}`],
   ["7.1.3.3 Verification and validation", "V&V sign-off required before an SU document can be released.", "SU report section 3", `V&V procedure document reference ${TBC}`],
   ["7.1.4.1 / 7.1.4.2 OTA", "Not applicable — no over-the-air updates (see scope statement).", "Cover page, 2.2", ""],
+];
+
+const migration = [
+  h2("5.9 Migration and bulk import"),
+  p("Existing records can be imported from CSV files (e.g. an ERP export of VINs or a Helix export of baseline data). Every import shows a preview first; nothing is saved until the user confirms it, and the import is only possible when every row is valid (all-or-nothing). Each import is recorded in the audit trail with the imported content."),
+  ...bullets([
+    "**Vehicles:** VIN, name and year per vehicle type. VINs already registered are skipped.",
+    "**Baseline items:** one row per ECU (name or eVersum part number) with software version, files, SHA-256 checksums, compatible hardware, Egnyte link and change log — only into a draft baseline, which is then reviewed and released as described in 5.2.",
+  ]),
 ];
 
 const compliance = [
@@ -406,7 +421,7 @@ const doc = new Document({
     properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 1134, bottom: 1134, left: 1134, right: 1134 } } },
     headers: { default: new Header({ children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: `eVersum SUMS Handbook — v${VERSION}`, size: 16, color: "6B7280" })] })] }) },
     footers: { default: new Footer({ children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ children: ["Page ", PageNumber.CURRENT, " of ", PageNumber.TOTAL_PAGES], size: 16, color: "6B7280" })] })] }) },
-    children: [...cover, ...docControl, ...intro, ...overview, ...records, ...processes, ...compliance, ...open],
+    children: [...cover, ...docControl, ...intro, ...overview, ...records, ...processes, ...migration, ...compliance, ...open],
   }],
 });
 

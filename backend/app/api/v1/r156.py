@@ -13,6 +13,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
@@ -702,3 +703,139 @@ async def sums_overview(user: CurrentUserDep, db: DbSession):
         "vehicles_without_eol": [{"id": str(i), "vin": v, "name": n} for i, v, n in no_eol],
         "recent": [{"at": a, "action": ac, "entity_type": et, "label": label(af), "user": un} for a, ac, et, af, un in recent],
     }
+
+
+# ─── Uvoz iz CSV (selitev iz ERP / Helix) ─────────────────────────────────────
+# Odjemalec prebere CSV v brskalniku in pošlje vrstice. Najprej dry_run (predogled),
+# nato uvoz. Uvoz steče samo, če so vse vrstice veljavne (vse ali nič).
+
+class VehicleImportRow(BaseModel):
+    vin: str
+    name: str | None = None
+    year: int | None = None
+
+
+class VehicleImportRequest(BaseModel):
+    vehicle_type_id: uuid.UUID
+    rows: list[VehicleImportRow] = Field(min_length=1, max_length=5000)
+    dry_run: bool = True
+
+
+class ItemImportRow(BaseModel):
+    ecu: str                      # ime ECU ali eVersum številka dela
+    sw_version: str
+    sw_file_name: str | None = None
+    sw_file_sha256: str | None = None
+    sw_config_version: str | None = None
+    sw_config_file_name: str | None = None
+    sw_config_sha256: str | None = None
+    compatible_hardware: str | None = None
+    egnyte_folder_url: str | None = None
+    change_log: str | None = None
+    description: str | None = None
+
+
+class ItemImportRequest(BaseModel):
+    rows: list[ItemImportRow] = Field(min_length=1, max_length=500)
+    dry_run: bool = True
+
+
+VIN_RE = __import__("re").compile(r"^[A-HJ-NPR-Z0-9]{11,17}$")
+
+
+@router.post("/vehicle-import")
+async def import_vehicles(data: VehicleImportRequest, user: NonPartnerDep, db: DbSession):
+    from datetime import date as _date
+
+    from app.models.vehicle import Vehicle
+    from app.models.vehicle_twin import VehicleTwin
+
+    vt = await _get_vehicle_type(db, data.vehicle_type_id, user["org_id"])
+    vins = [r.vin.strip().upper() for r in data.rows]
+    existing = set((await db.execute(select(Vehicle.vin).where(Vehicle.vin.in_(vins)))).scalars())
+    errors, new, skipped, seen = [], [], [], set()
+    for i, (r, vin) in enumerate(zip(data.rows, vins), start=1):
+        if vin in seen:
+            errors.append({"row": i, "vin": vin, "error": "VIN se v datoteki ponovi"})
+        elif vin in existing:
+            skipped.append(vin)   # že v registru — ne glede na obliko
+        elif not VIN_RE.match(vin):
+            errors.append({"row": i, "vin": vin, "error": "VIN: 11–17 znakov, velike črke in številke (brez I, O, Q)"})
+        elif r.year is not None and not (1990 <= r.year <= _date.today().year + 1):
+            errors.append({"row": i, "vin": vin, "error": "Neveljaven letnik"})
+        else:
+            new.append((vin, r))
+        seen.add(vin)
+
+    result = {"to_create": [v for v, _ in new], "skipped_existing": skipped, "errors": errors, "created": 0}
+    if data.dry_run or errors:
+        return result
+    for vin, r in new:
+        v = Vehicle(organization_id=user["org_id"], vehicle_type_id=vt.id, vin=vin,
+                    name=(r.name or vin[-6:]).strip(), model=vt.name, year=r.year or _date.today().year)
+        db.add(v)
+        await db.flush()
+        db.add(VehicleTwin(vehicle_id=v.id))
+    await _audit(db, user, "import", "vehicle", vt.id, after={
+        "vehicle_type": vt.name, "created": [v for v, _ in new], "skipped_existing": skipped,
+    })
+    await db.commit()
+    result["created"] = len(new)
+    return result
+
+
+@router.post("/rxswin-baselines/{baseline_id}/items/import")
+async def import_baseline_items(baseline_id: uuid.UUID, data: ItemImportRequest, user: NonPartnerDep, db: DbSession):
+    from pydantic import ValidationError
+
+    b = await _get_baseline(db, baseline_id, user["org_id"], draft_only=True)
+    ecus = (await db.execute(select(ECU).where(ECU.vehicle_type_id == b.rxswin_ref.vehicle_type_id))).scalars().all()
+    by_key = {}
+    for e in ecus:
+        by_key.setdefault(e.ecu_name.strip().lower(), []).append(e)
+        by_key.setdefault(e.eversum_part_number.strip().lower(), []).append(e)
+    current = {i.ecu_id: i for i in b.items}
+
+    errors, plan, seen = [], [], set()
+    for n, r in enumerate(data.rows, start=1):
+        matches = by_key.get(r.ecu.strip().lower(), [])
+        if len({m.id for m in matches}) != 1:
+            errors.append({"row": n, "ecu": r.ecu, "error": "ECU ni v registru" if not matches
+                           else "Številka dela ni enolična — uporabi ime ECU"})
+            continue
+        ecu = matches[0]
+        if ecu.id in seen:
+            errors.append({"row": n, "ecu": r.ecu, "error": "ECU se v datoteki ponovi"})
+            continue
+        seen.add(ecu.id)
+        try:
+            fields = BaselineItemCreate(ecu_id=ecu.id, **r.model_dump(exclude={"ecu"}))
+        except ValidationError as ex:
+            errors.append({"row": n, "ecu": r.ecu, "error": "; ".join(
+                f"{e['loc'][-1]}: {e['msg'].removeprefix('Value error, ')}" for e in ex.errors())})
+            continue
+        plan.append((ecu, fields, "update" if ecu.id in current else "create"))
+
+    result = {
+        "plan": [{"ecu": e.ecu_name, "action": a, "sw_version": f.sw_version} for e, f, a in plan],
+        "errors": errors, "applied": 0,
+    }
+    if data.dry_run or errors:
+        return result
+    for ecu, fields, action in plan:
+        values = fields.model_dump(exclude={"ecu_id"})
+        if action == "update":
+            item = current[ecu.id]
+            for k, v in values.items():
+                setattr(item, k, v)
+        else:
+            db.add(RXSWINBaselineItem(baseline_id=b.id, ecu_id=ecu.id, **values))
+    await db.flush()
+    await _audit(db, user, "import", "rxswin_baseline", b.id, after={
+        "rxswin": b.rxswin_ref.rxswin, "baseline_number": b.baseline_number,
+        "items": [{"ecu": e.ecu_name, "action": a, "sw_version": f.sw_version, "sw_file_sha256": f.sw_file_sha256}
+                  for e, f, a in plan],
+    })
+    await db.commit()
+    result["applied"] = len(plan)
+    return result

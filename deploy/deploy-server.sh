@@ -53,7 +53,8 @@ $SSH "cd ${REMOTE}/deploy && if [ ! -f .env.server ]; then
     '${SITE}' \"\$(openssl rand -hex 24)\" \"\$(openssl rand -hex 32)\" > .env.server
   echo 'ustvarjena nova .env.server'
 fi
-grep -q '^ERP_API_KEY=' .env.server || { printf 'ERP_API_KEY=%s\n' \"\$(openssl rand -hex 24)\" >> .env.server; echo 'dodan ERP_API_KEY'; }"
+grep -q '^ERP_API_KEY=' .env.server || { printf 'ERP_API_KEY=%s\n' \"\$(openssl rand -hex 24)\" >> .env.server; echo 'dodan ERP_API_KEY'; }
+grep -q '^APP_DB_PASSWORD=' .env.server || { printf 'APP_DB_PASSWORD=%s\n' \"\$(openssl rand -hex 24)\" >> .env.server; echo 'dodan APP_DB_PASSWORD'; }"
 
 echo "=== Dnevna varnostna kopija baze (cron 03:30) ==="
 $SSH "install -m 700 ${REMOTE}/deploy/eversum-backup.sh /usr/local/bin/eversum-backup.sh &&   echo '30 3 * * * root /usr/local/bin/eversum-backup.sh >> /var/log/eversum-backup.log 2>&1' > /etc/cron.d/eversum-backup"

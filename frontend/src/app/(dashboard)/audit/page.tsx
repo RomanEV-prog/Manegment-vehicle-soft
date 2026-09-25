@@ -32,12 +32,14 @@ const ACTION_COLORS: Record<AuditAction | string, string> = {
   sign: "bg-violet-100 text-violet-800",
   apply: "bg-teal-100 text-teal-800",
   notify: "bg-sky-100 text-sky-800",
+  import: "bg-indigo-100 text-indigo-800",
+  login_failed: "bg-red-100 text-red-800",
 };
 
 const ACTIONS: AuditAction[] = [
   "create", "update", "delete", "resolve", "approve",
   "upload", "snapshot", "export", "login", "logout",
-  "release", "supersede", "verify", "sign", "apply", "notify",
+  "release", "supersede", "verify", "sign", "apply", "notify", "import", "login_failed",
 ];
 
 const ENTITY_TYPES: AuditEntityType[] = [

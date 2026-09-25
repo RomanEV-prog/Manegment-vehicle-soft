@@ -13,7 +13,8 @@ class TokenResponse(BaseModel):
 
 
 class RefreshRequest(BaseModel):
-    refresh_token: str
+    # spletni odjemalec pošlje žeton v httpOnly piškotu; mobilna aplikacija v telesu
+    refresh_token: str | None = None
 
 
 class UserMe(BaseModel):

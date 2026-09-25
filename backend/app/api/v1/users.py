@@ -2,11 +2,12 @@ import secrets
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
 
 from app.api.deps import CurrentUserDep, DbSession, require_role
+from app.api.v1.auth import set_refresh_cookie
 from app.models.user import User
 from app.schemas.auth import TokenResponse
 from app.schemas.user import PASSWORD_MIN, PasswordChange, PasswordResetResponse
@@ -192,7 +193,7 @@ async def deactivate_user(user_id: uuid.UUID, user: CurrentUserDep, db: DbSessio
 # ─── Gesla ────────────────────────────────────────────────────────────────────
 
 @router.put("/me/password", response_model=TokenResponse)
-async def change_own_password(data: PasswordChange, user: CurrentUserDep, db: DbSession):
+async def change_own_password(data: PasswordChange, response: Response, user: CurrentUserDep, db: DbSession):
     """Menjava lastnega gesla. Vrne nove žetone; stare refresh žetone zavrne /auth/refresh."""
     from app.utils import login_limit
 
@@ -215,7 +216,9 @@ async def change_own_password(data: PasswordChange, user: CurrentUserDep, db: Db
     )
     await db.commit()
     token_data = {"sub": str(u.id), "org_id": str(u.organization_id), "role": u.role}
-    return TokenResponse(access_token=create_access_token(token_data), refresh_token=create_refresh_token(token_data))
+    refresh = create_refresh_token(token_data)
+    set_refresh_cookie(response, refresh)
+    return TokenResponse(access_token=create_access_token(token_data), refresh_token=refresh)
 
 
 @router.post("/{user_id}/reset-password", response_model=PasswordResetResponse,

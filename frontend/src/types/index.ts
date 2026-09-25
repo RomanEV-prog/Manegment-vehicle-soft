@@ -312,7 +312,9 @@ export type AuditAction =
   | "verify"
   | "sign"
   | "apply"
-  | "notify";
+  | "notify"
+  | "import"
+  | "login_failed";
 
 export type AuditEntityType =
   | "vehicle"

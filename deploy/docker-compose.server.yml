@@ -35,8 +35,12 @@ services:
     build: ../backend
     restart: always
     environment:
-      DATABASE_URL: postgresql+asyncpg://eversum:${DB_PASSWORD}@db:5432/eversum_db
-      DATABASE_URL_SYNC: postgresql://eversum:${DB_PASSWORD}@db:5432/eversum_db
+      # aplikacija: omejena vloga (ni lastnik tabel — ne more izklopiti zaklepov, audit samo INSERT)
+      DATABASE_URL: postgresql+asyncpg://eversum_app:${APP_DB_PASSWORD:?APP_DB_PASSWORD manjka}@db:5432/eversum_db
+      DATABASE_URL_SYNC: postgresql://eversum_app:${APP_DB_PASSWORD}@db:5432/eversum_db
+      # migracije in priprava vloge: lastnik tabel
+      MIGRATION_DATABASE_URL: postgresql+asyncpg://eversum:${DB_PASSWORD}@db:5432/eversum_db
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
@@ -48,6 +52,7 @@ services:
     # API ni izpostavljen navzven, zato je zaupanje glavam varno.
     command: >
       sh -c "alembic upgrade head &&
+             python -m app.scripts.db_roles &&
              uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
              --proxy-headers --forwarded-allow-ips='*'"
     depends_on:
