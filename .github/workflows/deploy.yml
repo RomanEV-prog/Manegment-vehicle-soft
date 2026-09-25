@@ -1,8 +1,10 @@
 name: Deploy to Production
 
+# Samodejna namestitev ob pushu je IZKLOPLJENA: cilj /opt/eversum je stari deljeni
+# strežnik (GasilApp, RangeOS) in uporablja docker-compose.prod.yml, ki odpira porte.
+# SUMS se namešča z deploy/deploy-server.sh (glej CLAUDE.md).
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
   deploy:
