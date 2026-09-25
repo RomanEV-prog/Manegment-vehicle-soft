@@ -68,6 +68,7 @@ async def create_user(data: UserCreate, user: CurrentUserDep, db: DbSession):
         password_hash=hash_password(data.password),
     )
     db.add(new_user)
+    await db.flush()  # id se dodeli šele ob flushu — audit log ga potrebuje
 
     await write_audit_log(
         db=db,

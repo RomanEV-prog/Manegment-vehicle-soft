@@ -9,14 +9,10 @@ import { auditApi } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { formatDateTime } from "@/lib/utils";
 import type { AuditLog, AuditAction, AuditEntityType } from "@/types";
-import {
-  ClipboardList,
-  ChevronDown,
-  ChevronRight,
-  Filter,
-} from "lucide-react";
+import { ClipboardList, ChevronDown, ChevronRight, Filter } from "lucide-react";
+import { useTranslations } from "@/lib/i18n";
 
-// ─── Pomožni mapings ──────────────────────────────────────────────────────────
+// ─── Action colors ────────────────────────────────────────────────────────────
 
 const ACTION_COLORS: Record<AuditAction | string, string> = {
   create: "bg-green-100 text-green-800",
@@ -29,41 +25,33 @@ const ACTION_COLORS: Record<AuditAction | string, string> = {
   export: "bg-orange-100 text-orange-800",
   login: "bg-indigo-100 text-indigo-800",
   logout: "bg-gray-100 text-gray-500",
-};
-
-const ENTITY_LABELS: Record<AuditEntityType | string, string> = {
-  vehicle: "Vozilo",
-  sw_update: "SW posodobitev",
-  dtc_record: "DTC zapis",
-  service_record: "Servisni zapis",
-  homologation: "Homologacija",
-  coc_certificate: "CoC certifikat",
-  photo: "Fotografija",
-  vehicle_twin: "Digital Twin",
-  user: "Uporabnik",
-  vecto_calculation: "VECTO izračun",
-  alarm_config: "Alarm konfiguracija",
-  obd_session: "OBD seja",
+  release: "bg-emerald-100 text-emerald-800",
+  supersede: "bg-amber-100 text-amber-800",
+  verify: "bg-cyan-100 text-cyan-800",
 };
 
 const ACTIONS: AuditAction[] = [
   "create", "update", "delete", "resolve", "approve",
   "upload", "snapshot", "export", "login", "logout",
+  "release", "supersede", "verify",
 ];
 
 const ENTITY_TYPES: AuditEntityType[] = [
+  "rxswin", "rxswin_baseline", "rxswin_baseline_item", "ecu", "vehicle_type",
   "vehicle", "sw_update", "dtc_record", "service_record",
   "homologation", "coc_certificate", "photo", "vehicle_twin", "user",
   "vecto_calculation", "alarm_config", "obd_session",
 ];
 
-// ─── Detail panel (before/after JSON diff) ────────────────────────────────────
+// ─── Detail panel ─────────────────────────────────────────────────────────────
 
 function AuditDetail({ log }: { log: AuditLog }) {
+  const t = useTranslations("audit");
+
   return (
     <div className="grid grid-cols-2 gap-3 p-4 bg-gray-50 border-t text-xs">
       <div>
-        <p className="mb-1 font-semibold text-gray-500 uppercase tracking-wide">Pred spremembo</p>
+        <p className="mb-1 font-semibold text-gray-500 uppercase tracking-wide">{t("beforeChange")}</p>
         {log.before ? (
           <pre className="rounded bg-white border p-2 text-gray-700 overflow-auto max-h-40 whitespace-pre-wrap">
             {JSON.stringify(log.before, null, 2)}
@@ -73,7 +61,7 @@ function AuditDetail({ log }: { log: AuditLog }) {
         )}
       </div>
       <div>
-        <p className="mb-1 font-semibold text-gray-500 uppercase tracking-wide">Po spremembi</p>
+        <p className="mb-1 font-semibold text-gray-500 uppercase tracking-wide">{t("afterChange")}</p>
         {log.after ? (
           <pre className="rounded bg-white border p-2 text-gray-700 overflow-auto max-h-40 whitespace-pre-wrap">
             {JSON.stringify(log.after, null, 2)}
@@ -84,21 +72,21 @@ function AuditDetail({ log }: { log: AuditLog }) {
       </div>
       {log.reason && (
         <div className="col-span-2">
-          <p className="mb-1 font-semibold text-gray-500 uppercase tracking-wide">Razlog</p>
+          <p className="mb-1 font-semibold text-gray-500 uppercase tracking-wide">{t("reason")}</p>
           <p className="text-gray-700">{log.reason}</p>
         </div>
       )}
       <div className="col-span-2 flex flex-wrap gap-4 text-gray-400">
-        <span>ID zapisa: <span className="font-mono text-gray-600">{log.id}</span></span>
-        <span>Entity ID: <span className="font-mono text-gray-600">{log.entity_id}</span></span>
-        {log.actor_ip && <span>IP: <span className="font-mono text-gray-600">{log.actor_ip}</span></span>}
-        {log.actor_device && <span>Naprava: <span className="font-mono text-gray-600">{log.actor_device}</span></span>}
+        <span>{t("recordId")} <span className="font-mono text-gray-600">{log.id}</span></span>
+        <span>{t("entityId")} <span className="font-mono text-gray-600">{log.entity_id}</span></span>
+        {log.actor_ip && <span>{t("ip")} <span className="font-mono text-gray-600">{log.actor_ip}</span></span>}
+        {log.actor_device && <span>{t("device")} <span className="font-mono text-gray-600">{log.actor_device}</span></span>}
       </div>
     </div>
   );
 }
 
-// ─── Glavna stran ──────────────────────────────────────────────────────────────
+// ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function AuditPage() {
   const { payload } = useAuth();
@@ -109,6 +97,27 @@ export default function AuditPage() {
   const [filterToDate, setFilterToDate] = useState<string>("");
   const [offset, setOffset] = useState(0);
   const PAGE_SIZE = 50;
+  const t = useTranslations("audit");
+
+  const ENTITY_LABELS: Record<AuditEntityType | string, string> = {
+    vehicle: t("entityVehicle"),
+    sw_update: t("entitySwUpdate"),
+    dtc_record: t("entityDtcRecord"),
+    service_record: t("entityServiceRecord"),
+    homologation: t("entityHomologation"),
+    coc_certificate: t("entityCocCertificate"),
+    photo: t("entityPhoto"),
+    vehicle_twin: t("entityVehicleTwin"),
+    user: t("entityUser"),
+    vecto_calculation: t("entityVecto"),
+    alarm_config: t("entityAlarmConfig"),
+    obd_session: t("entityObdSession"),
+    vehicle_type: t("entityVehicleType"),
+    ecu: t("entityEcu"),
+    rxswin: t("entityRxswin"),
+    rxswin_baseline: t("entityRxswinBaseline"),
+    rxswin_baseline_item: t("entityRxswinBaselineItem"),
+  };
 
   const isAllowed = payload?.role === "admin" || payload?.role === "qc_manager";
 
@@ -136,7 +145,7 @@ export default function AuditPage() {
   if (!isAllowed) {
     return (
       <div className="flex h-64 items-center justify-center text-gray-400">
-        Dostop dovoljen samo administratorjem in QC managerjem.
+        {t("accessDenied")}
       </div>
     );
   }
@@ -147,18 +156,16 @@ export default function AuditPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Revizijska sled</h2>
-        <p className="text-sm text-gray-500">
-          Popoln pregled sprememb — UNECE R156 §7.4 skladnost
-        </p>
+        <h2 className="text-2xl font-bold text-gray-900">{t("title")}</h2>
+        <p className="text-sm text-gray-500">{t("subtitle")}</p>
       </div>
 
-      {/* Filtri */}
+      {/* Filters */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm text-gray-600">
             <Filter className="h-4 w-4" />
-            Filtri
+            {t("filtersTitle")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -168,7 +175,7 @@ export default function AuditPage() {
               onChange={(e) => { setFilterAction(e.target.value); setOffset(0); }}
               className="rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm"
             >
-              <option value="">Vse akcije</option>
+              <option value="">{t("allActions")}</option>
               {ACTIONS.map((a) => (
                 <option key={a} value={a}>{a}</option>
               ))}
@@ -179,14 +186,14 @@ export default function AuditPage() {
               onChange={(e) => { setFilterEntityType(e.target.value); setOffset(0); }}
               className="rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm"
             >
-              <option value="">Vse entitete</option>
+              <option value="">{t("allEntities")}</option>
               {ENTITY_TYPES.map((et) => (
                 <option key={et} value={et}>{ENTITY_LABELS[et] ?? et}</option>
               ))}
             </select>
 
             <div className="flex items-center gap-2">
-              <label className="text-xs text-gray-500">Od:</label>
+              <label className="text-xs text-gray-500">{t("fromDate")}</label>
               <input
                 type="date"
                 value={filterFromDate}
@@ -195,7 +202,7 @@ export default function AuditPage() {
               />
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-xs text-gray-500">Do:</label>
+              <label className="text-xs text-gray-500">{t("toDate")}</label>
               <input
                 type="date"
                 value={filterToDate}
@@ -215,20 +222,20 @@ export default function AuditPage() {
                 }}
                 className="rounded-md px-3 py-1.5 text-sm text-gray-500 hover:text-gray-900 hover:bg-gray-100"
               >
-                Počisti filtre
+                {t("clearFilters")}
               </button>
             )}
 
             {countData && (
               <span className="ml-auto self-center text-xs text-gray-400">
-                {countData.count.toLocaleString("sl-SI")} zapisov skupaj
+                {t("recordsTotal", { count: countData.count.toLocaleString() })}
               </span>
             )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Tabela */}
+      {/* Table */}
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
@@ -238,7 +245,7 @@ export default function AuditPage() {
           ) : !logs?.length ? (
             <div className="flex h-32 items-center justify-center text-gray-400">
               <ClipboardList className="mr-2 h-5 w-5" />
-              Ni audit log zapisov
+              {t("noRecords")}
             </div>
           ) : (
             <div className="divide-y">
@@ -256,7 +263,7 @@ export default function AuditPage() {
                           : <ChevronRight className="h-4 w-4 flex-shrink-0 text-gray-400" />
                         }
 
-                        {/* Akcija */}
+                        {/* Action */}
                         <span
                           className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                             ACTION_COLORS[log.action] ?? "bg-gray-100 text-gray-700"
@@ -265,7 +272,7 @@ export default function AuditPage() {
                           {log.action}
                         </span>
 
-                        {/* Entiteta */}
+                        {/* Entity */}
                         <span className="text-sm font-medium text-gray-700">
                           {ENTITY_LABELS[log.entity_type] ?? log.entity_type}
                         </span>
@@ -273,9 +280,9 @@ export default function AuditPage() {
                         {/* Actor */}
                         <span className="text-sm text-gray-500">
                           {log.actor_type === "system"
-                            ? "🤖 sistem"
+                            ? t("systemActor")
                             : log.actor_id
-                              ? `👤 ${log.actor_id.slice(0, 8)}…`
+                              ? `${t("userActor")} ${log.actor_name ?? `${log.actor_id.slice(0, 8)}…`}`
                               : "—"}
                         </span>
 
@@ -286,7 +293,7 @@ export default function AuditPage() {
                           </Badge>
                         )}
 
-                        {/* Čas */}
+                        {/* Time */}
                         <span className="ml-auto text-xs text-gray-400 whitespace-nowrap">
                           {formatDateTime(log.created_at)}
                         </span>
@@ -302,11 +309,11 @@ export default function AuditPage() {
         </CardContent>
       </Card>
 
-      {/* Paginacija */}
+      {/* Pagination */}
       {(countData?.count ?? 0) > PAGE_SIZE && (
         <div className="flex items-center justify-between">
           <span className="text-sm text-gray-500">
-            Stran {currentPage} / {totalPages}
+            {t("paginationLabel", { current: currentPage, total: totalPages })}
           </span>
           <div className="flex gap-2">
             <button
@@ -314,14 +321,14 @@ export default function AuditPage() {
               onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
               className="rounded-md border px-3 py-1.5 text-sm disabled:opacity-40 hover:bg-gray-50"
             >
-              ← Nazaj
+              {t("prevPage")}
             </button>
             <button
               disabled={offset + PAGE_SIZE >= (countData?.count ?? 0)}
               onClick={() => setOffset(offset + PAGE_SIZE)}
               className="rounded-md border px-3 py-1.5 text-sm disabled:opacity-40 hover:bg-gray-50"
             >
-              Naprej →
+              {t("nextPage")}
             </button>
           </div>
         </div>

@@ -16,6 +16,7 @@ import { swApi, vehiclesApi } from "@/lib/api";
 import type { Vehicle } from "@/types";
 import toast from "react-hot-toast";
 import type { AxiosError } from "axios";
+import { useTranslations } from "@/lib/i18n";
 
 interface Props {
   open: boolean;
@@ -23,10 +24,10 @@ interface Props {
   onClose: () => void;
 }
 
-const RXSWIN_HINT = "Format: RXSWIN-OEM-REG-MODULE-VERSION (npr. RXSWIN-EVS-R156-MCU-20241001)";
-
 export function CreateSwUpdateDialog({ open, vehicleId, onClose }: Props) {
   const qc = useQueryClient();
+  const t = useTranslations("swUpdates");
+  const tCommon = useTranslations("common");
   const today = new Date().toISOString().split("T")[0];
   const [form, setForm] = useState({
     date: today,
@@ -49,13 +50,13 @@ export function CreateSwUpdateDialog({ open, vehicleId, onClose }: Props) {
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
-  const rxswinValid = /^RXSWIN-[A-Z0-9]+-[A-Z0-9]+-[A-Z0-9]+-[0-9]+/.test(form.rxswin);
+  const rxswinValid = /^[A-Z0-9][A-Z0-9._-]{2,63}$/.test(form.rxswin);
   const effectiveVehicleId = vehicleId ?? selectedVehicle;
 
   const mutation = useMutation({
     mutationFn: () => swApi.create({ ...form, vehicle_id: effectiveVehicleId }),
     onSuccess: () => {
-      toast.success("SW posodobitev shranjena");
+      toast.success(t("createSuccess"));
       qc.invalidateQueries({ queryKey: ["sw-updates"] });
       qc.invalidateQueries({ queryKey: ["sw-updates", effectiveVehicleId] });
       qc.invalidateQueries({ queryKey: ["twin", effectiveVehicleId] });
@@ -65,7 +66,7 @@ export function CreateSwUpdateDialog({ open, vehicleId, onClose }: Props) {
     },
     onError: (e: AxiosError<{ detail: string }>) => {
       const msg = e.response?.data?.detail;
-      toast.error(Array.isArray(msg) ? msg[0]?.msg ?? "Napaka" : msg ?? "Napaka pri shranjevanju");
+      toast.error(Array.isArray(msg) ? msg[0]?.msg ?? tCommon("error") : msg ?? tCommon("error"));
     },
   });
 
@@ -73,19 +74,19 @@ export function CreateSwUpdateDialog({ open, vehicleId, onClose }: Props) {
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Nova SW posodobitev</DialogTitle>
+          <DialogTitle>{t("createTitle")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           {/* Vehicle selector — only when no vehicleId is pre-set */}
           {!vehicleId && (
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Vozilo *</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldVehicle")}</label>
               <select
                 value={selectedVehicle}
                 onChange={(e) => setSelectedVehicle(e.target.value)}
                 className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm"
               >
-                <option value="">— Izberite vozilo —</option>
+                <option value="">{t("selectVehicle")}</option>
                 {(vehicles ?? []).map((v) => (
                   <option key={v.id} value={v.id}>
                     {v.name} ({v.vin})
@@ -96,11 +97,11 @@ export function CreateSwUpdateDialog({ open, vehicleId, onClose }: Props) {
           )}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Datum *</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldDate")}</label>
               <Input type="date" value={form.date} onChange={(e) => set("date", e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">ECU modul *</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldModule")}</label>
               <Input
                 value={form.ecu_module}
                 onChange={(e) => set("ecu_module", e.target.value)}
@@ -110,7 +111,7 @@ export function CreateSwUpdateDialog({ open, vehicleId, onClose }: Props) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Verzija pred *</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldVersionBefore")}</label>
               <Input
                 value={form.version_before}
                 onChange={(e) => set("version_before", e.target.value)}
@@ -119,7 +120,7 @@ export function CreateSwUpdateDialog({ open, vehicleId, onClose }: Props) {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Verzija po *</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldVersionAfter")}</label>
               <Input
                 value={form.version_after}
                 onChange={(e) => set("version_after", e.target.value)}
@@ -129,21 +130,21 @@ export function CreateSwUpdateDialog({ open, vehicleId, onClose }: Props) {
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-700">RXSWIN *</label>
+            <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldRxswin")}</label>
             <Input
               value={form.rxswin}
               onChange={(e) => set("rxswin", e.target.value.toUpperCase())}
               placeholder="RXSWIN-EVS-R156-MCU-20241001"
               className={`font-mono ${form.rxswin && !rxswinValid ? "border-red-400" : ""}`}
             />
-            <p className="mt-1 text-xs text-gray-400">{RXSWIN_HINT}</p>
+            <p className="mt-1 text-xs text-gray-400">{t("rxswinHint")}</p>
             {form.rxswin && !rxswinValid && (
-              <p className="mt-0.5 text-xs text-red-500">Neveljaven format RXSWIN</p>
+              <p className="mt-0.5 text-xs text-red-500">{t("rxswinInvalid")}</p>
             )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Metoda</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldMethod")}</label>
               <select
                 value={form.method}
                 onChange={(e) => set("method", e.target.value)}
@@ -155,31 +156,31 @@ export function CreateSwUpdateDialog({ open, vehicleId, onClose }: Props) {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Status</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldStatus")}</label>
               <select
                 value={form.status}
                 onChange={(e) => set("status", e.target.value)}
                 className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm"
               >
-                <option value="success">Uspešno</option>
-                <option value="pending">Čakanje</option>
-                <option value="in_progress">V teku</option>
-                <option value="failed">Napaka</option>
-                <option value="rolled_back">Razveljavitev</option>
+                <option value="success">{t("statusSuccessOption")}</option>
+                <option value="pending">{t("statusPendingOption")}</option>
+                <option value="in_progress">{t("statusInProgressOption")}</option>
+                <option value="failed">{t("statusFailedOption")}</option>
+                <option value="rolled_back">{t("statusRolledBackOption")}</option>
               </select>
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-700">Opombe</label>
+            <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldNotes")}</label>
             <Input
               value={form.notes}
               onChange={(e) => set("notes", e.target.value)}
-              placeholder="Opcijsko..."
+              placeholder={tCommon("optional")}
             />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Prekliči</Button>
+          <Button variant="outline" onClick={onClose}>{tCommon("cancel")}</Button>
           <Button
             onClick={() => mutation.mutate()}
             disabled={
@@ -192,7 +193,7 @@ export function CreateSwUpdateDialog({ open, vehicleId, onClose }: Props) {
             }
           >
             {mutation.isPending ? <Spinner className="mr-2 h-4 w-4" /> : null}
-            Shrani
+            {tCommon("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

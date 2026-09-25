@@ -41,8 +41,17 @@ manager = ConnectionManager()
 
 
 @router.websocket("/alarms")
-async def websocket_alarms(websocket: WebSocket, token: str):
-    """Real-time alarmi za dashboard. JWT token v query parametru."""
+async def websocket_alarms(websocket: WebSocket, token: str = ""):
+    """Real-time alarmi za dashboard. JWT token v query parametru ali Sec-WebSocket-Protocol."""
+    # Podpira oba načina: ?token=... ali Sec-WebSocket-Protocol: access_token,<jwt>
+    ws_protocol = websocket.headers.get("sec-websocket-protocol", "")
+    if not token and ws_protocol.startswith("access_token,"):
+        token = ws_protocol.split(",", 1)[1].strip()
+
+    if not token:
+        await websocket.close(code=4001)
+        return
+
     payload = decode_access_token(token)
     if not payload:
         await websocket.close(code=4001)
@@ -51,26 +60,34 @@ async def websocket_alarms(websocket: WebSocket, token: str):
     org_id = payload["org_id"]
     await manager.connect(websocket, org_id)
 
+    redis = aioredis.from_url(settings.redis_url)
+    pubsub = redis.pubsub()
+    listener_task = None
+
     try:
-        # Subscribe na Redis pub/sub kanal za to organizacijo
-        redis = aioredis.from_url(settings.redis_url)
-        pubsub = redis.pubsub()
         await pubsub.subscribe(f"alarms:{org_id}")
+
+        import json
 
         async def listen():
             async for msg in pubsub.listen():
                 if msg["type"] == "message":
-                    import json
                     await manager.broadcast_to_org(org_id, json.loads(msg["data"]))
 
         listener_task = asyncio.create_task(listen())
 
         while True:
-            # Drži WebSocket živ
             await websocket.receive_text()
 
-    except WebSocketDisconnect:
-        listener_task.cancel()
+    except (WebSocketDisconnect, asyncio.CancelledError):
+        pass
+    finally:
+        if listener_task:
+            listener_task.cancel()
+            try:
+                await listener_task
+            except asyncio.CancelledError:
+                pass
         manager.disconnect(websocket, org_id)
         await pubsub.unsubscribe(f"alarms:{org_id}")
         await redis.aclose()

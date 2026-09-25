@@ -6,7 +6,9 @@ from typing import Optional
 from pydantic import BaseModel, field_validator
 
 
-RXSWIN_PATTERN = re.compile(r"^RXSWIN-[A-Z0-9]+-[A-Z0-9]+-[A-Z0-9]+-[0-9]+$")
+# R156 formata RXSWIN ne predpisuje — določi ga proizvajalec (npr. R48SWIN001,
+# RXSWIN-EV-M1-221). Zahtevamo le velike črke, številke in ločila - _ .
+RXSWIN_PATTERN = re.compile(r"^[A-Z0-9][A-Z0-9._-]{2,63}$")
 
 
 class SWUpdateCreate(BaseModel):
@@ -25,7 +27,7 @@ class SWUpdateCreate(BaseModel):
     def validate_rxswin(cls, v: str) -> str:
         if not RXSWIN_PATTERN.match(v):
             raise ValueError(
-                "RXSWIN mora biti v formatu RXSWIN-{OEM}-{REG}-{MODULE}-{VERSION}, npr. RXSWIN-EV-M1-221"
+                "RXSWIN sme vsebovati le velike črke, številke in - _ . (3–64 znakov), npr. R48SWIN001"
             )
         return v
 

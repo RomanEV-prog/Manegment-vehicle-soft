@@ -108,12 +108,12 @@ class TestVectoCreate:
         calc_id = resp.json()["id"]
 
         audit_resp = await client.get(
-            "/api/v1/audit-log",
+            "/api/v1/audit-logs",
             headers=org_and_user["headers"],
             params={"entity_type": "vecto_calculation", "entity_id": calc_id},
         )
         assert audit_resp.status_code == 200
-        logs = audit_resp.json()["items"]
+        logs = audit_resp.json()
         create_logs = [l for l in logs if l["action"] == "create"]
         assert len(create_logs) == 1
         assert create_logs[0]["after"]["vehicle_id"] == vehicle_id
@@ -202,12 +202,12 @@ class TestVectoUpdate:
         assert update_resp.status_code == 200
 
         audit_resp = await client.get(
-            "/api/v1/audit-log",
+            "/api/v1/audit-logs",
             headers=org_and_user["headers"],
             params={"entity_type": "vecto_calculation", "entity_id": calc_id},
         )
         assert audit_resp.status_code == 200
-        logs = audit_resp.json()["items"]
+        logs = audit_resp.json()
         update_logs = [l for l in logs if l["action"] == "update"]
         assert len(update_logs) == 1
         assert update_logs[0]["after"]["status"] == "approved"

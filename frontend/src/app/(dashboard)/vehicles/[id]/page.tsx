@@ -51,6 +51,7 @@ import {
   obdApi,
 } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
+import { useTranslations } from "@/lib/i18n";
 
 /** Mini inline komponenta za prikaz/upload foto pri homologaciji */
 function HomPhotoPanel({
@@ -69,10 +70,11 @@ function HomPhotoPanel({
     queryFn: () => photosApi.listByLinked("homologation", homId),
   });
 
+  const tHom = useTranslations("vehicleDetail.homPhotoPanel");
   return (
     <div className="space-y-3">
       <p className="text-xs font-medium text-blue-700">
-        Fotografije za homologacijo <strong>{regulation}</strong>
+        {tHom("title")} <strong>{regulation}</strong>
       </p>
       {(homPhotos ?? []).length > 0 && (
         <div className="flex flex-wrap gap-2">
@@ -113,21 +115,33 @@ import toast from "react-hot-toast";
 
 type Tab = "twin" | "sw" | "dtc" | "obd" | "service" | "hom" | "coc" | "vecto" | "snapshots" | "photos";
 
-const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
-  { id: "twin", label: "Digital Twin", icon: Cpu },
-  { id: "sw", label: "SW posodobitve", icon: Cpu },
-  { id: "dtc", label: "DTC napake", icon: AlertTriangle },
-  { id: "obd", label: "OBD", icon: Plug },
-  { id: "service", label: "Servisi", icon: Wrench },
-  { id: "hom", label: "Homologacije", icon: FileText },
-  { id: "coc", label: "CoC", icon: FileText },
-  { id: "vecto", label: "VECTO", icon: Cpu },
-  { id: "photos", label: "Fotografije", icon: Camera },
-  { id: "snapshots", label: "Zgodovina", icon: History },
-];
-
 export default function VehicleDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const t = useTranslations("vehicleDetail");
+  const tSw = useTranslations("vehicleDetail.swTab");
+  const tDtc = useTranslations("vehicleDetail.dtcTab");
+  const tObd = useTranslations("vehicleDetail.obdTab");
+  const tService = useTranslations("vehicleDetail.serviceTab");
+  const tHom = useTranslations("vehicleDetail.homTab");
+  const tCoc = useTranslations("vehicleDetail.cocTab");
+  const tVecto = useTranslations("vehicleDetail.vectoTab");
+  const tVectoCalc = useTranslations("vecto");
+  const tPhotos = useTranslations("vehicleDetail.photosTab");
+  const tSnap = useTranslations("vehicleDetail.snapshotsTab");
+
+  const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
+    { id: "twin", label: t("tabTwin"), icon: Cpu },
+    { id: "sw", label: t("tabSw"), icon: Cpu },
+    { id: "dtc", label: t("tabDtc"), icon: AlertTriangle },
+    { id: "obd", label: t("tabObd"), icon: Plug },
+    { id: "service", label: t("tabService"), icon: Wrench },
+    { id: "hom", label: t("tabHom"), icon: FileText },
+    { id: "coc", label: t("tabCoc"), icon: FileText },
+    { id: "vecto", label: t("tabVecto"), icon: Cpu },
+    { id: "photos", label: t("tabPhotos"), icon: Camera },
+    { id: "snapshots", label: t("tabSnapshots"), icon: History },
+  ];
+
   const [activeTab, setActiveTab] = useState<Tab>("twin");
   const [swDialogOpen, setSwDialogOpen] = useState(false);
   const [dtcDialogOpen, setDtcDialogOpen] = useState(false);
@@ -147,41 +161,41 @@ export default function VehicleDetailPage() {
     mutationFn: ({ swId, newStatus }: { swId: string; newStatus: string }) =>
       swApi.update(swId, { status: newStatus }),
     onSuccess: () => {
-      toast.success("Status SW posodobitve posodobljen");
+      toast.success(t("swStatusUpdated"));
       queryClient.invalidateQueries({ queryKey: ["sw-updates", id] });
       queryClient.invalidateQueries({ queryKey: ["vehicle-stats", id] });
     },
-    onError: () => toast.error("Napaka pri posodabljanju statusa"),
+    onError: () => toast.error(t("swStatusUpdated")),
   });
 
   const vehicleStatusMutation = useMutation({
     mutationFn: (newStatus: string) => vehiclesApi.update(id, { status: newStatus }),
     onSuccess: () => {
-      toast.success("Status vozila posodobljen");
+      toast.success(t("statusUpdated"));
       queryClient.invalidateQueries({ queryKey: ["vehicle", id] });
       queryClient.invalidateQueries({ queryKey: ["vehicle-stats", id] });
       queryClient.invalidateQueries({ queryKey: ["vehicles"] });
     },
-    onError: () => toast.error("Napaka pri posodabljanju statusa"),
+    onError: () => toast.error(t("statusUpdated")),
   });
 
   const photoDeleteMutation = useMutation({
     mutationFn: (photoId: string) => photosApi.delete(photoId),
     onSuccess: () => {
-      toast.success("Fotografija izbrisana");
+      toast.success(tPhotos("deleteSuccess"));
       queryClient.invalidateQueries({ queryKey: ["photos", id] });
     },
-    onError: () => toast.error("Napaka pri brisanju fotografije"),
+    onError: () => toast.error(tPhotos("deleteError")),
   });
 
   const serviceDeleteMutation = useMutation({
     mutationFn: (recordId: string) => serviceApi.delete(recordId),
     onSuccess: () => {
-      toast.success("Servisni zapis izbrisan");
+      toast.success(tService("deleteSuccess"));
       queryClient.invalidateQueries({ queryKey: ["service", id] });
       queryClient.invalidateQueries({ queryKey: ["vehicle-stats", id] });
     },
-    onError: () => toast.error("Napaka pri brisanju servisnega zapisa"),
+    onError: () => toast.error(tService("deleteError")),
   });
 
   const dtcResolveMutation = useMutation({
@@ -191,7 +205,7 @@ export default function VehicleDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["dtc", id] });
       queryClient.invalidateQueries({ queryKey: ["vehicle-stats", id] });
     },
-    onError: () => toast.error("Napaka pri posodabljanju DTC"),
+    onError: () => toast.error(t("swStatusUpdated")),
   });
 
   const { data: vehicle, isLoading } = useQuery<Vehicle>({
@@ -279,17 +293,17 @@ export default function VehicleDetailPage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      toast.error("Napaka pri generiranju PDF poročila");
+      toast.error(t("pdfError"));
     }
   };
 
   const snapshotMutation = useMutation({
     mutationFn: () => vehiclesApi.snapshot(id),
     onSuccess: () => {
-      toast.success("Snapshot ustvarjen");
+      toast.success(t("snapshotCreated"));
       queryClient.invalidateQueries({ queryKey: ["snapshots", id] });
     },
-    onError: () => toast.error("Napaka pri ustvarjanju snapshota"),
+    onError: () => toast.error(t("snapshotError")),
   });
 
   if (isLoading) {
@@ -303,7 +317,7 @@ export default function VehicleDetailPage() {
   if (!vehicle) {
     return (
       <div className="text-center py-16 text-gray-400">
-        Vozilo ni najdeno
+        {t("notFound")}
       </div>
     );
   }
@@ -317,7 +331,7 @@ export default function VehicleDetailPage() {
             href="/vehicles"
             className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900 mb-2"
           >
-            <ArrowLeft className="h-4 w-4" /> Vozila
+            <ArrowLeft className="h-4 w-4" /> {t("backToVehicles")}
           </Link>
           <h2 className="text-2xl font-bold text-gray-900">{vehicle.name}</h2>
           <div className="mt-1 flex items-center gap-3 text-sm text-gray-500">
@@ -330,7 +344,7 @@ export default function VehicleDetailPage() {
               onChange={(e) => vehicleStatusMutation.mutate(e.target.value)}
               disabled={vehicleStatusMutation.isPending}
               className={`rounded-full px-2 py-0.5 text-xs font-medium border-0 cursor-pointer focus:ring-1 focus:ring-blue-400 ${statusColor(vehicle.status)}`}
-              title="Klikni za spremembo statusa"
+              title={t("clickToChangeStatus")}
             >
               <option value="active">active</option>
               <option value="in_service">in_service</option>
@@ -339,13 +353,13 @@ export default function VehicleDetailPage() {
             </select>
           </div>
           {vehicle.project_name && (
-            <p className="mt-1 text-sm text-gray-400">Projekt: {vehicle.project_name}</p>
+            <p className="mt-1 text-sm text-gray-400">{t("project")} {vehicle.project_name}</p>
           )}
           {stats && (
             <div className="mt-3 flex flex-wrap gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-200">
                 <Cpu className="h-3 w-3" />
-                {stats.sw_updates} SW {stats.sw_updates === 1 ? "posodobitev" : "posodobitev"}
+                {t("swCount", { count: stats.sw_updates, singular: t("swSingular") })}
               </span>
               {stats.dtc_active > 0 ? (
                 <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset ${
@@ -354,7 +368,7 @@ export default function VehicleDetailPage() {
                     : "bg-yellow-50 text-yellow-700 ring-yellow-200"
                 }`}>
                   <AlertTriangle className="h-3 w-3" />
-                  {stats.dtc_active} DTC{stats.dtc_high > 0 && ` (${stats.dtc_high} visoka)`}
+                  {t("dtcActive", { count: stats.dtc_active })}{stats.dtc_high > 0 && t("dtcHigh", { count: stats.dtc_high })}
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-200">
@@ -364,18 +378,18 @@ export default function VehicleDetailPage() {
               )}
               <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-50 px-3 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-200">
                 <Wrench className="h-3 w-3" />
-                {stats.service_records} servis{stats.service_records === 1 ? "" : "ov"}
+                {t("serviceCount", { count: stats.service_records, suffix: "" })}
               </span>
               {stats.hom_approved > 0 && (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
                   <ShieldCheck className="h-3 w-3" />
-                  {stats.hom_approved} hom. odobrenih
+                  {t("homApproved", { count: stats.hom_approved })}
                 </span>
               )}
               {stats.hom_pending > 0 && (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1 text-xs font-medium text-orange-700 ring-1 ring-inset ring-orange-200">
                   <Clock className="h-3 w-3" />
-                  {stats.hom_pending} hom. v teku
+                  {t("homPending", { count: stats.hom_pending })}
                 </span>
               )}
             </div>
@@ -385,18 +399,18 @@ export default function VehicleDetailPage() {
           {!isPartner && (
             <Button variant="outline" size="sm" onClick={() => snapshotMutation.mutate()}>
               <History className="mr-2 h-4 w-4" />
-              Snapshot
+              {t("snapshotBtn")}
             </Button>
           )}
           {!isPartner && (
             <Button variant="outline" size="sm" onClick={() => setSwDialogOpen(true)}>
               <Cpu className="mr-2 h-4 w-4" />
-              SW posodobitev
+              {t("swUpdateBtn")}
             </Button>
           )}
           <Button size="sm" onClick={downloadSums}>
             <FileText className="mr-2 h-4 w-4" />
-            SUMS PDF
+            {t("sumsPdfBtn")}
           </Button>
         </div>
       </div>
@@ -428,11 +442,11 @@ export default function VehicleDetailPage() {
         <Card>
           <CardHeader className="pb-0">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm text-gray-600">SW posodobitve</CardTitle>
+              <CardTitle className="text-sm text-gray-600">{tSw("title")}</CardTitle>
               {!isPartner && (
                 <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setSwDialogOpen(true)}>
                   <Plus className="mr-1.5 h-3.5 w-3.5" />
-                  Nova SW posodobitev
+                  {tSw("newBtn")}
                 </Button>
               )}
             </div>
@@ -441,13 +455,13 @@ export default function VehicleDetailPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase text-gray-500">
-                  <th className="px-4 py-3">Datum</th>
-                  <th className="px-4 py-3">ECU modul</th>
-                  <th className="px-4 py-3">Verzija pred</th>
-                  <th className="px-4 py-3">Verzija po</th>
-                  <th className="px-4 py-3">RXSWIN</th>
-                  <th className="px-4 py-3">Metoda</th>
-                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">{tSw("colDate")}</th>
+                  <th className="px-4 py-3">{tSw("colModule")}</th>
+                  <th className="px-4 py-3">{tSw("colVersionBefore")}</th>
+                  <th className="px-4 py-3">{tSw("colVersionAfter")}</th>
+                  <th className="px-4 py-3">{tSw("colRxswin")}</th>
+                  <th className="px-4 py-3">{tSw("colMethod")}</th>
+                  <th className="px-4 py-3">{tSw("colStatus")}</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
@@ -474,7 +488,7 @@ export default function VehicleDetailPage() {
                             onClick={() => swStatusMutation.mutate({ swId: sw.id, newStatus: "in_progress" })}
                             className="rounded px-2 py-0.5 text-xs bg-blue-50 text-blue-700 hover:bg-blue-100"
                           >
-                            Začni
+                            {tSw("actionStart")}
                           </button>
                         </div>
                       )}
@@ -484,13 +498,13 @@ export default function VehicleDetailPage() {
                             onClick={() => swStatusMutation.mutate({ swId: sw.id, newStatus: "success" })}
                             className="rounded px-2 py-0.5 text-xs bg-green-50 text-green-700 hover:bg-green-100"
                           >
-                            Uspeh
+                            {tSw("actionSuccess")}
                           </button>
                           <button
                             onClick={() => swStatusMutation.mutate({ swId: sw.id, newStatus: "failed" })}
                             className="rounded px-2 py-0.5 text-xs bg-red-50 text-red-700 hover:bg-red-100"
                           >
-                            Napaka
+                            {tSw("actionFail")}
                           </button>
                         </div>
                       )}
@@ -499,7 +513,7 @@ export default function VehicleDetailPage() {
                           onClick={() => swStatusMutation.mutate({ swId: sw.id, newStatus: "rolled_back" })}
                           className="rounded px-2 py-0.5 text-xs bg-gray-100 text-gray-600 hover:bg-gray-200"
                         >
-                          Povrnitev
+                          {tSw("actionRollback")}
                         </button>
                       )}
                     </td>
@@ -508,7 +522,7 @@ export default function VehicleDetailPage() {
                 {!swUpdates?.length && (
                   <tr>
                     <td colSpan={8} className="py-8 text-center text-gray-400">
-                      Ni SW posodobitev
+                      {tSw("noData")}
                     </td>
                   </tr>
                 )}
@@ -522,11 +536,11 @@ export default function VehicleDetailPage() {
         <Card>
           <CardHeader className="pb-0">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm text-gray-600">DTC zapisi</CardTitle>
+              <CardTitle className="text-sm text-gray-600">{tDtc("title")}</CardTitle>
               {!isPartner && (
                 <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setDtcDialogOpen(true)}>
                   <AlertTriangle className="mr-1.5 h-3.5 w-3.5" />
-                  Dodaj DTC
+                  {tDtc("addBtn")}
                 </Button>
               )}
             </div>
@@ -535,12 +549,12 @@ export default function VehicleDetailPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase text-gray-500">
-                  <th className="px-4 py-3">Koda</th>
-                  <th className="px-4 py-3">Opis</th>
-                  <th className="px-4 py-3">Resnost</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Zaznano</th>
-                  <th className="px-4 py-3">Vir</th>
+                  <th className="px-4 py-3">{tDtc("colCode")}</th>
+                  <th className="px-4 py-3">{tDtc("colDescription")}</th>
+                  <th className="px-4 py-3">{tDtc("colSeverity")}</th>
+                  <th className="px-4 py-3">{tDtc("colStatus")}</th>
+                  <th className="px-4 py-3">{tDtc("colDetected")}</th>
+                  <th className="px-4 py-3">{tDtc("colSource")}</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
@@ -570,7 +584,7 @@ export default function VehicleDetailPage() {
                             onClick={() => dtcResolveMutation.mutate({ dtcId: dtc.id, newStatus: "in_review" })}
                             className="rounded px-2 py-0.5 text-xs bg-yellow-50 text-yellow-700 hover:bg-yellow-100"
                           >
-                            Pregled
+                            {tDtc("actionReview")}
                           </button>
                         )}
                         {dtc.status !== "resolved" && (
@@ -578,7 +592,7 @@ export default function VehicleDetailPage() {
                             onClick={() => dtcResolveMutation.mutate({ dtcId: dtc.id, newStatus: "resolved" })}
                             className="rounded px-2 py-0.5 text-xs bg-green-50 text-green-700 hover:bg-green-100"
                           >
-                            Reši
+                            {tDtc("actionResolve")}
                           </button>
                         )}
                       </div>
@@ -588,7 +602,7 @@ export default function VehicleDetailPage() {
                 {!dtcs?.length && (
                   <tr>
                     <td colSpan={7} className="py-8 text-center text-gray-400">
-                      Ni DTC zapisov
+                      {tDtc("noData")}
                     </td>
                   </tr>
                 )}
@@ -605,10 +619,10 @@ export default function VehicleDetailPage() {
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Activity className="h-4 w-4 text-blue-600" />
-                Live OBD podatki
+                {tObd("liveTitle")}
                 {obdLive?.last_scanned_at && (
                   <span className="ml-auto text-xs font-normal text-gray-400">
-                    Zadnji sken: {formatDate(obdLive.last_scanned_at)}
+                    {tObd("lastScan")} {formatDate(obdLive.last_scanned_at)}
                   </span>
                 )}
               </CardTitle>
@@ -616,8 +630,8 @@ export default function VehicleDetailPage() {
             <CardContent>
               {!obdLive?.has_data ? (
                 <p className="py-4 text-center text-sm text-gray-400">
-                  Ni OBD podatkov — zaženite sken na strani{" "}
-                  <a href="/obd" className="text-blue-600 underline">OBD diagnostika</a>
+                  {tObd("noData")}{" "}
+                  <a href="/obd" className="text-blue-600 underline">{tObd("obdDiagPage")}</a>
                 </p>
               ) : (
                 <div className="flex flex-wrap gap-3">
@@ -625,14 +639,14 @@ export default function VehicleDetailPage() {
                     <div className="flex flex-col items-center rounded-xl border bg-white p-3 shadow-sm min-w-[110px]">
                       <Gauge className="mb-1 h-4 w-4 text-gray-400" />
                       <p className="text-lg font-bold">{Number(obdLive.live_data.rpm).toFixed(0)} <span className="text-xs font-normal text-gray-500">RPM</span></p>
-                      <p className="text-xs text-gray-400">Vrtljaji</p>
+                      <p className="text-xs text-gray-400">{tObd("rpm")}</p>
                     </div>
                   )}
                   {obdLive.live_data.speed_kmh !== undefined && (
                     <div className="flex flex-col items-center rounded-xl border bg-white p-3 shadow-sm min-w-[110px]">
                       <Gauge className="mb-1 h-4 w-4 text-gray-400" />
                       <p className="text-lg font-bold">{Number(obdLive.live_data.speed_kmh).toFixed(0)} <span className="text-xs font-normal text-gray-500">km/h</span></p>
-                      <p className="text-xs text-gray-400">Hitrost</p>
+                      <p className="text-xs text-gray-400">{tObd("speed")}</p>
                     </div>
                   )}
                   {obdLive.live_data.coolant_temp_c !== undefined && (
@@ -641,7 +655,7 @@ export default function VehicleDetailPage() {
                       <p className={`text-lg font-bold ${Number(obdLive.live_data.coolant_temp_c) > 100 ? "text-red-600" : ""}`}>
                         {Number(obdLive.live_data.coolant_temp_c).toFixed(1)} <span className="text-xs font-normal text-gray-500">°C</span>
                       </p>
-                      <p className="text-xs text-gray-400">Hladilnik</p>
+                      <p className="text-xs text-gray-400">{tObd("coolant")}</p>
                     </div>
                   )}
                   {obdLive.live_data.battery_voltage !== undefined && (
@@ -650,7 +664,7 @@ export default function VehicleDetailPage() {
                       <p className={`text-lg font-bold ${Number(obdLive.live_data.battery_voltage) < 11.5 ? "text-red-600" : "text-green-600"}`}>
                         {Number(obdLive.live_data.battery_voltage).toFixed(1)} <span className="text-xs font-normal text-gray-500">V</span>
                       </p>
-                      <p className="text-xs text-gray-400">Akumulator</p>
+                      <p className="text-xs text-gray-400">{tObd("battery")}</p>
                     </div>
                   )}
                   {obdLive.live_data.fuel_level_pct !== undefined && (
@@ -659,14 +673,14 @@ export default function VehicleDetailPage() {
                       <p className={`text-lg font-bold ${Number(obdLive.live_data.fuel_level_pct) < 15 ? "text-red-600" : ""}`}>
                         {Number(obdLive.live_data.fuel_level_pct).toFixed(0)} <span className="text-xs font-normal text-gray-500">%</span>
                       </p>
-                      <p className="text-xs text-gray-400">Gorivo</p>
+                      <p className="text-xs text-gray-400">{tObd("fuel")}</p>
                     </div>
                   )}
                   {obdLive.live_data.engine_load_pct !== undefined && (
                     <div className="flex flex-col items-center rounded-xl border bg-white p-3 shadow-sm min-w-[110px]">
                       <Zap className="mb-1 h-4 w-4 text-gray-400" />
                       <p className="text-lg font-bold">{Number(obdLive.live_data.engine_load_pct).toFixed(0)} <span className="text-xs font-normal text-gray-500">%</span></p>
-                      <p className="text-xs text-gray-400">Obremenitev</p>
+                      <p className="text-xs text-gray-400">{tObd("load")}</p>
                     </div>
                   )}
                   {obdLive.live_data.mil_on !== undefined && (
@@ -688,9 +702,9 @@ export default function VehicleDetailPage() {
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Plug className="h-4 w-4 text-gray-600" />
-                OBD seje
+                {tObd("sessionsTitle")}
                 <span className="ml-auto text-xs font-normal text-gray-400">
-                  {(obdSessions ?? []).length} sej
+                  {(obdSessions ?? []).length} {tObd("sessions")}
                 </span>
               </CardTitle>
             </CardHeader>
@@ -698,11 +712,11 @@ export default function VehicleDetailPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase text-gray-500">
-                    <th className="px-4 py-2">Čas</th>
-                    <th className="px-4 py-2">Adapter</th>
-                    <th className="px-4 py-2">DTC</th>
-                    <th className="px-4 py-2">Uvoženi</th>
-                    <th className="px-4 py-2">Kode</th>
+                    <th className="px-4 py-2">{tObd("colTime")}</th>
+                    <th className="px-4 py-2">{tObd("colAdapter")}</th>
+                    <th className="px-4 py-2">{tObd("colDtc")}</th>
+                    <th className="px-4 py-2">{tObd("colImported")}</th>
+                    <th className="px-4 py-2">{tObd("colCodes")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -730,7 +744,7 @@ export default function VehicleDetailPage() {
                   ))}
                   {(obdSessions ?? []).length === 0 && (
                     <tr>
-                      <td colSpan={5} className="py-8 text-center text-gray-400">Ni OBD sej</td>
+                      <td colSpan={5} className="py-8 text-center text-gray-400">{tObd("noSessions")}</td>
                     </tr>
                   )}
                 </tbody>
@@ -746,7 +760,7 @@ export default function VehicleDetailPage() {
             <div className="flex justify-end">
               <Button size="sm" variant="outline" onClick={() => setServiceDialogOpen(true)}>
                 <Wrench className="mr-1.5 h-4 w-4" />
-                Nov servis
+                {tService("newBtn")}
               </Button>
             </div>
           )}
@@ -759,7 +773,7 @@ export default function VehicleDetailPage() {
                       <Badge variant="info">{s.service_type}</Badge>
                       <span className="text-sm text-gray-500">{formatDate(s.date)}</span>
                     </div>
-                    <p className="mt-2 text-sm font-medium">Tehnik: {s.technician}</p>
+                    <p className="mt-2 text-sm font-medium">{tService("technician")} {s.technician}</p>
                     <ul className="mt-1 list-inside list-disc text-sm text-gray-600">
                       {s.items.map((item, i) => (
                         <li key={i}>{item}</li>
@@ -776,16 +790,15 @@ export default function VehicleDetailPage() {
                         className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-900 hover:underline"
                       >
                         <Wrench className="h-3.5 w-3.5" />
-                        Uredi
+                        {tService("editBtn")}
                       </button>
                       <button
                         onClick={() => {
-                          if (confirm("Izbriši ta servisni zapis?")) {
+                          if (confirm(tService("deleteConfirm"))) {
                             serviceDeleteMutation.mutate(s.id);
                           }
                         }}
                         className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-600 hover:underline"
-                        title="Izbriši servisni zapis"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -796,7 +809,7 @@ export default function VehicleDetailPage() {
             </Card>
           ))}
           {!services?.length && (
-            <p className="text-center text-gray-400 py-8">Ni servisnih zapisov</p>
+            <p className="text-center text-gray-400 py-8">{tService("noData")}</p>
           )}
         </div>
       )}
@@ -805,11 +818,11 @@ export default function VehicleDetailPage() {
         <Card>
           <CardHeader className="pb-0">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm text-gray-600">Homologacije</CardTitle>
+              <CardTitle className="text-sm text-gray-600">{tHom("title")}</CardTitle>
               {!isPartner && (
                 <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setHomDialogOpen(true)}>
                   <FileText className="mr-1.5 h-3.5 w-3.5" />
-                  Dodaj homologacijo
+                  {tHom("addBtn")}
                 </Button>
               )}
             </div>
@@ -818,13 +831,13 @@ export default function VehicleDetailPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase text-gray-500">
-                  <th className="px-4 py-3">Uredba</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Oblast</th>
-                  <th className="px-4 py-3">Država</th>
-                  <th className="px-4 py-3">Veljavno do</th>
-                  <th className="px-4 py-3">Naslednja akcija</th>
-                  <th className="px-4 py-3">Opomba</th>
+                  <th className="px-4 py-3">{tHom("colRegulation")}</th>
+                  <th className="px-4 py-3">{tHom("colStatus")}</th>
+                  <th className="px-4 py-3">{tHom("colAuthority")}</th>
+                  <th className="px-4 py-3">{tHom("colCountry")}</th>
+                  <th className="px-4 py-3">{tHom("colValidUntil")}</th>
+                  <th className="px-4 py-3">{tHom("colNextAction")}</th>
+                  <th className="px-4 py-3">{tHom("colNotes")}</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
@@ -862,7 +875,7 @@ export default function VehicleDetailPage() {
                               className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 hover:underline"
                             >
                               <FileText className="h-3.5 w-3.5" />
-                              Uredi
+                              {tHom("editBtn")}
                             </button>
                           )}
                           <button
@@ -870,7 +883,7 @@ export default function VehicleDetailPage() {
                             className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
                           >
                             <Camera className="h-3.5 w-3.5" />
-                            {homPhotoUploadId === h.id ? "Zapri" : "Foto"}
+                            {homPhotoUploadId === h.id ? tHom("photoClose") : tHom("photoOpen")}
                           </button>
                         </div>
                       </td>
@@ -892,7 +905,7 @@ export default function VehicleDetailPage() {
                 {!homs?.length && (
                   <tr>
                     <td colSpan={8} className="py-8 text-center text-gray-400">
-                      Ni homologacij
+                      {tHom("noData")}
                     </td>
                   </tr>
                 )}
@@ -909,13 +922,13 @@ export default function VehicleDetailPage() {
             <div className="flex justify-end">
               <Button size="sm" variant="outline" onClick={() => setCocDialogOpen(true)}>
                 <Plus className="mr-1.5 h-4 w-4" />
-                Nov CoC certifikat
+                {tCoc("newBtn")}
               </Button>
             </div>
           )}
           {(cocs ?? []).length === 0 ? (
             <div className="flex h-32 items-center justify-center text-gray-400">
-              <p>Ni CoC certifikatov</p>
+              <p>{tCoc("noData")}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -930,8 +943,8 @@ export default function VehicleDetailPage() {
                         )}
                       </div>
                       <div className="text-right text-xs text-gray-500">
-                        <p>Izdano: {formatDate(c.issued_at)}</p>
-                        {c.valid_until && <p>Velja do: {formatDate(c.valid_until)}</p>}
+                        <p>{tCoc("issuedAt")} {formatDate(c.issued_at)}</p>
+                        {c.valid_until && <p>{tCoc("validUntil")} {formatDate(c.valid_until)}</p>}
                       </div>
                     </div>
                   </CardContent>
@@ -949,13 +962,13 @@ export default function VehicleDetailPage() {
             <div className="flex justify-end">
               <Button size="sm" variant="outline" onClick={() => setVectoDialogOpen(true)}>
                 <Plus className="mr-1.5 h-4 w-4" />
-                Nova kalkulacija
+                {tVecto("newBtn")}
               </Button>
             </div>
           )}
           {(vectos ?? []).length === 0 ? (
             <div className="flex h-32 items-center justify-center text-gray-400">
-              <p>Ni VECTO kalkulacij</p>
+              <p>{tVecto("noData")}</p>
             </div>
           ) : (
             <Card>
@@ -963,11 +976,11 @@ export default function VehicleDetailPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase text-gray-500">
-                      <th className="px-4 py-3">Datum</th>
-                      <th className="px-4 py-3">CO₂ WLTP</th>
-                      <th className="px-4 py-3">Energija WLTP</th>
-                      <th className="px-4 py-3">Doseg</th>
-                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">{tVecto("colDate")}</th>
+                      <th className="px-4 py-3">{tVecto("colCo2")}</th>
+                      <th className="px-4 py-3">{tVecto("colEnergy")}</th>
+                      <th className="px-4 py-3">{tVecto("colRange")}</th>
+                      <th className="px-4 py-3">{tVecto("colStatus")}</th>
                       <th className="px-4 py-3"></th>
                     </tr>
                   </thead>
@@ -1007,7 +1020,7 @@ export default function VehicleDetailPage() {
                                   a.click();
                                   URL.revokeObjectURL(url);
                                 } catch {
-                                  toast.error("Napaka pri generiranju VECTO PDF");
+                                  toast.error(tVecto("pdfError"));
                                 }
                               }}
                               className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
@@ -1020,25 +1033,25 @@ export default function VehicleDetailPage() {
                         {expandedVecto === v.id && v.input_params && Object.keys(v.input_params).length > 0 && (
                           <tr key={`${v.id}-params`} className="bg-blue-50">
                             <td colSpan={6} className="px-6 py-4">
-                              <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Vhodni parametri simulacije</p>
+                              <p className="text-xs font-semibold text-gray-500 uppercase mb-2">{tVecto("inputParamsTitle")}</p>
                               <div className="grid grid-cols-3 gap-x-8 gap-y-1 text-xs">
                                 {[
-                                  { k: "masa_prazno_kg", label: "Masa praznega", unit: "kg" },
-                                  { k: "masa_test_kg", label: "Testna masa", unit: "kg" },
-                                  { k: "masa_max_kg", label: "GVM max", unit: "kg" },
-                                  { k: "cd", label: "Cₐ (drag)", unit: "" },
-                                  { k: "a_front_m2", label: "Čelna površina", unit: "m²" },
-                                  { k: "cda", label: "Cₐ × A", unit: "m²" },
-                                  { k: "crr_spredaj", label: "Crr spredaj", unit: "N/kN" },
-                                  { k: "crr_zadaj", label: "Crr zadaj", unit: "N/kN" },
-                                  { k: "kapaciteta_kwh", label: "Kapaciteta baterije", unit: "kWh" },
-                                  { k: "napetost_v", label: "Nom. napetost", unit: "V" },
-                                  { k: "max_moc_polnjenja_kw", label: "Max polnjenje", unit: "kW" },
-                                  { k: "max_moc_kw", label: "Max moč motorja", unit: "kW" },
-                                  { k: "max_navor_nm", label: "Max navor", unit: "Nm" },
-                                  { k: "wltp_cikel", label: "WLTP cikel", unit: "" },
-                                  { k: "temperatura_ref_c", label: "Ref. temperatura", unit: "°C" },
-                                  { k: "tovor_kg", label: "Tovor", unit: "kg" },
+                                  { k: "masa_prazno_kg", label: tVectoCalc("masaEmpty"), unit: "kg" },
+                                  { k: "masa_test_kg", label: tVectoCalc("masaTest"), unit: "kg" },
+                                  { k: "masa_max_kg", label: tVectoCalc("masaMax"), unit: "kg" },
+                                  { k: "cd", label: tVectoCalc("aeroCd"), unit: "" },
+                                  { k: "a_front_m2", label: tVectoCalc("aeroFront"), unit: "m²" },
+                                  { k: "cda", label: tVectoCalc("aeroCda"), unit: "m²" },
+                                  { k: "crr_spredaj", label: tVectoCalc("crrFront"), unit: "N/kN" },
+                                  { k: "crr_zadaj", label: tVectoCalc("crrRear"), unit: "N/kN" },
+                                  { k: "kapaciteta_kwh", label: tVectoCalc("batCapacity"), unit: "kWh" },
+                                  { k: "napetost_v", label: tVectoCalc("batVoltage"), unit: "V" },
+                                  { k: "max_moc_polnjenja_kw", label: tVectoCalc("batMaxCharge"), unit: "kW" },
+                                  { k: "max_moc_kw", label: tVectoCalc("motorMaxPower"), unit: "kW" },
+                                  { k: "max_navor_nm", label: tVectoCalc("motorMaxTorque"), unit: "Nm" },
+                                  { k: "wltp_cikel", label: tVectoCalc("simWltp"), unit: "" },
+                                  { k: "temperatura_ref_c", label: tVectoCalc("simTemp"), unit: "°C" },
+                                  { k: "tovor_kg", label: tVectoCalc("simLoad"), unit: "kg" },
                                 ]
                                   .filter(({ k }) => v.input_params![k] != null)
                                   .map(({ k, label, unit }) => (
@@ -1081,14 +1094,14 @@ export default function VehicleDetailPage() {
                     </p>
                   </div>
                   <div className="text-xs text-gray-400">
-                    {Object.keys(snap.snapshot.ecu_config ?? {}).length} ECU modulov
+                    {Object.keys(snap.snapshot.ecu_config ?? {}).length} {tSnap("ecuModules")}
                   </div>
                 </div>
               </CardContent>
             </Card>
           ))}
           {!snapshots?.length && (
-            <p className="text-center text-gray-400 py-8">Ni posnetkov stanja</p>
+            <p className="text-center text-gray-400 py-8">{tSnap("noData")}</p>
           )}
         </div>
       )}
@@ -1099,7 +1112,7 @@ export default function VehicleDetailPage() {
           {(photos ?? []).length === 0 ? (
             <div className="flex h-32 flex-col items-center justify-center gap-2 text-gray-400">
               <Camera className="h-10 w-10" />
-              <p>Ni fotografij</p>
+              <p>{tPhotos("noPhotos")}</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -1139,7 +1152,7 @@ export default function VehicleDetailPage() {
                   {/* Gumb za brisanje */}
                   <button
                     onClick={() => {
-                      if (confirm(`Izbriši fotografijo "${photo.filename}"?`)) {
+                      if (confirm(tPhotos("deleteConfirm", { name: photo.filename }))) {
                         photoDeleteMutation.mutate(photo.id);
                       }
                     }}

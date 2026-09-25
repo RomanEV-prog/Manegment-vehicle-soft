@@ -16,6 +16,7 @@ import { serviceApi } from "@/lib/api";
 import toast from "react-hot-toast";
 import type { AxiosError } from "axios";
 import { X, Plus } from "lucide-react";
+import { useTranslations } from "@/lib/i18n";
 
 interface Props {
   open: boolean;
@@ -36,6 +37,8 @@ const SERVICE_TYPES = [
 
 export function CreateServiceRecordDialog({ open, vehicleId, onClose }: Props) {
   const qc = useQueryClient();
+  const t = useTranslations("service");
+  const tCommon = useTranslations("common");
   const today = new Date().toISOString().split("T")[0];
 
   const [form, setForm] = useState({
@@ -61,7 +64,7 @@ export function CreateServiceRecordDialog({ open, vehicleId, onClose }: Props) {
         items: items.filter((i) => i.trim() !== ""),
       }),
     onSuccess: () => {
-      toast.success("Servisni zapis shranjen");
+      toast.success(t("createSuccess"));
       qc.invalidateQueries({ queryKey: ["service", vehicleId] });
       qc.invalidateQueries({ queryKey: ["twin", vehicleId] });
       onClose();
@@ -69,7 +72,7 @@ export function CreateServiceRecordDialog({ open, vehicleId, onClose }: Props) {
       setItems([""]);
     },
     onError: (e: AxiosError<{ detail: string }>) => {
-      toast.error(e.response?.data?.detail ?? "Napaka pri shranjevanju");
+      toast.error(e.response?.data?.detail ?? t("createError"));
     },
   });
 
@@ -79,41 +82,41 @@ export function CreateServiceRecordDialog({ open, vehicleId, onClose }: Props) {
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Nov servisni zapis</DialogTitle>
+          <DialogTitle>{t("createTitle")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Datum *</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldDate")}</label>
               <Input type="date" value={form.date} onChange={(e) => set("date", e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Tip servisa *</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldType")}</label>
               <select
                 value={form.service_type}
                 onChange={(e) => set("service_type", e.target.value)}
                 className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm"
               >
-                {SERVICE_TYPES.map((t) => (
-                  <option key={t} value={t}>{t}</option>
+                {SERVICE_TYPES.map((st) => (
+                  <option key={st} value={st}>{st}</option>
                 ))}
               </select>
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-700">Tehnik *</label>
+            <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldTechnician")}</label>
             <Input
               value={form.technician}
               onChange={(e) => set("technician", e.target.value)}
-              placeholder="Ime in priimek tehnika"
+              placeholder={t("technicianPlaceholder")}
             />
           </div>
           <div>
             <div className="mb-1.5 flex items-center justify-between">
-              <label className="text-xs font-medium text-gray-700">Opravljeno delo *</label>
+              <label className="text-xs font-medium text-gray-700">{t("fieldItems")}</label>
               <Button type="button" variant="ghost" size="sm" className="h-6 text-xs" onClick={addItem}>
                 <Plus className="mr-1 h-3 w-3" />
-                Dodaj
+                {t("addItem")}
               </Button>
             </div>
             <div className="space-y-2">
@@ -122,7 +125,7 @@ export function CreateServiceRecordDialog({ open, vehicleId, onClose }: Props) {
                   <Input
                     value={item}
                     onChange={(e) => updateItem(i, e.target.value)}
-                    placeholder={`npr. Menjava olja ${i + 1}`}
+                    placeholder={t("itemPlaceholder", { num: i + 1 })}
                   />
                   {items.length > 1 && (
                     <Button
@@ -140,22 +143,22 @@ export function CreateServiceRecordDialog({ open, vehicleId, onClose }: Props) {
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-700">Opombe</label>
+            <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldNotes")}</label>
             <Input
               value={form.notes}
               onChange={(e) => set("notes", e.target.value)}
-              placeholder="Opcijsko..."
+              placeholder={tCommon("optional")}
             />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Prekliči</Button>
+          <Button variant="outline" onClick={onClose}>{tCommon("cancel")}</Button>
           <Button
             onClick={() => mutation.mutate()}
             disabled={mutation.isPending || !form.technician || validItems.length === 0}
           >
             {mutation.isPending ? <Spinner className="mr-2 h-4 w-4" /> : null}
-            Shrani
+            {tCommon("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

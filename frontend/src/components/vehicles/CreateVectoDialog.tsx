@@ -15,6 +15,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { vectoApi } from "@/lib/api";
 import toast from "react-hot-toast";
 import type { AxiosError } from "axios";
+import { useTranslations } from "@/lib/i18n";
 
 interface Props {
   open: boolean;
@@ -24,19 +25,21 @@ interface Props {
 
 type Section = "masa" | "aero" | "crr" | "baterija" | "motor" | "simulacija";
 
-const SECTION_LABELS: Record<Section, string> = {
-  masa: "Masa vozila",
-  aero: "Aerodinamika",
-  crr: "Kotalniški upor (ISO 28580)",
-  baterija: "Trakcijska baterija",
-  motor: "Elektromotor / pogon",
-  simulacija: "Pogoji simulacije",
-};
-
 export function CreateVectoDialog({ open, vehicleId, onClose }: Props) {
   const qc = useQueryClient();
+  const t = useTranslations("vecto");
+  const tCommon = useTranslations("common");
   const today = new Date().toISOString().split("T")[0];
   const [openSection, setOpenSection] = useState<Section | null>(null);
+
+  const SECTION_LABELS: Record<Section, string> = {
+    masa: t("sectionMasa"),
+    aero: t("sectionAero"),
+    crr: t("sectionCrr"),
+    baterija: t("sectionBaterija"),
+    motor: t("sectionMotor"),
+    simulacija: t("sectionSimulacija"),
+  };
 
   const [form, setForm] = useState({
     calculated_at: today,
@@ -111,7 +114,7 @@ export function CreateVectoDialog({ open, vehicleId, onClose }: Props) {
         input_params: buildInputParams(),
       }),
     onSuccess: () => {
-      toast.success("VECTO kalkulacija shranjena");
+      toast.success(t("createSuccess"));
       qc.invalidateQueries({ queryKey: ["vecto", vehicleId] });
       onClose();
       setForm({ calculated_at: today, co2_wltp: "", energy_wltp: "", range_km: "", status: "draft" });
@@ -125,7 +128,7 @@ export function CreateVectoDialog({ open, vehicleId, onClose }: Props) {
       });
     },
     onError: (e: AxiosError<{ detail: string }>) => {
-      toast.error(e.response?.data?.detail ?? "Napaka pri shranjevanju");
+      toast.error(e.response?.data?.detail ?? t("createError"));
     },
   });
 
@@ -137,52 +140,52 @@ export function CreateVectoDialog({ open, vehicleId, onClose }: Props) {
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Nova VECTO kalkulacija</DialogTitle>
+          <DialogTitle>{t("createTitle")}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-3">
           <div className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
-            VECTO (Vehicle Energy Consumption Calculation Tool) — EU Uredba 2017/337 / 2017/2400
+            {t("infoText")}
           </div>
 
-          {/* Osnovna polja */}
+          {/* Base fields */}
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-700">Datum kalkulacije *</label>
+            <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldDate")}</label>
             <Input type="date" value={form.calculated_at} onChange={(e) => setF("calculated_at", e.target.value)} />
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">CO₂ WLTP (g/km)</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldCo2")}</label>
               <Input type="number" step="0.01" value={form.co2_wltp} onChange={(e) => setF("co2_wltp", e.target.value)} placeholder="0.00" />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Energija WLTP (Wh/km)</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldEnergy")}</label>
               <Input type="number" step="0.01" value={form.energy_wltp} onChange={(e) => setF("energy_wltp", e.target.value)} placeholder="0.00" />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Doseg (km)</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldRange")}</label>
               <Input type="number" value={form.range_km} onChange={(e) => setF("range_km", e.target.value)} placeholder="npr. 280" />
             </div>
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-700">Status</label>
+            <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldStatus")}</label>
             <select
               value={form.status}
               onChange={(e) => setF("status", e.target.value)}
               className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm"
             >
-              <option value="draft">Osnutek</option>
-              <option value="submitted">Oddano</option>
-              <option value="approved">Odobreno</option>
+              <option value="draft">{t("statusDraft")}</option>
+              <option value="submitted">{t("statusSubmitted")}</option>
+              <option value="approved">{t("statusApproved")}</option>
             </select>
           </div>
 
-          {/* Napredni vhodni parametri — accordion */}
+          {/* Advanced input params — accordion */}
           <div className="border border-gray-200 rounded-lg overflow-hidden">
             <div className="bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-600 uppercase tracking-wide">
-              Vhodni parametri simulacije (EU 2017/2400)
+              {t("inputParamsTitle")}
             </div>
 
             {(["masa", "aero", "crr", "baterija", "motor", "simulacija"] as Section[]).map((sec) => (
@@ -201,9 +204,9 @@ export function CreateVectoDialog({ open, vehicleId, onClose }: Props) {
                     {sec === "masa" && (
                       <div className="grid grid-cols-3 gap-3 mt-2">
                         {[
-                          { k: "masa_prazno_kg", label: "Masa praznega (kg)" },
-                          { k: "masa_test_kg", label: "Testna masa (kg)" },
-                          { k: "masa_max_kg", label: "GVM max (kg)" },
+                          { k: "masa_prazno_kg", label: t("masaEmpty") },
+                          { k: "masa_test_kg", label: t("masaTest") },
+                          { k: "masa_max_kg", label: t("masaMax") },
                         ].map(({ k, label }) => (
                           <div key={k}>
                             <label className="mb-1 block text-xs text-gray-600">{label}</label>
@@ -216,9 +219,9 @@ export function CreateVectoDialog({ open, vehicleId, onClose }: Props) {
                     {sec === "aero" && (
                       <div className="grid grid-cols-3 gap-3 mt-2">
                         {[
-                          { k: "cd", label: "Cₐ (drag coef.)", step: "0.001" },
-                          { k: "a_front_m2", label: "Čelna površina (m²)", step: "0.01" },
-                          { k: "cda", label: "Cₐ × A (m²)", step: "0.001" },
+                          { k: "cd", label: t("aeroCd"), step: "0.001" },
+                          { k: "a_front_m2", label: t("aeroFront"), step: "0.01" },
+                          { k: "cda", label: t("aeroCda"), step: "0.001" },
                         ].map(({ k, label, step }) => (
                           <div key={k}>
                             <label className="mb-1 block text-xs text-gray-600">{label}</label>
@@ -231,8 +234,8 @@ export function CreateVectoDialog({ open, vehicleId, onClose }: Props) {
                     {sec === "crr" && (
                       <div className="grid grid-cols-2 gap-3 mt-2">
                         {[
-                          { k: "crr_spredaj", label: "Crr — sprednja os (N/kN)" },
-                          { k: "crr_zadaj", label: "Crr — zadnja os (N/kN)" },
+                          { k: "crr_spredaj", label: t("crrFront") },
+                          { k: "crr_zadaj", label: t("crrRear") },
                         ].map(({ k, label }) => (
                           <div key={k}>
                             <label className="mb-1 block text-xs text-gray-600">{label}</label>
@@ -245,9 +248,9 @@ export function CreateVectoDialog({ open, vehicleId, onClose }: Props) {
                     {sec === "baterija" && (
                       <div className="grid grid-cols-3 gap-3 mt-2">
                         {[
-                          { k: "kapaciteta_kwh", label: "Kapaciteta (kWh)", step: "0.1" },
-                          { k: "napetost_v", label: "Nom. napetost (V)", step: "1" },
-                          { k: "max_moc_polnjenja_kw", label: "Max polnjenje (kW)", step: "0.1" },
+                          { k: "kapaciteta_kwh", label: t("batCapacity"), step: "0.1" },
+                          { k: "napetost_v", label: t("batVoltage"), step: "1" },
+                          { k: "max_moc_polnjenja_kw", label: t("batMaxCharge"), step: "0.1" },
                         ].map(({ k, label, step }) => (
                           <div key={k}>
                             <label className="mb-1 block text-xs text-gray-600">{label}</label>
@@ -260,8 +263,8 @@ export function CreateVectoDialog({ open, vehicleId, onClose }: Props) {
                     {sec === "motor" && (
                       <div className="grid grid-cols-2 gap-3 mt-2">
                         {[
-                          { k: "max_moc_kw", label: "Max moč (kW)", step: "0.1" },
-                          { k: "max_navor_nm", label: "Max navor (Nm)", step: "1" },
+                          { k: "max_moc_kw", label: t("motorMaxPower"), step: "0.1" },
+                          { k: "max_navor_nm", label: t("motorMaxTorque"), step: "1" },
                         ].map(({ k, label, step }) => (
                           <div key={k}>
                             <label className="mb-1 block text-xs text-gray-600">{label}</label>
@@ -274,24 +277,24 @@ export function CreateVectoDialog({ open, vehicleId, onClose }: Props) {
                     {sec === "simulacija" && (
                       <div className="grid grid-cols-3 gap-3 mt-2">
                         <div>
-                          <label className="mb-1 block text-xs text-gray-600">WLTP cikel</label>
+                          <label className="mb-1 block text-xs text-gray-600">{t("simWltp")}</label>
                           <select
                             value={params.wltp_cikel}
                             onChange={(e) => setP("wltp_cikel", e.target.value)}
                             className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm"
                           >
-                            <option value="">— izberi —</option>
-                            <option value="Razred 1">Razred 1 (≤ 22 kW/t)</option>
-                            <option value="Razred 2">Razred 2 (22–34 kW/t)</option>
-                            <option value="Razred 3b">Razred 3b (&gt; 34 kW/t)</option>
+                            <option value="">{t("simWltpSelect")}</option>
+                            <option value="Razred 1">{t("simWltpClass1")}</option>
+                            <option value="Razred 2">{t("simWltpClass2")}</option>
+                            <option value="Razred 3b">{t("simWltpClass3b")}</option>
                           </select>
                         </div>
                         <div>
-                          <label className="mb-1 block text-xs text-gray-600">Ref. temperatura (°C)</label>
+                          <label className="mb-1 block text-xs text-gray-600">{t("simTemp")}</label>
                           <Input type="number" step="0.5" value={params.temperatura_ref_c} onChange={(e) => setP("temperatura_ref_c", e.target.value)} placeholder="23" />
                         </div>
                         <div>
-                          <label className="mb-1 block text-xs text-gray-600">Tovor (kg)</label>
+                          <label className="mb-1 block text-xs text-gray-600">{t("simLoad")}</label>
                           <Input type="number" step="1" value={params.tovor_kg} onChange={(e) => setP("tovor_kg", e.target.value)} placeholder="0" />
                         </div>
                       </div>
@@ -304,10 +307,10 @@ export function CreateVectoDialog({ open, vehicleId, onClose }: Props) {
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Prekliči</Button>
+          <Button variant="outline" onClick={onClose}>{tCommon("cancel")}</Button>
           <Button onClick={() => mutation.mutate()} disabled={mutation.isPending}>
             {mutation.isPending ? <Spinner className="mr-2 h-4 w-4" /> : null}
-            Shrani
+            {tCommon("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -154,12 +154,12 @@ class TestPhotoUpload:
         photo_id = resp.json()["id"]
 
         audit_resp = await client.get(
-            "/api/v1/audit-log",
+            "/api/v1/audit-logs",
             headers=org_and_user["headers"],
             params={"entity_type": "photo", "entity_id": photo_id},
         )
         assert audit_resp.status_code == 200
-        logs = audit_resp.json()["items"]
+        logs = audit_resp.json()
         upload_logs = [l for l in logs if l["action"] == "upload"]
         assert len(upload_logs) == 1
         assert upload_logs[0]["after"]["photo_type"] == "interior"
@@ -198,12 +198,12 @@ class TestPhotoUpload:
 
         # Preveri audit log
         audit_resp = await client.get(
-            "/api/v1/audit-log",
+            "/api/v1/audit-logs",
             headers=org_and_user["headers"],
             params={"entity_type": "photo", "entity_id": photo_id},
         )
         assert audit_resp.status_code == 200
-        logs = audit_resp.json()["items"]
+        logs = audit_resp.json()
         delete_logs = [l for l in logs if l["action"] == "delete"]
         assert len(delete_logs) == 1
         assert delete_logs[0]["before"]["photo_type"] == "damage"

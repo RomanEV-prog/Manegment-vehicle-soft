@@ -16,6 +16,7 @@ import { serviceApi } from "@/lib/api";
 import toast from "react-hot-toast";
 import type { ServiceRecord } from "@/types";
 import type { AxiosError } from "axios";
+import { useTranslations } from "@/lib/i18n";
 
 const SERVICE_TYPES = [
   "maintenance",
@@ -37,6 +38,8 @@ interface Props {
 
 export function EditServiceRecordDialog({ open, record, vehicleId, onClose }: Props) {
   const qc = useQueryClient();
+  const t = useTranslations("service");
+  const tCommon = useTranslations("common");
 
   const [form, setForm] = useState({
     date: "",
@@ -73,13 +76,13 @@ export function EditServiceRecordDialog({ open, record, vehicleId, onClose }: Pr
         notes: form.notes || null,
       }),
     onSuccess: () => {
-      toast.success("Servisni zapis posodobljen");
+      toast.success(t("updateSuccess"));
       qc.invalidateQueries({ queryKey: ["service", vehicleId] });
       qc.invalidateQueries({ queryKey: ["vehicle-stats", vehicleId] });
       onClose();
     },
     onError: (e: AxiosError<{ detail: string }>) => {
-      toast.error(e.response?.data?.detail ?? "Napaka pri posodabljanju");
+      toast.error(e.response?.data?.detail ?? t("updateError"));
     },
   });
 
@@ -87,13 +90,13 @@ export function EditServiceRecordDialog({ open, record, vehicleId, onClose }: Pr
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Uredi servisni zapis</DialogTitle>
+          <DialogTitle>{t("editTitle")}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Datum</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldDate")}</label>
               <Input
                 type="date"
                 value={form.date}
@@ -101,47 +104,47 @@ export function EditServiceRecordDialog({ open, record, vehicleId, onClose }: Pr
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Tip servisa</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldType")}</label>
               <select
                 value={form.service_type}
                 onChange={(e) => set("service_type", e.target.value)}
                 className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm"
               >
-                {SERVICE_TYPES.map((t) => (
-                  <option key={t} value={t}>{t}</option>
+                {SERVICE_TYPES.map((st) => (
+                  <option key={st} value={st}>{st}</option>
                 ))}
               </select>
             </div>
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-700">Tehnik</label>
+            <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldTechnician")}</label>
             <Input
               value={form.technician}
               onChange={(e) => set("technician", e.target.value)}
-              placeholder="Ime tehnika"
+              placeholder={t("technicianEditPlaceholder")}
             />
           </div>
 
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-700">
-              Opravila{" "}
-              <span className="font-normal text-gray-400">(ločena z vejico)</span>
+              {t("editFieldItems")}{" "}
+              <span className="font-normal text-gray-400">{t("editItemsSeparator")}</span>
             </label>
             <Input
               value={form.items_text}
               onChange={(e) => set("items_text", e.target.value)}
-              placeholder="Menjava olja, filter zraka, brisalci"
+              placeholder={t("editItemsPlaceholder")}
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-700">Opombe</label>
+            <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldNotes")}</label>
             <textarea
               value={form.notes}
               onChange={(e) => set("notes", e.target.value)}
               rows={3}
-              placeholder="Dodatne opombe..."
+              placeholder={t("notesPlaceholder")}
               className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm resize-none"
             />
           </div>
@@ -149,14 +152,14 @@ export function EditServiceRecordDialog({ open, record, vehicleId, onClose }: Pr
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            Prekliči
+            {tCommon("cancel")}
           </Button>
           <Button
             onClick={() => mutation.mutate()}
             disabled={mutation.isPending || !form.technician}
           >
             {mutation.isPending ? <Spinner className="mr-2 h-4 w-4" /> : null}
-            Shrani
+            {tCommon("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

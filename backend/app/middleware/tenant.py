@@ -6,12 +6,12 @@ from app.utils.security import decode_access_token
 # Poti ki ne zahtevajo autentikacije
 PUBLIC_PATHS = {
     "/health",
-    "/docs",
-    "/redoc",
-    "/openapi.json",
     "/api/v1/auth/login",
     "/api/v1/auth/refresh",
 }
+
+# Dev-only dokumentacija (v produkciji je FastAPI ne servira)
+_DEV_DOC_PATHS = {"/docs", "/redoc", "/openapi.json"}
 
 
 class TenantMiddleware(BaseHTTPMiddleware):
@@ -22,7 +22,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         # Preskoči javne poti
-        if request.url.path in PUBLIC_PATHS or request.url.path.startswith("/ws/"):
+        if request.url.path in PUBLIC_PATHS or request.url.path in _DEV_DOC_PATHS or request.url.path.startswith("/ws/"):
             return await call_next(request)
 
         auth_header = request.headers.get("Authorization")

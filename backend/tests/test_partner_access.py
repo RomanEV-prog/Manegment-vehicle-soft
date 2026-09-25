@@ -30,7 +30,7 @@ class TestPartnerReadAccess:
 
     async def test_partner_can_list_vecto(self, client: AsyncClient, org_and_user, vehicle_with_twin):
         vid = str(vehicle_with_twin["vehicle"].id)
-        resp = await client.get(f"/api/v1/vecto?vehicle_id={vid}", headers=org_and_user["partner_headers"])
+        resp = await client.get(f"/api/v1/vecto-calculations?vehicle_id={vid}", headers=org_and_user["partner_headers"])
         assert resp.status_code == 200
 
 
@@ -77,7 +77,7 @@ class TestPartnerWriteBlocked:
         assert resp.status_code == 403
 
     async def test_partner_cannot_create_dtc(self, client: AsyncClient, org_and_user, vehicle_with_twin):
-        resp = await client.post("/api/v1/dtc", json={
+        resp = await client.post("/api/v1/dtc-records", json={
             "vehicle_id": str(vehicle_with_twin["vehicle"].id),
             "code": "P0001",
             "description": "Test",
@@ -95,7 +95,7 @@ class TestPartnerWriteBlocked:
         assert resp.status_code == 403
 
     async def test_partner_cannot_create_vecto(self, client: AsyncClient, org_and_user, vehicle_with_twin):
-        resp = await client.post("/api/v1/vecto", json={
+        resp = await client.post("/api/v1/vecto-calculations", json={
             "vehicle_id": str(vehicle_with_twin["vehicle"].id),
             "status": "draft",
         }, headers=org_and_user["partner_headers"])

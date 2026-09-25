@@ -89,7 +89,7 @@ async def test_unique_regulation_per_vehicle(client, org_and_user, vehicle_with_
         "regulation": reg,
         "status": "in_progress",
     }, headers=org_and_user["headers"])
-    assert resp2.status_code in (400, 409, 422, 500)  # DB unique constraint
+    assert resp2.status_code == 409
 
 
 @pytest.mark.asyncio

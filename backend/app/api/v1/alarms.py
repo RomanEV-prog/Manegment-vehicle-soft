@@ -78,6 +78,7 @@ async def list_alarm_configs(user: CurrentUserDep, db: DbSession):
 async def create_alarm_config(data: AlarmConfigCreate, user: NonPartnerDep, db: DbSession):
     config = AlarmConfig(**data.model_dump(), organization_id=user["org_id"])
     db.add(config)
+    await db.flush()  # id in privzete vrednosti se dodelijo šele ob flushu
 
     await write_audit_log(
         db=db,

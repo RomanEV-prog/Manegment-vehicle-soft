@@ -8,8 +8,10 @@ import { Spinner } from "@/components/ui/spinner";
 import { formatDateTime, severityColor, statusColor } from "@/lib/utils";
 import { Cpu, Shield, AlertTriangle, Clock } from "lucide-react";
 import type { VehicleTwin as VehicleTwinType } from "@/types";
+import { useTranslations } from "@/lib/i18n";
 
 export function VehicleTwin({ vehicleId }: { vehicleId: string }) {
+  const t = useTranslations("twin");
   const { data: twin, isLoading } = useQuery<VehicleTwinType>({
     queryKey: ["twin", vehicleId],
     queryFn: () => vehiclesApi.twin(vehicleId),
@@ -24,7 +26,7 @@ export function VehicleTwin({ vehicleId }: { vehicleId: string }) {
   }
 
   if (!twin) {
-    return <p className="text-sm text-gray-400">Digital twin ni na voljo</p>;
+    return <p className="text-sm text-gray-400">{t("notAvailable")}</p>;
   }
 
   return (
@@ -33,17 +35,17 @@ export function VehicleTwin({ vehicleId }: { vehicleId: string }) {
       <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
         <span className="flex items-center gap-1">
           <Clock className="h-3.5 w-3.5" />
-          Posodobljeno: {formatDateTime(twin.updated_at)}
+          {t("updatedAt")} {formatDateTime(twin.updated_at)}
         </span>
         {twin.last_sw_update_at && (
           <span className="flex items-center gap-1 text-blue-600">
             <Cpu className="h-3.5 w-3.5" />
-            Zadnja SW posodobitev: {formatDateTime(twin.last_sw_update_at)}
+            {t("lastSwUpdate")} {formatDateTime(twin.last_sw_update_at)}
           </span>
         )}
         {twin.last_service_at && (
           <span className="flex items-center gap-1">
-            Zadnji servis: {formatDateTime(twin.last_service_at)}
+            {t("lastService")} {formatDateTime(twin.last_service_at)}
           </span>
         )}
       </div>
@@ -53,20 +55,20 @@ export function VehicleTwin({ vehicleId }: { vehicleId: string }) {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-sm">
             <Cpu className="h-4 w-4 text-blue-600" />
-            ECU konfiguracija
+            {t("ecuConfigTitle")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {Object.keys(twin.ecu_config).length === 0 ? (
-            <p className="text-sm text-gray-400">Ni ECU podatkov</p>
+            <p className="text-sm text-gray-400">{t("noEcuData")}</p>
           ) : (
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b text-left text-gray-500">
-                  <th className="pb-2 font-medium">Modul</th>
-                  <th className="pb-2 font-medium">Verzija</th>
-                  <th className="pb-2 font-medium">RXSWIN</th>
-                  <th className="pb-2 font-medium">Posodobljeno</th>
+                  <th className="pb-2 font-medium">{t("colModule")}</th>
+                  <th className="pb-2 font-medium">{t("colVersion")}</th>
+                  <th className="pb-2 font-medium">{t("colRxswin")}</th>
+                  <th className="pb-2 font-medium">{t("colUpdated")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -89,12 +91,12 @@ export function VehicleTwin({ vehicleId }: { vehicleId: string }) {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-sm">
             <Shield className="h-4 w-4 text-purple-600" />
-            Status homologacij
+            {t("homStatusTitle")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {Object.keys(twin.hom_status).length === 0 ? (
-            <p className="text-sm text-gray-400">Ni homologacijskih podatkov</p>
+            <p className="text-sm text-gray-400">{t("noHomData")}</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {Object.entries(twin.hom_status).map(([reg, info]) => (
@@ -121,12 +123,12 @@ export function VehicleTwin({ vehicleId }: { vehicleId: string }) {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-sm">
             <AlertTriangle className="h-4 w-4 text-red-500" />
-            Aktivni DTC ({twin.active_dtcs.length})
+            {t("activeDtcTitle")} ({twin.active_dtcs.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
           {twin.active_dtcs.length === 0 ? (
-            <p className="text-sm text-green-600">Ni aktivnih DTC napak</p>
+            <p className="text-sm text-green-600">{t("noActiveDtc")}</p>
           ) : (
             <div className="space-y-2">
               {twin.active_dtcs.map((dtc, i) => (

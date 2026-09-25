@@ -8,23 +8,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAlarmSocket, useAlarmsStore } from "@/hooks/useAlarms";
 import { alarmsApi } from "@/lib/api";
 import { Spinner } from "@/components/ui/spinner";
-
-const PAGE_TITLES: Record<string, string> = {
-  "/": "Pregled flote",
-  "/vehicles": "Vozila",
-  "/sw-updates": "SW posodobitve",
-  "/dtc": "DTC napake",
-  "/alarms": "Alarmi",
-  "/reports": "Poročila",
-  "/settings": "Nastavitve",
-  "/audit": "Revizijska sled",
-  "/obd": "OBD diagnostika",
-};
-
-function getTitle(pathname: string): string {
-  if (pathname.startsWith("/vehicles/")) return "Podrobnosti vozila";
-  return PAGE_TITLES[pathname] ?? "eVersum";
-}
+import { useTranslations } from "@/lib/i18n";
+import { moduleEnabled } from "@/lib/modules";
 
 function AlarmSocketInit() {
   useAlarmSocket();
@@ -37,6 +22,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const setAlarms = useAlarmsStore((s) => s.setAlarms);
   const initDone = useRef(false);
+  const t = useTranslations("nav");
+  const alarmsOn = moduleEnabled("alarms");
+
+  const PAGE_TITLES: Record<string, string> = {
+    "/": t("overview"),
+    "/vehicles": t("vehicles"),
+    "/sw-updates": t("swUpdates"),
+    "/dtc": t("dtc"),
+    "/alarms": t("alarms"),
+    "/reports": t("reports"),
+    "/settings": t("settings"),
+    "/audit": t("audit"),
+    "/obd": t("obd"),
+    "/rxswins": t("rxswins"),
+    "/ecus": t("ecus"),
+    "/sha256": t("sha256"),
+  };
+
+  function getTitle(pathname: string): string {
+    if (pathname.startsWith("/vehicles/")) return t("vehicles");
+    if (pathname.startsWith("/rxswins/")) return t("rxswins");
+    return PAGE_TITLES[pathname] ?? "eVersum";
+  }
 
   useEffect(() => {
     if (initDone.current) return;
@@ -59,13 +67,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Load unread alarms on mount
   useEffect(() => {
-    if (user) {
+    if (user && alarmsOn) {
       alarmsApi
         .list({ is_read: "false" })
         .then((data: unknown) => setAlarms(Array.isArray(data) ? data : []))
         .catch(() => {});
     }
-  }, [user, setAlarms]);
+  }, [user, setAlarms, alarmsOn]);
 
   // Show spinner until init completes
   if (!initDone.current || (!user && payload === null)) {
@@ -78,7 +86,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {user && <AlarmSocketInit />}
+      {user && alarmsOn && <AlarmSocketInit />}
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <TopBar title={getTitle(pathname)} />

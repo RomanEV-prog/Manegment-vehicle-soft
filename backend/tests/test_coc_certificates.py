@@ -91,12 +91,12 @@ class TestCoCCreate:
         coc_id = resp.json()["id"]
 
         audit_resp = await client.get(
-            "/api/v1/audit-log",
+            "/api/v1/audit-logs",
             headers=org_and_user["headers"],
             params={"entity_type": "coc_certificate", "entity_id": coc_id},
         )
         assert audit_resp.status_code == 200
-        logs = audit_resp.json()["items"]
+        logs = audit_resp.json()
         create_logs = [l for l in logs if l["action"] == "create"]
         assert len(create_logs) == 1
         assert create_logs[0]["after"]["coc_number"] == "COC-AUDIT-007"

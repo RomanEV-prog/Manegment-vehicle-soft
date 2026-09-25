@@ -13,6 +13,7 @@ import { statusColor, formatDate } from "@/lib/utils";
 import type { SwUpdate, Vehicle } from "@/types";
 import { Search, Cpu, Plus } from "lucide-react";
 import toast from "react-hot-toast";
+import { useTranslations } from "@/lib/i18n";
 
 export default function SwUpdatesPage() {
   const [search, setSearch] = useState("");
@@ -20,15 +21,16 @@ export default function SwUpdatesPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const queryClient = useQueryClient();
+  const t = useTranslations("swUpdates");
 
   const swStatusMutation = useMutation({
     mutationFn: ({ swId, newStatus }: { swId: string; newStatus: string }) =>
       swApi.update(swId, { status: newStatus }),
     onSuccess: () => {
-      toast.success("Status posodobljen");
+      toast.success(t("statusUpdated"));
       queryClient.invalidateQueries({ queryKey: ["sw-updates"] });
     },
-    onError: () => toast.error("Napaka pri posodabljanju statusa"),
+    onError: () => toast.error(t("statusUpdateError")),
   });
 
   const { data: updates, isLoading } = useQuery<SwUpdate[]>({
@@ -61,11 +63,10 @@ export default function SwUpdatesPage() {
 
   // Build SW version matrix: module → vehicle → latest version
   const matrix: Record<string, Record<string, string>> = {};
-  const allVehicleIds = [...new Set(filtered.map((u) => u.vehicle_id))];
+  const allVehicleIds = Array.from(new Set(filtered.map((u) => u.vehicle_id)));
 
   for (const update of filtered) {
     if (!matrix[update.ecu_module]) matrix[update.ecu_module] = {};
-    // Latest version wins (sorted by date ascending, so last wins)
     matrix[update.ecu_module][update.vehicle_id] = update.version_after;
   }
 
@@ -75,12 +76,12 @@ export default function SwUpdatesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">SW posodobitve</h2>
-          <p className="text-sm text-gray-500">{filtered.length} zapisov</p>
+          <h2 className="text-2xl font-bold text-gray-900">{t("title")}</h2>
+          <p className="text-sm text-gray-500">{t("recordsCount", { count: filtered.length })}</p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Nova SW posodobitev
+          {t("newUpdate")}
         </Button>
       </div>
 
@@ -89,7 +90,7 @@ export default function SwUpdatesPage() {
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <Input
-            placeholder="Išči RXSWIN, ECU, vozilo..."
+            placeholder={t("searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -100,7 +101,7 @@ export default function SwUpdatesPage() {
           onChange={(e) => setMethodFilter(e.target.value)}
           className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
         >
-          <option value="">Vse metode</option>
+          <option value="">{t("allMethods")}</option>
           <option value="OTA">OTA</option>
           <option value="Workshop">Workshop</option>
           <option value="J2534">J2534</option>
@@ -110,12 +111,12 @@ export default function SwUpdatesPage() {
           onChange={(e) => setStatusFilter(e.target.value)}
           className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
         >
-          <option value="">Vsi statusi</option>
-          <option value="pending">Pending</option>
-          <option value="in_progress">V teku</option>
-          <option value="success">Uspešno</option>
-          <option value="failed">Napaka</option>
-          <option value="rolled_back">Povrnjeno</option>
+          <option value="">{t("allStatuses")}</option>
+          <option value="pending">{t("statusPending")}</option>
+          <option value="in_progress">{t("statusInProgress")}</option>
+          <option value="success">{t("statusSuccess")}</option>
+          <option value="failed">{t("statusFailed")}</option>
+          <option value="rolled_back">{t("statusRolledBack")}</option>
         </select>
       </div>
 
@@ -125,14 +126,14 @@ export default function SwUpdatesPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Cpu className="h-4 w-4 text-blue-600" />
-              Verzijska matrika — ECU moduli po vozilih
+              {t("matrixTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent className="overflow-x-auto p-0">
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase text-gray-500">
-                  <th className="px-4 py-3 font-medium">ECU Modul</th>
+                  <th className="px-4 py-3 font-medium">{t("colEcuModule")}</th>
                   {allVehicleIds.map((vid) => (
                     <th key={vid} className="px-4 py-3 font-medium">
                       {vehicleMap[vid]?.name ?? vid.slice(0, 8)}
@@ -164,7 +165,7 @@ export default function SwUpdatesPage() {
       {/* Full list */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Vsi zapisi</CardTitle>
+          <CardTitle className="text-base">{t("allRecordsTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
@@ -175,13 +176,13 @@ export default function SwUpdatesPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase text-gray-500">
-                  <th className="px-4 py-3">Vozilo</th>
-                  <th className="px-4 py-3">Datum</th>
-                  <th className="px-4 py-3">ECU modul</th>
-                  <th className="px-4 py-3">Verzija pred → po</th>
-                  <th className="px-4 py-3">RXSWIN</th>
-                  <th className="px-4 py-3">Metoda</th>
-                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">{t("colVehicle")}</th>
+                  <th className="px-4 py-3">{t("colDate")}</th>
+                  <th className="px-4 py-3">{t("colModule")}</th>
+                  <th className="px-4 py-3">{t("colVersions")}</th>
+                  <th className="px-4 py-3">{t("colRxswin")}</th>
+                  <th className="px-4 py-3">{t("colMethod")}</th>
+                  <th className="px-4 py-3">{t("colStatus")}</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
@@ -216,7 +217,7 @@ export default function SwUpdatesPage() {
                           onClick={() => swStatusMutation.mutate({ swId: u.id, newStatus: "in_progress" })}
                           className="rounded px-2 py-0.5 text-xs bg-blue-50 text-blue-700 hover:bg-blue-100"
                         >
-                          Začni
+                          {t("actionStart")}
                         </button>
                       )}
                       {u.status === "in_progress" && (
@@ -225,13 +226,13 @@ export default function SwUpdatesPage() {
                             onClick={() => swStatusMutation.mutate({ swId: u.id, newStatus: "success" })}
                             className="rounded px-2 py-0.5 text-xs bg-green-50 text-green-700 hover:bg-green-100"
                           >
-                            Uspeh
+                            {t("actionSuccess")}
                           </button>
                           <button
                             onClick={() => swStatusMutation.mutate({ swId: u.id, newStatus: "failed" })}
                             className="rounded px-2 py-0.5 text-xs bg-red-50 text-red-700 hover:bg-red-100"
                           >
-                            Napaka
+                            {t("actionFail")}
                           </button>
                         </div>
                       )}
@@ -240,7 +241,7 @@ export default function SwUpdatesPage() {
                           onClick={() => swStatusMutation.mutate({ swId: u.id, newStatus: "rolled_back" })}
                           className="rounded px-2 py-0.5 text-xs bg-gray-100 text-gray-600 hover:bg-gray-200"
                         >
-                          Povrnitev
+                          {t("actionRollback")}
                         </button>
                       )}
                     </td>
@@ -249,7 +250,7 @@ export default function SwUpdatesPage() {
                 {filtered.length === 0 && (
                   <tr>
                     <td colSpan={8} className="py-8 text-center text-gray-400">
-                      Ni SW posodobitev
+                      {t("noData")}
                     </td>
                   </tr>
                 )}

@@ -16,6 +16,7 @@ import { homApi } from "@/lib/api";
 import toast from "react-hot-toast";
 import type { Homologation } from "@/types";
 import type { AxiosError } from "axios";
+import { useTranslations } from "@/lib/i18n";
 
 interface Props {
   open: boolean;
@@ -26,6 +27,8 @@ interface Props {
 
 export function EditHomologationDialog({ open, hom, vehicleId, onClose }: Props) {
   const qc = useQueryClient();
+  const t = useTranslations("homologation");
+  const tCommon = useTranslations("common");
 
   const [form, setForm] = useState({
     status: "pending",
@@ -66,14 +69,14 @@ export function EditHomologationDialog({ open, hom, vehicleId, onClose }: Props)
         notes: form.notes || null,
       }),
     onSuccess: () => {
-      toast.success("Homologacija posodobljena");
+      toast.success(t("updateSuccess"));
       qc.invalidateQueries({ queryKey: ["hom", vehicleId] });
       qc.invalidateQueries({ queryKey: ["vehicle-stats", vehicleId] });
       qc.invalidateQueries({ queryKey: ["twin", vehicleId] });
       onClose();
     },
     onError: (e: AxiosError<{ detail: string }>) => {
-      toast.error(e.response?.data?.detail ?? "Napaka pri posodabljanju");
+      toast.error(e.response?.data?.detail ?? t("updateError"));
     },
   });
 
@@ -82,7 +85,7 @@ export function EditHomologationDialog({ open, hom, vehicleId, onClose }: Props)
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            Uredi homologacijo
+            {t("editTitle")}
             {hom && (
               <span className="ml-2 text-sm font-normal text-gray-500">
                 {hom.regulation}
@@ -94,21 +97,21 @@ export function EditHomologationDialog({ open, hom, vehicleId, onClose }: Props)
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Status</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldStatus")}</label>
               <select
                 value={form.status}
                 onChange={(e) => set("status", e.target.value)}
                 className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm"
               >
-                <option value="pending">V čakanju</option>
-                <option value="in_progress">V postopku</option>
-                <option value="approved">Odobreno</option>
-                <option value="expired">Poteklo</option>
-                <option value="rejected">Zavrnjeno</option>
+                <option value="pending">{t("statusPending")}</option>
+                <option value="in_progress">{t("statusInProgress")}</option>
+                <option value="approved">{t("statusApproved")}</option>
+                <option value="expired">{t("statusExpired")}</option>
+                <option value="rejected">{t("statusRejected")}</option>
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Država</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldCountry")}</label>
               <Input
                 value={form.country}
                 onChange={(e) => set("country", e.target.value)}
@@ -118,7 +121,7 @@ export function EditHomologationDialog({ open, hom, vehicleId, onClose }: Props)
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-700">Pristojni organ</label>
+            <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldAuthority")}</label>
             <Input
               value={form.authority}
               onChange={(e) => set("authority", e.target.value)}
@@ -128,7 +131,7 @@ export function EditHomologationDialog({ open, hom, vehicleId, onClose }: Props)
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Veljavno od</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldValidFrom")}</label>
               <Input
                 type="date"
                 value={form.valid_from}
@@ -136,7 +139,7 @@ export function EditHomologationDialog({ open, hom, vehicleId, onClose }: Props)
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Veljavno do</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldValidUntil")}</label>
               <Input
                 type="date"
                 value={form.valid_until}
@@ -144,7 +147,7 @@ export function EditHomologationDialog({ open, hom, vehicleId, onClose }: Props)
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Naslednja akcija</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldNextAction")}</label>
               <Input
                 type="date"
                 value={form.next_action_due}
@@ -154,12 +157,12 @@ export function EditHomologationDialog({ open, hom, vehicleId, onClose }: Props)
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-700">Opombe</label>
+            <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldNotes")}</label>
             <textarea
               value={form.notes}
               onChange={(e) => set("notes", e.target.value)}
               rows={3}
-              placeholder="Opombe za revizijsko sled..."
+              placeholder={t("notesPlaceholder")}
               className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm resize-none"
             />
           </div>
@@ -167,11 +170,11 @@ export function EditHomologationDialog({ open, hom, vehicleId, onClose }: Props)
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            Prekliči
+            {tCommon("cancel")}
           </Button>
           <Button onClick={() => mutation.mutate()} disabled={mutation.isPending}>
             {mutation.isPending ? <Spinner className="mr-2 h-4 w-4" /> : null}
-            Shrani
+            {tCommon("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

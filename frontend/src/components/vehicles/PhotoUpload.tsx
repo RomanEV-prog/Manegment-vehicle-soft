@@ -8,6 +8,7 @@ import { photosApi } from "@/lib/api";
 import { Upload, X, ImageIcon } from "lucide-react";
 import toast from "react-hot-toast";
 import type { AxiosError } from "axios";
+import { useTranslations } from "@/lib/i18n";
 
 interface Props {
   vehicleId: string;
@@ -23,17 +24,18 @@ const MAX_SIZE_MB = 20;
 
 export function PhotoUpload({ vehicleId, linkedToType, linkedToId, onSuccess }: Props) {
   const qc = useQueryClient();
+  const t = useTranslations("photoUpload");
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<{ file: File; url: string } | null>(null);
   const [photoType, setPhotoType] = useState(linkedToType === "homologation" ? "document" : "exterior");
 
   const handleFile = (file: File) => {
     if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-      toast.error(`Datoteka je prevelika (max ${MAX_SIZE_MB} MB)`);
+      toast.error(t("fileTooLarge", { max: MAX_SIZE_MB }));
       return;
     }
     if (!file.type.startsWith("image/")) {
-      toast.error("Samo slike so dovoljene");
+      toast.error(t("onlyImages"));
       return;
     }
     const url = URL.createObjectURL(file);
@@ -48,7 +50,7 @@ export function PhotoUpload({ vehicleId, linkedToType, linkedToId, onSuccess }: 
       return photosApi.upload(vehicleId, preview!.file, extra);
     },
     onSuccess: () => {
-      toast.success("Fotografija naložena");
+      toast.success(t("uploadSuccess"));
       qc.invalidateQueries({ queryKey: ["photos", vehicleId] });
       if (linkedToId) {
         qc.invalidateQueries({ queryKey: ["photos-hom", linkedToId] });
@@ -59,7 +61,7 @@ export function PhotoUpload({ vehicleId, linkedToType, linkedToId, onSuccess }: 
       onSuccess?.();
     },
     onError: (e: AxiosError<{ detail: string }>) => {
-      toast.error(e.response?.data?.detail ?? "Napaka pri nalaganju");
+      toast.error(e.response?.data?.detail ?? t("uploadError"));
     },
   });
 
@@ -92,20 +94,20 @@ export function PhotoUpload({ vehicleId, linkedToType, linkedToId, onSuccess }: 
               {(preview.file.size / 1024 / 1024).toFixed(1)} MB
             </p>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Tip fotografije</label>
+              <label className="mb-1 block text-xs font-medium text-gray-600">{t("photoTypeLabel")}</label>
               <select
                 value={photoType}
                 onChange={(e) => setPhotoType(e.target.value)}
                 className="rounded-md border border-input bg-background px-2 py-1 text-xs shadow-sm"
               >
-                {PHOTO_TYPES.map((t) => (
-                  <option key={t} value={t}>{t}</option>
+                {PHOTO_TYPES.map((pt) => (
+                  <option key={pt} value={pt}>{pt}</option>
                 ))}
               </select>
             </div>
             <Button size="sm" onClick={() => mutation.mutate()} disabled={mutation.isPending}>
               {mutation.isPending ? <Spinner className="mr-2 h-4 w-4" /> : <Upload className="mr-2 h-4 w-4" />}
-              Naloži
+              {t("uploadBtn")}
             </Button>
           </div>
         </div>
@@ -113,9 +115,9 @@ export function PhotoUpload({ vehicleId, linkedToType, linkedToId, onSuccess }: 
         <label className="flex cursor-pointer flex-col items-center gap-2 py-4">
           <ImageIcon className="h-8 w-8 text-gray-300" />
           <span className="text-sm text-gray-500">
-            Povleci fotografijo ali <span className="text-blue-600">klikni za izbiro</span>
+            {t("dragOrClick")} <span className="text-blue-600">{t("clickToSelect")}</span>
           </span>
-          <span className="text-xs text-gray-400">PNG, JPG, WEBP — max {MAX_SIZE_MB} MB</span>
+          <span className="text-xs text-gray-400">{t("formatHint", { max: MAX_SIZE_MB })}</span>
           <input
             ref={inputRef}
             type="file"

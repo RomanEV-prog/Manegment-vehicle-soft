@@ -4,24 +4,16 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { Plus, Search, Car } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import { CreateVehicleDialog } from "@/components/vehicles/CreateVehicleDialog";
 import { vehiclesApi } from "@/lib/api";
 import { statusColor, formatDate } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import type { Vehicle, VehicleStatus } from "@/types";
-
-const STATUS_OPTIONS: { value: VehicleStatus | ""; label: string }[] = [
-  { value: "", label: "Vsi statusi" },
-  { value: "active", label: "Aktiven" },
-  { value: "in_service", label: "V servisu" },
-  { value: "shipped", label: "Odpremljeno" },
-  { value: "decommissioned", label: "Izločen" },
-];
+import { useTranslations } from "@/lib/i18n";
 
 export default function VehiclesPage() {
   const [search, setSearch] = useState("");
@@ -29,6 +21,15 @@ export default function VehiclesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const { user } = useAuth();
   const isPartner = user?.role === "partner_viewer";
+  const t = useTranslations("vehicles");
+
+  const STATUS_OPTIONS: { value: VehicleStatus | ""; label: string }[] = [
+    { value: "", label: t("allStatuses") },
+    { value: "active", label: t("statusActive") },
+    { value: "in_service", label: t("statusInService") },
+    { value: "shipped", label: t("statusShipped") },
+    { value: "decommissioned", label: t("statusDecommissioned") },
+  ];
 
   const { data: vehicles, isLoading } = useQuery<Vehicle[]>({
     queryKey: ["vehicles", statusFilter, search],
@@ -47,13 +48,13 @@ export default function VehiclesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Vozila</h2>
-          <p className="text-sm text-gray-500">{filtered.length} vozil v floti</p>
+          <h2 className="text-2xl font-bold text-gray-900">{t("title")}</h2>
+          <p className="text-sm text-gray-500">{t("countInFleet", { count: filtered.length })}</p>
         </div>
         {!isPartner && (
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
-            Novo vozilo
+            {t("newVehicle")}
           </Button>
         )}
       </div>
@@ -63,7 +64,7 @@ export default function VehiclesPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <Input
-            placeholder="Išči po imenu, VIN, modelu..."
+            placeholder={t("searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -96,18 +97,18 @@ export default function VehiclesPage() {
           ) : filtered.length === 0 ? (
             <div className="flex h-48 flex-col items-center justify-center gap-2 text-gray-400">
               <Car className="h-10 w-10" />
-              <p>Ni vozil</p>
+              <p>{t("noVehicles")}</p>
             </div>
           ) : (
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                  <th className="px-4 py-3">Ime / VIN</th>
-                  <th className="px-4 py-3">Model</th>
-                  <th className="px-4 py-3">Projekt</th>
-                  <th className="px-4 py-3">Leto</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Ustvarjeno</th>
+                  <th className="px-4 py-3">{t("colNameVin")}</th>
+                  <th className="px-4 py-3">{t("colModel")}</th>
+                  <th className="px-4 py-3">{t("colProject")}</th>
+                  <th className="px-4 py-3">{t("colYear")}</th>
+                  <th className="px-4 py-3">{t("colStatus")}</th>
+                  <th className="px-4 py-3">{t("colCreated")}</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
@@ -134,7 +135,7 @@ export default function VehiclesPage() {
                         href={`/vehicles/${v.id}`}
                         className="text-blue-600 hover:underline"
                       >
-                        Podrobnosti
+                        {t("detailsLink")}
                       </Link>
                     </td>
                   </tr>

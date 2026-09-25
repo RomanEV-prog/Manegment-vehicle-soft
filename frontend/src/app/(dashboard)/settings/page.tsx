@@ -5,7 +5,6 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Dialog,
@@ -21,6 +20,7 @@ import { Users, Plus, UserX, Bell, Mail, Wifi, CheckCircle2, XCircle } from "luc
 import type { User, AlarmConfig } from "@/types";
 import toast from "react-hot-toast";
 import type { AxiosError } from "axios";
+import { useTranslations } from "@/lib/i18n";
 
 const ROLES = ["admin", "qc_manager", "technician", "partner_viewer"];
 
@@ -33,19 +33,21 @@ const ROLE_COLORS: Record<string, string> = {
 
 function CreateUserDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const qc = useQueryClient();
+  const t = useTranslations("settings");
+  const tCommon = useTranslations("common");
   const [form, setForm] = useState({ email: "", full_name: "", password: "", role: "technician" });
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   const mutation = useMutation({
     mutationFn: () => usersApi.create(form),
     onSuccess: () => {
-      toast.success("Uporabnik ustvarjen");
+      toast.success(t("userCreatedSuccess"));
       qc.invalidateQueries({ queryKey: ["users"] });
       onClose();
       setForm({ email: "", full_name: "", password: "", role: "technician" });
     },
     onError: (e: AxiosError<{ detail: string }>) => {
-      toast.error(e.response?.data?.detail ?? "Napaka");
+      toast.error(e.response?.data?.detail ?? t("createUserError"));
     },
   });
 
@@ -53,23 +55,23 @@ function CreateUserDialog({ open, onClose }: { open: boolean; onClose: () => voi
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Nov uporabnik</DialogTitle>
+          <DialogTitle>{t("createUserTitle")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-700">Ime in priimek *</label>
+            <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldFullName")}</label>
             <Input value={form.full_name} onChange={(e) => set("full_name", e.target.value)} placeholder="Roman Adler" />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-700">E-pošta *</label>
+            <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldEmail")}</label>
             <Input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="roman@podjetje.si" />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-700">Geslo *</label>
-            <Input type="password" value={form.password} onChange={(e) => set("password", e.target.value)} placeholder="min. 8 znakov" />
+            <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldPassword")}</label>
+            <Input type="password" value={form.password} onChange={(e) => set("password", e.target.value)} placeholder={t("passwordHint")} />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-700">Vloga</label>
+            <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldRole")}</label>
             <select
               value={form.role}
               onChange={(e) => set("role", e.target.value)}
@@ -80,13 +82,13 @@ function CreateUserDialog({ open, onClose }: { open: boolean; onClose: () => voi
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Prekliči</Button>
+          <Button variant="outline" onClick={onClose}>{tCommon("cancel")}</Button>
           <Button
             onClick={() => mutation.mutate()}
             disabled={mutation.isPending || !form.email || !form.full_name || form.password.length < 8}
           >
             {mutation.isPending ? <Spinner className="mr-2 h-4 w-4" /> : null}
-            Ustvari
+            {tCommon("create")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -98,6 +100,8 @@ export default function SettingsPage() {
   const { payload, user: currentUser } = useAuth();
   const qc = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
+  const t = useTranslations("settings");
+  const tCommon = useTranslations("common");
 
   const { data: users, isLoading } = useQuery<User[]>({
     queryKey: ["users"],
@@ -108,10 +112,10 @@ export default function SettingsPage() {
   const deactivateMutation = useMutation({
     mutationFn: (id: string) => usersApi.deactivate(id),
     onSuccess: () => {
-      toast.success("Uporabnik deaktiviran");
+      toast.success(t("userDeactivatedSuccess"));
       qc.invalidateQueries({ queryKey: ["users"] });
     },
-    onError: () => toast.error("Napaka pri deaktivaciji"),
+    onError: () => toast.error(t("deactivateError")),
   });
 
   const isAdmin = payload?.role === "admin";
@@ -128,20 +132,20 @@ export default function SettingsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["alarm-configs"] });
     },
-    onError: () => toast.error("Napaka pri posodabljanju alarma"),
+    onError: () => toast.error(t("alarmUpdateError")),
   });
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Nastavitve</h2>
-        <p className="text-sm text-gray-500">Upravljanje uporabnikov in organizacije</p>
+        <h2 className="text-2xl font-bold text-gray-900">{t("title")}</h2>
+        <p className="text-sm text-gray-500">{t("subtitle")}</p>
       </div>
 
       {/* Current user info */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Moj račun</CardTitle>
+          <CardTitle className="text-base">{t("myAccount")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-4">
@@ -165,7 +169,7 @@ export default function SettingsPage() {
                   {payload?.role}
                 </span>
                 <span className="text-xs text-gray-400">
-                  Org: {payload?.org_id?.slice(0, 8)}…
+                  {t("orgLabel")} {payload?.org_id?.slice(0, 8)}…
                 </span>
               </div>
             </div>
@@ -180,12 +184,12 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Users className="h-4 w-4" />
-                Uporabniki organizacije
+                {t("usersTitle")}
               </CardTitle>
               {isAdmin && (
                 <Button size="sm" onClick={() => setCreateOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />
-                  Nov uporabnik
+                  {t("newUser")}
                 </Button>
               )}
             </div>
@@ -199,10 +203,10 @@ export default function SettingsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase text-gray-500">
-                    <th className="px-4 py-3">Ime</th>
-                    <th className="px-4 py-3">E-pošta</th>
-                    <th className="px-4 py-3">Vloga</th>
-                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">{t("colName")}</th>
+                    <th className="px-4 py-3">{t("colEmail")}</th>
+                    <th className="px-4 py-3">{t("colRole")}</th>
+                    <th className="px-4 py-3">{t("colStatus")}</th>
                     {isAdmin && <th className="px-4 py-3"></th>}
                   </tr>
                 </thead>
@@ -218,9 +222,9 @@ export default function SettingsPage() {
                       </td>
                       <td className="px-4 py-3">
                         {u.is_active ? (
-                          <span className="text-xs text-green-600 font-medium">Aktiven</span>
+                          <span className="text-xs text-green-600 font-medium">{t("userActive")}</span>
                         ) : (
-                          <span className="text-xs text-gray-400">Neaktiven</span>
+                          <span className="text-xs text-gray-400">{t("userInactive")}</span>
                         )}
                       </td>
                       {isAdmin && (
@@ -233,7 +237,7 @@ export default function SettingsPage() {
                               onClick={() => deactivateMutation.mutate(u.id)}
                             >
                               <UserX className="mr-1 h-3.5 w-3.5" />
-                              Deaktiviraj
+                              {t("deactivate")}
                             </Button>
                           )}
                         </td>
@@ -249,18 +253,18 @@ export default function SettingsPage() {
 
       <CreateUserDialog open={createOpen} onClose={() => setCreateOpen(false)} />
 
-      {/* Alarm konfiguracije */}
+      {/* Alarm configurations */}
       {(isAdmin || payload?.role === "qc_manager") && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Bell className="h-4 w-4 text-orange-500" />
-              Alarm konfiguracije
+              {t("alarmConfigTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {!alarmConfigs?.length ? (
-              <p className="text-sm text-gray-400">Ni konfiguriranih alarmov</p>
+              <p className="text-sm text-gray-400">{t("noAlarmConfigs")}</p>
             ) : (
               <div className="space-y-3">
                 {alarmConfigs.map((cfg) => (

@@ -15,9 +15,9 @@ class Photo(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vehicle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("vehicles.id"), nullable=False)
     organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
-    # Polimorfna povezava
-    linked_to_type: Mapped[str] = mapped_column(String, nullable=False)     # 'service' | 'dtc' | 'homologation' | 'coc' | 'shipment'
-    linked_to_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    # Polimorfna povezava — neobvezna: fotografija je lahko vezana samo na vozilo
+    linked_to_type: Mapped[str | None] = mapped_column(String, nullable=True)  # 'service' | 'dtc' | 'homologation' | 'coc' | 'shipment'
+    linked_to_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     # Metapodatki
     filename: Mapped[str] = mapped_column(String, nullable=False)
     url: Mapped[str] = mapped_column(String, nullable=False)                # MinIO signed URL

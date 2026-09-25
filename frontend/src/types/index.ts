@@ -306,7 +306,10 @@ export type AuditAction =
   | "snapshot"
   | "export"
   | "login"
-  | "logout";
+  | "logout"
+  | "release"
+  | "supersede"
+  | "verify";
 
 export type AuditEntityType =
   | "vehicle"
@@ -320,12 +323,18 @@ export type AuditEntityType =
   | "user"
   | "vecto_calculation"
   | "alarm_config"
-  | "obd_session";
+  | "obd_session"
+  | "vehicle_type"
+  | "ecu"
+  | "rxswin"
+  | "rxswin_baseline"
+  | "rxswin_baseline_item";
 
 export interface AuditLog {
   id: string;
   org_id: string;
   actor_id: string | null;
+  actor_name?: string | null;
   actor_type: "user" | "system" | "api_key";
   actor_ip: string | null;
   actor_device: string | null;

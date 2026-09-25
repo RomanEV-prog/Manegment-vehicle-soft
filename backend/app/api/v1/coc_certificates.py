@@ -5,6 +5,7 @@ from sqlalchemy import select
 
 from app.api.deps import CurrentUserDep, DbSession, NonPartnerDep
 from app.models.coc_certificate import CoCCertificate
+from app.models.vehicle import Vehicle
 from app.schemas.homologation import CoCCertificateCreate, CoCCertificateResponse
 from app.utils.audit import write_audit_log
 
@@ -26,6 +27,12 @@ async def list_coc_certificates(
 
 @router.post("", response_model=CoCCertificateResponse, status_code=status.HTTP_201_CREATED)
 async def create_coc_certificate(data: CoCCertificateCreate, user: NonPartnerDep, db: DbSession):
+    vehicle = await db.scalar(
+        select(Vehicle).where(Vehicle.id == data.vehicle_id, Vehicle.organization_id == user["org_id"])
+    )
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vozilo ne obstaja")
+
     coc = CoCCertificate(**data.model_dump(), organization_id=user["org_id"], created_by=user["user_id"])
     db.add(coc)
     await db.flush()

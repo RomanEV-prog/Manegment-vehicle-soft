@@ -187,12 +187,12 @@ class TestVehicleSnapshot:
         assert resp.status_code == 201
 
         audit_resp = await client.get(
-            "/api/v1/audit-log",
+            "/api/v1/audit-logs",
             headers=org_and_user["headers"],
             params={"entity_type": "vehicle_twin", "entity_id": vehicle_id},
         )
         assert audit_resp.status_code == 200
-        logs = audit_resp.json()["items"]
+        logs = audit_resp.json()
         snap_logs = [l for l in logs if l["action"] == "snapshot"]
         assert len(snap_logs) >= 1
         assert snap_logs[0]["after"]["trigger_type"] == "manual"
@@ -212,12 +212,12 @@ class TestVehicleAuditLog:
         vehicle_id = resp.json()["id"]
 
         audit_resp = await client.get(
-            "/api/v1/audit-log",
+            "/api/v1/audit-logs",
             headers=org_and_user["headers"],
             params={"entity_type": "vehicle", "entity_id": vehicle_id},
         )
         assert audit_resp.status_code == 200
-        logs = audit_resp.json()["items"]
+        logs = audit_resp.json()
         create_logs = [l for l in logs if l["action"] == "create"]
         assert len(create_logs) == 1
         assert create_logs[0]["after"]["vin"] == vin
@@ -239,11 +239,11 @@ class TestVehicleAuditLog:
         )
 
         audit_resp = await client.get(
-            "/api/v1/audit-log",
+            "/api/v1/audit-logs",
             headers=org_and_user["headers"],
             params={"entity_type": "vehicle", "entity_id": vehicle_id},
         )
-        logs = audit_resp.json()["items"]
+        logs = audit_resp.json()
         update_logs = [l for l in logs if l["action"] == "update"]
         assert len(update_logs) >= 1
         assert update_logs[0]["after"]["status"] == "in_service"

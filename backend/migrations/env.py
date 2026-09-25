@@ -19,8 +19,13 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
+def _database_url() -> str:
+    from app.config import settings
+    return settings.database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+
 def run_migrations_offline() -> None:
-    url = config.get_main_option("sqlalchemy.url")
+    url = _database_url()
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -39,10 +44,9 @@ def do_run_migrations(connection: Connection) -> None:
 
 async def run_async_migrations() -> None:
     configuration = config.get_section(config.config_ini_section, {})
-    # Async URL za migracije
-    configuration["sqlalchemy.url"] = configuration["sqlalchemy.url"].replace(
-        "postgresql://", "postgresql+asyncpg://"
-    )
+    # URL iz nastavitev aplikacije (DATABASE_URL), ne iz alembic.ini — sicer
+    # migracije v produkciji tečejo s privzetim geslom in na napačni bazi.
+    configuration["sqlalchemy.url"] = _database_url()
     connectable = async_engine_from_config(
         configuration,
         prefix="sqlalchemy.",

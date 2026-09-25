@@ -10,6 +10,7 @@ import { statusColor, formatDate } from "@/lib/utils";
 import type { Vehicle, Homologation } from "@/types";
 import { FileText, Download, Shield, AlertTriangle, Table2 } from "lucide-react";
 import toast from "react-hot-toast";
+import { useTranslations } from "@/lib/i18n";
 
 export default function ReportsPage() {
   const [selectedVehicle, setSelectedVehicle] = useState<string>("");
@@ -19,6 +20,7 @@ export default function ReportsPage() {
   const [generatingDtcCsv, setGeneratingDtcCsv] = useState(false);
   const [generatingHomCsv, setGeneratingHomCsv] = useState(false);
   const [generatingServiceCsv, setGeneratingServiceCsv] = useState(false);
+  const t = useTranslations("reports");
 
   const { data: vehicles } = useQuery<Vehicle[]>({
     queryKey: ["vehicles"],
@@ -32,7 +34,7 @@ export default function ReportsPage() {
 
   const handleDownloadSums = async () => {
     if (!selectedVehicle) {
-      toast.error("Izberite vozilo");
+      toast.error(t("selectVehicleError"));
       return;
     }
     setGeneratingPdf(true);
@@ -45,9 +47,9 @@ export default function ReportsPage() {
       a.download = `SUMS_${vehicle?.vin ?? selectedVehicle}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("SUMS PDF uspešno generiran");
+      toast.success(t("sumsPdfSuccess"));
     } catch {
-      toast.error("Napaka pri generiranju PDF");
+      toast.error(t("pdfError"));
     } finally {
       setGeneratingPdf(false);
     }
@@ -55,7 +57,7 @@ export default function ReportsPage() {
 
   const handleDownloadHomPdf = async () => {
     if (!selectedVehicle) {
-      toast.error("Izberite vozilo");
+      toast.error(t("selectVehicleError"));
       return;
     }
     setGeneratingHomPdf(true);
@@ -68,9 +70,9 @@ export default function ReportsPage() {
       a.download = `HOM_${vehicle?.vin ?? selectedVehicle}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("HOM PDF uspešno generiran");
+      toast.success(t("homPdfSuccess"));
     } catch {
-      toast.error("Napaka pri generiranju HOM poročila");
+      toast.error(t("homPdfError"));
     } finally {
       setGeneratingHomPdf(false);
     }
@@ -84,11 +86,11 @@ export default function ReportsPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `SW_posodobitve_${vehicle?.vin ?? "vse"}.csv`;
+      a.download = `SW_updates_${vehicle?.vin ?? "all"}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      toast.error("Napaka pri izvozu CSV");
+      toast.error(t("csvError"));
     } finally {
       setGeneratingSwCsv(false);
     }
@@ -102,11 +104,11 @@ export default function ReportsPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `DTC_zapisi_${vehicle?.vin ?? "vse"}.csv`;
+      a.download = `DTC_records_${vehicle?.vin ?? "all"}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      toast.error("Napaka pri izvozu CSV");
+      toast.error(t("csvError"));
     } finally {
       setGeneratingDtcCsv(false);
     }
@@ -120,11 +122,11 @@ export default function ReportsPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `Homologacije_${vehicle?.vin ?? "vse"}.csv`;
+      a.download = `Homologations_${vehicle?.vin ?? "all"}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      toast.error("Napaka pri izvozu homologacij");
+      toast.error(t("homCsvError"));
     } finally {
       setGeneratingHomCsv(false);
     }
@@ -138,11 +140,11 @@ export default function ReportsPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `Servisni_zapisi_${vehicle?.vin ?? "vse"}.csv`;
+      a.download = `Service_records_${vehicle?.vin ?? "all"}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      toast.error("Napaka pri izvozu servisnih zapisov");
+      toast.error(t("serviceCsvError"));
     } finally {
       setGeneratingServiceCsv(false);
     }
@@ -171,8 +173,8 @@ export default function ReportsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Poročila</h2>
-        <p className="text-sm text-gray-500">SUMS — Software Update Management System</p>
+        <h2 className="text-2xl font-bold text-gray-900">{t("title")}</h2>
+        <p className="text-sm text-gray-500">{t("subtitle")}</p>
       </div>
 
       {/* SUMS PDF Generator */}
@@ -180,25 +182,22 @@ export default function ReportsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <FileText className="h-4 w-4 text-blue-600" />
-            SUMS Poročilo (UNECE R156)
+            {t("sumsPdfTitle")}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="mb-4 text-sm text-gray-600">
-            Generira PDF poročilo o upravljanju posodobitev programske opreme vozila v skladu z
-            uredbo UNECE R156 §7.1, §7.1.2, §7.2 in §7.4.
-          </p>
+          <p className="mb-4 text-sm text-gray-600">{t("sumsPdfDesc")}</p>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="flex-1">
               <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                Vozilo
+                {t("vehicleLabel")}
               </label>
               <select
                 value={selectedVehicle}
                 onChange={(e) => setSelectedVehicle(e.target.value)}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
               >
-                <option value="">— Izberite vozilo —</option>
+                <option value="">{t("selectVehicle")}</option>
                 {(vehicles ?? []).map((v) => (
                   <option key={v.id} value={v.id}>
                     {v.name} ({v.vin})
@@ -216,12 +215,11 @@ export default function ReportsPage() {
               ) : (
                 <Download className="mr-2 h-4 w-4" />
               )}
-              Prenesi PDF
+              {t("downloadPdf")}
             </Button>
           </div>
           <div className="mt-4 rounded-lg bg-blue-50 p-3 text-xs text-blue-700">
-            <strong>Vsebina poročila:</strong> Identifikacija vozila, seznam SW posodobitev z RXSWIN,
-            stanje homologacij, twin snapshots (audit trail), aktivni DTC zapisi.
+            <strong>{t("sumsPdfContent")}</strong> {t("sumsPdfContentDetail")}
           </div>
         </CardContent>
       </Card>
@@ -231,22 +229,20 @@ export default function ReportsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Shield className="h-4 w-4 text-purple-600" />
-            HOM Poročilo (UNECE R155)
+            {t("homPdfTitle")}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="mb-4 text-sm text-gray-600">
-            Generira PDF poročilo o homologacijskem statusu vozila za GR organe (ECE/TÜV).
-          </p>
+          <p className="mb-4 text-sm text-gray-600">{t("homPdfDesc")}</p>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="flex-1">
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Vozilo</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">{t("vehicleLabel")}</label>
               <select
                 value={selectedVehicle}
                 onChange={(e) => setSelectedVehicle(e.target.value)}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
               >
-                <option value="">— Izberite vozilo —</option>
+                <option value="">{t("selectVehicle")}</option>
                 {(vehicles ?? []).map((v) => (
                   <option key={v.id} value={v.id}>
                     {v.name} ({v.vin})
@@ -265,7 +261,7 @@ export default function ReportsPage() {
               ) : (
                 <Download className="mr-2 h-4 w-4" />
               )}
-              Prenesi HOM PDF
+              {t("downloadHomPdf")}
             </Button>
           </div>
         </CardContent>
@@ -276,25 +272,22 @@ export default function ReportsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Table2 className="h-4 w-4 text-green-600" />
-            CSV izvoz podatkov
+            {t("csvTitle")}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="mb-4 text-sm text-gray-600">
-            Izvoz SW posodobitev in DTC zapisov v CSV format za Excel / zunanje sisteme.
-            Opcijsko filtrirano po vozilu.
-          </p>
+          <p className="mb-4 text-sm text-gray-600">{t("csvDesc")}</p>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="flex-1">
               <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                Vozilo (opcijsko — prazno = vse)
+                {t("vehicleOptional")}
               </label>
               <select
                 value={selectedVehicle}
                 onChange={(e) => setSelectedVehicle(e.target.value)}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
               >
-                <option value="">— Vsa vozila —</option>
+                <option value="">{t("allVehicles")}</option>
                 {(vehicles ?? []).map((v) => (
                   <option key={v.id} value={v.id}>
                     {v.name} ({v.vin})
@@ -303,53 +296,21 @@ export default function ReportsPage() {
               </select>
             </div>
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={handleSwCsv}
-                disabled={generatingSwCsv}
-              >
-                {generatingSwCsv ? (
-                  <Spinner className="mr-2 h-4 w-4" />
-                ) : (
-                  <Download className="mr-2 h-4 w-4" />
-                )}
-                SW posodobitve (.csv)
+              <Button variant="outline" onClick={handleSwCsv} disabled={generatingSwCsv}>
+                {generatingSwCsv ? <Spinner className="mr-2 h-4 w-4" /> : <Download className="mr-2 h-4 w-4" />}
+                {t("swCsv")}
               </Button>
-              <Button
-                variant="outline"
-                onClick={handleDtcCsv}
-                disabled={generatingDtcCsv}
-              >
-                {generatingDtcCsv ? (
-                  <Spinner className="mr-2 h-4 w-4" />
-                ) : (
-                  <Download className="mr-2 h-4 w-4" />
-                )}
-                DTC zapisi (.csv)
+              <Button variant="outline" onClick={handleDtcCsv} disabled={generatingDtcCsv}>
+                {generatingDtcCsv ? <Spinner className="mr-2 h-4 w-4" /> : <Download className="mr-2 h-4 w-4" />}
+                {t("dtcCsv")}
               </Button>
-              <Button
-                variant="outline"
-                onClick={handleHomCsv}
-                disabled={generatingHomCsv}
-              >
-                {generatingHomCsv ? (
-                  <Spinner className="mr-2 h-4 w-4" />
-                ) : (
-                  <Download className="mr-2 h-4 w-4" />
-                )}
-                Homologacije (.csv)
+              <Button variant="outline" onClick={handleHomCsv} disabled={generatingHomCsv}>
+                {generatingHomCsv ? <Spinner className="mr-2 h-4 w-4" /> : <Download className="mr-2 h-4 w-4" />}
+                {t("homCsv")}
               </Button>
-              <Button
-                variant="outline"
-                onClick={handleServiceCsv}
-                disabled={generatingServiceCsv}
-              >
-                {generatingServiceCsv ? (
-                  <Spinner className="mr-2 h-4 w-4" />
-                ) : (
-                  <Download className="mr-2 h-4 w-4" />
-                )}
-                Servisni zapisi (.csv)
+              <Button variant="outline" onClick={handleServiceCsv} disabled={generatingServiceCsv}>
+                {generatingServiceCsv ? <Spinner className="mr-2 h-4 w-4" /> : <Download className="mr-2 h-4 w-4" />}
+                {t("serviceCsv")}
               </Button>
             </div>
           </div>
@@ -361,20 +322,20 @@ export default function ReportsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Shield className="h-4 w-4 text-purple-600" />
-            Pregled homologacij po uredbah
+            {t("homOverviewTitle")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {Object.keys(homByRegulation).length === 0 ? (
-            <p className="text-sm text-gray-400">Ni homologacijskih podatkov</p>
+            <p className="text-sm text-gray-400">{t("noHomData")}</p>
           ) : (
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-left text-xs font-medium uppercase text-gray-500">
-                  <th className="pb-3">Uredba</th>
-                  <th className="pb-3 text-green-700">Odobreno</th>
-                  <th className="pb-3 text-yellow-600">V teku</th>
-                  <th className="pb-3 text-red-600">Poteklo/Zavrnjeno</th>
+                  <th className="pb-3">{t("colRegulation")}</th>
+                  <th className="pb-3 text-green-700">{t("colApproved")}</th>
+                  <th className="pb-3 text-yellow-600">{t("colPending")}</th>
+                  <th className="pb-3 text-red-600">{t("colExpired")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -398,7 +359,7 @@ export default function ReportsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base text-orange-700">
               <AlertTriangle className="h-4 w-4" />
-              Bližajoči roki (naslednjih 30 dni)
+              {t("upcomingTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -418,7 +379,7 @@ export default function ReportsPage() {
                         {h.status}
                       </span>
                       <p className="mt-1 text-xs text-orange-600 font-medium">
-                        Rok: {formatDate(h.next_action_due)}
+                        {t("deadline")} {formatDate(h.next_action_due)}
                       </p>
                     </div>
                   </div>

@@ -1,7 +1,15 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import Cookies from "js-cookie";
+import type {
+  BaselineItemFields,
+  Ecu,
+  RxswinDetail,
+  RxswinListItem,
+  VehicleType,
+  VerifyResult,
+} from "@/types/r156";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const BASE_URL = "";
 
 export const api = axios.create({
   baseURL: `${BASE_URL}/api/v1`,
@@ -252,4 +260,51 @@ export const reportsApi = {
       params: vehicleId ? { vehicle_id: vehicleId } : {},
       responseType: "blob",
     }).then((r) => r.data),
+};
+
+// ─── R156 SUMS register ──────────────────────────────────────────────────────
+
+export const r156Api = {
+  vehicleTypes: () => api.get<VehicleType[]>("/vehicle-types").then((r) => r.data),
+  createVehicleType: (data: { name: string; model_code?: string | null; description?: string | null }) =>
+    api.post<VehicleType>("/vehicle-types", data).then((r) => r.data),
+
+  ecus: (vehicleTypeId?: string) =>
+    api
+      .get<Ecu[]>("/ecus", { params: vehicleTypeId ? { vehicle_type_id: vehicleTypeId } : {} })
+      .then((r) => r.data),
+  createEcu: (data: Partial<Ecu>) => api.post<Ecu>("/ecus", data).then((r) => r.data),
+  updateEcu: (id: string, data: Partial<Ecu>) => api.put<Ecu>(`/ecus/${id}`, data).then((r) => r.data),
+
+  rxswins: () => api.get<RxswinListItem[]>("/rxswins").then((r) => r.data),
+  rxswin: (id: string) => api.get<RxswinDetail>(`/rxswins/${id}`).then((r) => r.data),
+  createRxswin: (data: {
+    vehicle_type_id: string;
+    rxswin: string;
+    description?: string | null;
+    regulations_affected?: string[];
+  }) => api.post<RxswinDetail>("/rxswins", data).then((r) => r.data),
+  updateRxswin: (id: string, data: { description?: string | null; regulations_affected?: string[]; status?: string }) =>
+    api.put<RxswinDetail>(`/rxswins/${id}`, data).then((r) => r.data),
+
+  createBaseline: (rxswinId: string, notes?: string) =>
+    api.post<RxswinDetail>(`/rxswins/${rxswinId}/baselines`, { notes: notes || null }).then((r) => r.data),
+  updateBaseline: (baselineId: string, notes: string | null) =>
+    api.put<RxswinDetail>(`/rxswin-baselines/${baselineId}`, { notes }).then((r) => r.data),
+  discardBaseline: (baselineId: string) =>
+    api.delete<RxswinDetail>(`/rxswin-baselines/${baselineId}`).then((r) => r.data),
+  releaseBaseline: (baselineId: string) =>
+    api.post<RxswinDetail>(`/rxswin-baselines/${baselineId}/release`).then((r) => r.data),
+
+  addItem: (baselineId: string, data: Partial<BaselineItemFields> & { ecu_id: string }) =>
+    api.post<RxswinDetail>(`/rxswin-baselines/${baselineId}/items`, data).then((r) => r.data),
+  updateItem: (baselineId: string, itemId: string, data: Partial<BaselineItemFields>) =>
+    api.put<RxswinDetail>(`/rxswin-baselines/${baselineId}/items/${itemId}`, data).then((r) => r.data),
+  deleteItem: (baselineId: string, itemId: string) =>
+    api.delete<RxswinDetail>(`/rxswin-baselines/${baselineId}/items/${itemId}`).then((r) => r.data),
+  verifyItem: (
+    baselineId: string,
+    itemId: string,
+    data: { target: "sw" | "config"; computed_sha256: string; file_name?: string; file_size?: number }
+  ) => api.post<VerifyResult>(`/rxswin-baselines/${baselineId}/items/${itemId}/verify`, data).then((r) => r.data),
 };

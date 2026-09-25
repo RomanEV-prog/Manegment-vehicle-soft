@@ -12,6 +12,7 @@ import { severityColor, timeAgo } from "@/lib/utils";
 import { Bell, CheckCheck, Wifi, WifiOff } from "lucide-react";
 import type { AlarmEvent } from "@/types";
 import toast from "react-hot-toast";
+import { useTranslations } from "@/lib/i18n";
 
 const SEVERITY_ICONS: Record<string, string> = {
   critical: "🔴",
@@ -26,6 +27,7 @@ export default function AlarmsPage() {
   const queryClient = useQueryClient();
   const [severityFilter, setSeverityFilter] = useState<string>("");
   const [readFilter, setReadFilter] = useState<string>("");
+  const t = useTranslations("alarms");
 
   const { data, isLoading } = useQuery<AlarmEvent[]>({
     queryKey: ["alarms", severityFilter, readFilter],
@@ -54,7 +56,7 @@ export default function AlarmsPage() {
     onSuccess: () => {
       markAllRead();
       queryClient.invalidateQueries({ queryKey: ["alarms"] });
-      toast.success("Vsi alarmi označeni kot prebrani");
+      toast.success(t("markAllSuccess"));
     },
   });
 
@@ -62,14 +64,14 @@ export default function AlarmsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Alarmi</h2>
+          <h2 className="text-2xl font-bold text-gray-900">{t("title")}</h2>
           <div className="mt-1 flex items-center gap-3 text-sm text-gray-500">
             <span className={`flex items-center gap-1 ${connected ? "text-green-600" : "text-gray-400"}`}>
               {connected ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
-              {connected ? "Živi" : "Odklopljeno"}
+              {connected ? t("connected") : t("disconnected")}
             </span>
             {unreadCount > 0 && (
-              <span className="text-red-600 font-medium">{unreadCount} neprebranih</span>
+              <span className="text-red-600 font-medium">{t("unread", { count: unreadCount })}</span>
             )}
           </div>
         </div>
@@ -79,20 +81,20 @@ export default function AlarmsPage() {
             onChange={(e) => setSeverityFilter(e.target.value)}
             className="rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm"
           >
-            <option value="">Vsa resnost</option>
-            <option value="critical">🔴 Kritično</option>
-            <option value="warning">🟠 Opozorilo</option>
-            <option value="info">🔵 Info</option>
-            <option value="success">🟢 Uspešno</option>
+            <option value="">{t("allSeverity")}</option>
+            <option value="critical">{t("severityCritical")}</option>
+            <option value="warning">{t("severityWarning")}</option>
+            <option value="info">{t("severityInfo")}</option>
+            <option value="success">{t("severitySuccess")}</option>
           </select>
           <select
             value={readFilter}
             onChange={(e) => setReadFilter(e.target.value)}
             className="rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm"
           >
-            <option value="">Vsi alarmi</option>
-            <option value="false">Neprebrani</option>
-            <option value="true">Prebrani</option>
+            <option value="">{t("allAlarms")}</option>
+            <option value="false">{t("unreadOnly")}</option>
+            <option value="true">{t("readOnly")}</option>
           </select>
           {unreadCount > 0 && (
             <Button
@@ -102,7 +104,7 @@ export default function AlarmsPage() {
               disabled={markAllMutation.isPending}
             >
               <CheckCheck className="mr-2 h-4 w-4" />
-              Označi vse kot prebrano
+              {t("markAllRead")}
             </Button>
           )}
         </div>
@@ -115,7 +117,7 @@ export default function AlarmsPage() {
       ) : alarms.length === 0 ? (
         <div className="flex h-48 flex-col items-center justify-center gap-2 text-gray-400">
           <Bell className="h-10 w-10" />
-          <p>Ni alarmov</p>
+          <p>{t("noAlarms")}</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -162,7 +164,7 @@ export default function AlarmsPage() {
                       className="h-7 text-xs text-gray-500"
                       onClick={() => markReadMutation.mutate(alarm.id)}
                     >
-                      Prebrano
+                      {t("markRead")}
                     </Button>
                   )}
                 </div>

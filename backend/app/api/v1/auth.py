@@ -8,6 +8,7 @@ from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse, UserMe
 from app.utils.security import (
     create_access_token,
     create_refresh_token,
+    decode_access_token,
     decode_refresh_token,
     verify_password,
 )
@@ -80,6 +81,23 @@ async def refresh_token(data: RefreshRequest, db: DbSession):
 
 
 @router.post("/logout")
-async def logout():
-    # Stateless JWT — client pobriše token
+async def logout(request: Request, db: DbSession):
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header.split(" ", 1)[1]
+        payload = decode_access_token(token)
+        if payload:
+            client_ip = request.client.host if request.client else None
+            await write_audit_log(
+                db=db,
+                org_id=payload["org_id"],
+                actor_id=payload["sub"],
+                actor_type="user",
+                actor_device="web",
+                actor_ip=client_ip,
+                action="logout",
+                entity_type="user",
+                entity_id=payload["sub"],
+            )
+            await db.commit()
     return {"detail": "Odjava uspešna"}

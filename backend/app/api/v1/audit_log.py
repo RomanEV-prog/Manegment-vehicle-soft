@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from app.api.deps import CurrentUserDep, DbSession
 from app.models.audit_log import AuditLog
+from app.models.user import User
 
 router = APIRouter()
 
@@ -15,6 +16,7 @@ class AuditLogResponse(BaseModel):
     id: uuid.UUID
     org_id: uuid.UUID
     actor_id: uuid.UUID | None
+    actor_name: str | None = None   # R156: vsak vnos mora biti pripisan osebi
     actor_type: str
     actor_ip: str | None
     actor_device: str | None
@@ -29,11 +31,12 @@ class AuditLogResponse(BaseModel):
     model_config = {"from_attributes": True}
 
     @classmethod
-    def from_orm_custom(cls, obj: AuditLog) -> "AuditLogResponse":
+    def from_orm_custom(cls, obj: AuditLog, actor_name: str | None = None) -> "AuditLogResponse":
         return cls(
             id=obj.id,
             org_id=obj.org_id,
             actor_id=obj.actor_id,
+            actor_name=actor_name,
             actor_type=obj.actor_type,
             actor_ip=obj.actor_ip,
             actor_device=obj.actor_device,
@@ -91,7 +94,11 @@ async def list_audit_logs(
 
     result = await db.execute(q)
     rows = result.scalars().all()
-    return [AuditLogResponse.from_orm_custom(r) for r in rows]
+    actor_ids = {r.actor_id for r in rows if r.actor_id}
+    names: dict = {}
+    if actor_ids:
+        names = dict((await db.execute(select(User.id, User.full_name).where(User.id.in_(actor_ids)))).all())
+    return [AuditLogResponse.from_orm_custom(r, names.get(r.actor_id)) for r in rows]
 
 
 @router.get("/count")

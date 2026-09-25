@@ -1,9 +1,10 @@
 import uuid
 
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import select, or_
+from sqlalchemy import delete, func, or_, select
 
 from app.api.deps import CurrentUserDep, DbSession, NonPartnerDep
+from app.database import Base
 from app.models.vehicle import Vehicle
 from app.models.vehicle_twin import VehicleTwin
 from app.models.twin_snapshot import TwinSnapshot
@@ -136,6 +137,25 @@ async def delete_vehicle(vehicle_id: uuid.UUID, user: NonPartnerDep, db: DbSessi
     if not vehicle:
         raise HTTPException(status_code=404, detail="Vozilo ne obstaja")
 
+    # R156 §7.1.1: zapisov o vozilu ne smemo izgubiti. Vozilo z zgodovino se
+    # ne briše, ampak označi kot 'decommissioned'. Dvojček in posnetki niso
+    # zgodovina — ustvarijo se samodejno ob vnosu vozila.
+    derived = {VehicleTwin.__table__, TwinSnapshot.__table__}
+    for table in Base.metadata.sorted_tables:
+        if table in derived:
+            continue
+        for fk in table.foreign_keys:
+            if fk.column.table is Vehicle.__table__:
+                exists = await db.scalar(
+                    select(func.count()).select_from(table).where(fk.parent == vehicle.id)
+                )
+                if exists:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="Vozilo ima zgodovino zapisov in ga ni mogoče izbrisati — "
+                               "nastavi status 'decommissioned'.",
+                    )
+
     await write_audit_log(
         db=db,
         org_id=user["org_id"],
@@ -148,7 +168,10 @@ async def delete_vehicle(vehicle_id: uuid.UUID, user: NonPartnerDep, db: DbSessi
         before={"name": vehicle.name, "vin": vehicle.vin, "status": vehicle.status},
     )
 
-    await db.delete(vehicle)
+    await db.execute(delete(TwinSnapshot).where(TwinSnapshot.vehicle_id == vehicle.id))
+    await db.execute(delete(VehicleTwin).where(VehicleTwin.vehicle_id == vehicle.id))
+    await db.execute(delete(Vehicle).where(Vehicle.id == vehicle.id))
+    db.expunge(vehicle)
     await db.commit()
 
 

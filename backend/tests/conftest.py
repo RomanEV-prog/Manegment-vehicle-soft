@@ -3,12 +3,14 @@ Test infrastruktura — PostgreSQL test baza.
 Za lokalni razvoj: docker-compose up db -d
 Za CI: GitHub Actions PostgreSQL service container.
 """
-import asyncio
 import os
+from unittest.mock import MagicMock, patch
+
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.main import app
 from app.database import Base, get_db
@@ -21,14 +23,17 @@ TEST_DATABASE_URL = os.environ.get(
 )
 
 
-@pytest.fixture(scope="session")
-def event_loop():
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+def pytest_collection_modifyitems(items):
+    # Vsi testi tečejo v isti zanki kot session-scoped engine — sicer asyncpg
+    # povezave iz bazena pripadajo drugi zanki ("attached to a different loop").
+    session_loop = pytest.mark.asyncio(loop_scope="session")
+    for item in items:
+        marker = item.get_closest_marker("asyncio")
+        if marker is not None and "loop_scope" not in marker.kwargs:
+            item.add_marker(session_loop, append=False)
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def test_engine():
     engine = create_async_engine(TEST_DATABASE_URL, echo=False)
     async with engine.begin() as conn:
@@ -40,12 +45,25 @@ async def test_engine():
     await engine.dispose()
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(loop_scope="session")
 async def db_session(test_engine):
     Session = async_sessionmaker(test_engine, expire_on_commit=False)
     async with Session() as session:
         yield session
         await session.rollback()
+    # Endpointi in fixture sami commitajo — rollback tega ne razveljavi,
+    # zato vsak test začne s prazno bazo.
+    tables = ", ".join(f'"{t.name}"' for t in Base.metadata.sorted_tables)
+    async with test_engine.begin() as conn:
+        await conn.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
+
+
+@pytest.fixture(autouse=True)
+def _no_celery():
+    """Celery naloge se v testih ne pošiljajo brokerju (worker bi jih izvedel nad razvojno bazo)."""
+    with patch("app.workers.twin_worker.update_vehicle_twin.delay", MagicMock()), \
+         patch("app.workers.alarm_worker.check_dtc_alarm.delay", MagicMock()):
+        yield
 
 
 @pytest_asyncio.fixture

@@ -15,6 +15,7 @@ Skripta je idempotentna.
 """
 
 import asyncio
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -29,15 +30,16 @@ from app.models.r156 import (
     VehicleType,
 )
 
+# Besedilo vidi naročnik v aplikaciji, zato je v angleščini
 PLACEHOLDER_NOTE = (
-    "Vrednost prepisana iz diagrama 'R156 SUMS Overview.drawio' (list Example), "
-    "kjer je okrajšana z '..' — ni prava kontrolna vsota."
+    "Values transcribed from 'R156 SUMS Overview.drawio' (sheet 'Example'), where they are "
+    "truncated with '..' — NOT real checksums."
 )
 
 VEHICLE_TYPE = {
     "name": "e-Shuttle MK II-400",
     "model_code": "ES03",
-    "description": "Tip vozila iz gradiva Jakuba Zduna (R156 SUMS Overview, primer R48SWIN001).",
+    "description": "Vehicle type from the R156 SUMS Overview reference material (example R48SWIN001).",
 }
 
 # ECU katalog — polja točno kot v diagramu
@@ -69,7 +71,7 @@ ECUS = [
         "supplier": "eVersum",
         "eversum_part_number": "EV-00000-41817",
         "un_ece_reg_number": None,
-        "description": "Vehicle Control Unit software (vir: readme VCU ES03v02_vcu1_1_2_115).",
+        "description": "Vehicle Control Unit (source: Helix ALM readme VCU ES03v02_vcu1_1_2_115).",
     },
 ]
 
@@ -127,7 +129,7 @@ VCU_ITEM = {
     "sw_config_sha256": None,
     "compatible_hardware": "927889/TTC-500",
     "change_log": VCU_CHANGE_LOG,
-    "description": "Vehicle Control Unit software. Vir: readme iz Helix ALM, baseline 152, 17. 10. 2025.",
+    "description": "Vehicle Control Unit software. Source: Helix ALM readme, baseline 152, 17 Oct 2025.",
 }
 
 # Serijske številke instanc ECU iz diagrama — vežemo jih na vozilo, če obstaja
@@ -146,6 +148,14 @@ async def get_or_create(db: AsyncSession, model, match: dict, defaults: dict | N
     db.add(obj)
     await db.flush()
     return obj, True
+
+
+async def release(db: AsyncSession, baseline: RXSWINBaseline) -> None:
+    """Izda baseline po vnosu postavk (ob ponovnem zagonu je že izdan)."""
+    if baseline.status == "draft":
+        baseline.status = "released"
+        baseline.released_at = datetime.now(timezone.utc)
+        await db.flush()
 
 
 async def seed_r156() -> None:
@@ -185,7 +195,7 @@ async def seed_r156() -> None:
             {"organization_id": org.id, "rxswin": "R48SWIN001"},
             {
                 "vehicle_type_id": vtype.id,
-                "description": "Exterior Lighting — programska oprema, pomembna za UN-ECE Reg 48.",
+                "description": "Exterior Lighting — software relevant to UN-ECE Reg 48.",
                 "regulations_affected": ["UN-ECE R48"],
                 "status": "active",
             },
@@ -197,10 +207,10 @@ async def seed_r156() -> None:
             {"rxswin_id": rxswin.id, "baseline_number": 1},
             {
                 "organization_id": org.id,
-                "status": "released",
+                "status": "draft",  # postavke se lahko dodajo le v draft (trigger)
                 "integrity_method": "SHA-256",
-                "notes": "Prepisano iz 'R156 SUMS Overview.drawio', list Example. "
-                         "Kontrolne vsote so v izvirniku okrajšane in niso prave.",
+                "notes": "Transcribed from 'R156 SUMS Overview.drawio', sheet 'Example'. "
+                         "Checksums are truncated in the source and are NOT real values.",
             },
         )
         created["baselines"] += is_new
@@ -214,6 +224,7 @@ async def seed_r156() -> None:
                 payload,
             )
             created["baseline_items"] += is_new
+        await release(db, baseline)
 
         # --- VCU: lastni RXSWIN, ker readme ne navaja pripadnosti R48 ---
         vcu_rxswin, is_new = await get_or_create(
@@ -221,8 +232,8 @@ async def seed_r156() -> None:
             {"organization_id": org.id, "rxswin": "VCUSWIN001"},
             {
                 "vehicle_type_id": vtype.id,
-                "description": "Vehicle Control Unit — programska oprema po readme iz Helix ALM. "
-                               "Pripadnost regulativi v gradivu ni navedena, preveriti z Jakubom.",
+                "description": "Vehicle Control Unit software (Helix ALM readme). PROVISIONAL RXSWIN — "
+                               "the regulation / RXSWIN assignment is not stated in the source and is to be confirmed.",
                 "status": "active",
             },
         )
@@ -233,9 +244,9 @@ async def seed_r156() -> None:
             {"rxswin_id": vcu_rxswin.id, "baseline_number": 1},
             {
                 "organization_id": org.id,
-                "status": "released",
+                "status": "draft",  # postavke se lahko dodajo le v draft (trigger)
                 "integrity_method": "SHA-256",
-                "notes": "Vir: 'VCU ES03v02_vcu1_1_2_115 Readme', Helix ALM baseline 152, 17. 10. 2025.",
+                "notes": "Source: 'VCU ES03v02_vcu1_1_2_115 Readme', Helix ALM baseline 152, 17 Oct 2025.",
             },
         )
         created["baselines"] += is_new
@@ -248,6 +259,7 @@ async def seed_r156() -> None:
             payload,
         )
         created["baseline_items"] += is_new
+        await release(db, vcu_baseline)
 
         await db.commit()
 

@@ -15,22 +15,16 @@ import {
   ClipboardList,
   Plug,
   Eye,
+  ShieldCheck,
+  CircuitBoard,
+  Hash,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useAlarmsStore } from "@/hooks/useAlarms";
 import { useRouter } from "next/navigation";
-
-const ALL_NAV_ITEMS = [
-  { href: "/", label: "Pregled", icon: Home, partnerVisible: true },
-  { href: "/vehicles", label: "Vozila", icon: Car, partnerVisible: true },
-  { href: "/sw-updates", label: "SW posodobitve", icon: Cpu, partnerVisible: false },
-  { href: "/dtc", label: "DTC napake", icon: AlertTriangle, partnerVisible: false },
-  { href: "/obd", label: "OBD diagnostika", icon: Plug, partnerVisible: false },
-  { href: "/alarms", label: "Alarmi", icon: Bell, showBadge: true, partnerVisible: false },
-  { href: "/reports", label: "Poročila", icon: FileText, partnerVisible: true },
-  { href: "/audit", label: "Revizijska sled", icon: ClipboardList, partnerVisible: false },
-];
+import { useTranslations } from "@/lib/i18n";
+import { moduleEnabled, type ModuleKey } from "@/lib/modules";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -38,9 +32,33 @@ export function Sidebar() {
   const unreadCount = useAlarmsStore((s) => s.unreadCount);
   const router = useRouter();
   const isPartner = user?.role === "partner_viewer";
-  const navItems = isPartner
-    ? ALL_NAV_ITEMS.filter((item) => item.partnerVisible)
-    : ALL_NAV_ITEMS;
+  const t = useTranslations("nav");
+
+  // Skriti moduli (lib/modules.ts) ostanejo dosegljivi po URL-ju, le v meniju jih ni
+  const ALL_NAV_ITEMS: {
+    href: string;
+    label: string;
+    icon: React.ElementType;
+    module: ModuleKey;
+    partnerVisible: boolean;
+    showBadge?: boolean;
+  }[] = [
+    { href: "/rxswins", label: t("rxswins"), icon: ShieldCheck, module: "r156", partnerVisible: true },
+    { href: "/ecus", label: t("ecus"), icon: CircuitBoard, module: "r156", partnerVisible: true },
+    { href: "/sha256", label: t("sha256"), icon: Hash, module: "r156", partnerVisible: true },
+    { href: "/", label: t("overview"), icon: Home, module: "overview", partnerVisible: true },
+    { href: "/vehicles", label: t("vehicles"), icon: Car, module: "vehicles", partnerVisible: true },
+    { href: "/sw-updates", label: t("swUpdates"), icon: Cpu, module: "swUpdates", partnerVisible: false },
+    { href: "/dtc", label: t("dtc"), icon: AlertTriangle, module: "dtc", partnerVisible: false },
+    { href: "/obd", label: t("obd"), icon: Plug, module: "obd", partnerVisible: false },
+    { href: "/alarms", label: t("alarms"), icon: Bell, module: "alarms", showBadge: true, partnerVisible: false },
+    { href: "/reports", label: t("reports"), icon: FileText, module: "reports", partnerVisible: true },
+    { href: "/audit", label: t("audit"), icon: ClipboardList, module: "audit", partnerVisible: false },
+  ];
+
+  const navItems = ALL_NAV_ITEMS.filter(
+    (item) => moduleEnabled(item.module) && (!isPartner || item.partnerVisible)
+  );
 
   const handleLogout = async () => {
     await logout();
@@ -53,6 +71,9 @@ export function Sidebar() {
       <div className="flex h-16 items-center border-b px-6">
         <BarChart3 className="mr-2 h-6 w-6 text-blue-600" />
         <span className="text-lg font-bold text-gray-900">eVersum</span>
+        <span className="ml-2 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
+          SUMS
+        </span>
       </div>
 
       {/* Navigation */}
@@ -86,7 +107,7 @@ export function Sidebar() {
       {isPartner && (
         <div className="mx-3 mb-2 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
           <Eye className="h-3 w-3 flex-shrink-0" />
-          <span className="font-medium">Partner — samo branje</span>
+          <span className="font-medium">{t("partnerReadOnly")}</span>
         </div>
       )}
 
@@ -97,14 +118,14 @@ export function Sidebar() {
           className="flex items-center rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
         >
           <Settings className="mr-3 h-4 w-4" />
-          Nastavitve
+          {t("settings")}
         </Link>
         <button
           onClick={handleLogout}
           className="flex w-full items-center rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
         >
           <LogOut className="mr-3 h-4 w-4" />
-          Odjava
+          {t("logout")}
         </button>
       </div>
     </aside>

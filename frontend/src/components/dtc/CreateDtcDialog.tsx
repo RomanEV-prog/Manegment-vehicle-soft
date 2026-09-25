@@ -16,6 +16,7 @@ import { dtcApi, vehiclesApi } from "@/lib/api";
 import type { Vehicle } from "@/types";
 import toast from "react-hot-toast";
 import type { AxiosError } from "axios";
+import { useTranslations } from "@/lib/i18n";
 
 interface Props {
   open: boolean;
@@ -25,6 +26,8 @@ interface Props {
 
 export function CreateDtcDialog({ open, vehicleId, onClose }: Props) {
   const qc = useQueryClient();
+  const t = useTranslations("dtc");
+  const tCommon = useTranslations("common");
   const today = new Date().toISOString();
 
   const [form, setForm] = useState({
@@ -46,7 +49,7 @@ export function CreateDtcDialog({ open, vehicleId, onClose }: Props) {
   const mutation = useMutation({
     mutationFn: () => dtcApi.create({ ...form, detected_at: form.detected_at + "T00:00:00" }),
     onSuccess: () => {
-      toast.success("DTC zapis dodan");
+      toast.success(t("createSuccess"));
       qc.invalidateQueries({ queryKey: ["dtc-all"] });
       if (vehicleId) {
         qc.invalidateQueries({ queryKey: ["dtc", vehicleId] });
@@ -56,7 +59,7 @@ export function CreateDtcDialog({ open, vehicleId, onClose }: Props) {
       setForm({ vehicle_id: vehicleId ?? "", code: "", description: "", severity: "medium", source: "manual", detected_at: today.slice(0, 10) });
     },
     onError: (e: AxiosError<{ detail: string }>) => {
-      toast.error(e.response?.data?.detail ?? "Napaka pri dodajanju DTC");
+      toast.error(e.response?.data?.detail ?? t("createError"));
     },
   });
 
@@ -64,18 +67,18 @@ export function CreateDtcDialog({ open, vehicleId, onClose }: Props) {
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Nov DTC zapis</DialogTitle>
+          <DialogTitle>{t("createTitle")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           {!vehicleId && (
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Vozilo *</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldVehicle")}</label>
               <select
                 value={form.vehicle_id}
                 onChange={(e) => set("vehicle_id", e.target.value)}
                 className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm"
               >
-                <option value="">— Izberite vozilo —</option>
+                <option value="">{t("selectVehicle")}</option>
                 {(vehicles ?? []).map((v) => (
                   <option key={v.id} value={v.id}>{v.name} ({v.vin})</option>
                 ))}
@@ -84,7 +87,7 @@ export function CreateDtcDialog({ open, vehicleId, onClose }: Props) {
           )}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">DTC koda *</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldCode")}</label>
               <Input
                 value={form.code}
                 onChange={(e) => set("code", e.target.value.toUpperCase())}
@@ -93,7 +96,7 @@ export function CreateDtcDialog({ open, vehicleId, onClose }: Props) {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Datum zaznave</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldDetectedAt")}</label>
               <Input
                 type="date"
                 value={form.detected_at}
@@ -102,7 +105,7 @@ export function CreateDtcDialog({ open, vehicleId, onClose }: Props) {
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-700">Opis *</label>
+            <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldDescription")}</label>
             <Input
               value={form.description}
               onChange={(e) => set("description", e.target.value)}
@@ -111,38 +114,38 @@ export function CreateDtcDialog({ open, vehicleId, onClose }: Props) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Resnost</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldSeverity")}</label>
               <select
                 value={form.severity}
                 onChange={(e) => set("severity", e.target.value)}
                 className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm"
               >
-                <option value="low">Nizka</option>
-                <option value="medium">Srednja</option>
-                <option value="high">Visoka</option>
+                <option value="low">{t("severityLow")}</option>
+                <option value="medium">{t("severityMedium")}</option>
+                <option value="high">{t("severityHigh")}</option>
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Vir</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldSource")}</label>
               <select
                 value={form.source}
                 onChange={(e) => set("source", e.target.value)}
                 className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm"
               >
-                <option value="manual">Ročno</option>
-                <option value="obd">OBD</option>
+                <option value="manual">{t("sourceManual")}</option>
+                <option value="obd">{t("sourceObd")}</option>
               </select>
             </div>
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Prekliči</Button>
+          <Button variant="outline" onClick={onClose}>{tCommon("cancel")}</Button>
           <Button
             onClick={() => mutation.mutate()}
             disabled={mutation.isPending || !form.vehicle_id || !form.code || !form.description}
           >
             {mutation.isPending ? <Spinner className="mr-2 h-4 w-4" /> : null}
-            Dodaj
+            {tCommon("add")}
           </Button>
         </DialogFooter>
       </DialogContent>

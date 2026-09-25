@@ -9,6 +9,10 @@ import { reportsApi, dtcApi } from "@/lib/api";
 import { formatDate, severityColor, statusColor } from "@/lib/utils";
 import Link from "next/link";
 import type { FleetStatus, DtcRecord } from "@/types";
+import { useTranslations } from "@/lib/i18n";
+import { HOME_PATH, moduleEnabled } from "@/lib/modules";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 function StatCard({
   title,
@@ -41,7 +45,19 @@ function StatCard({
   );
 }
 
+// Ko je pregled flote skrit (lib/modules.ts), je začetna stran register RXSWIN
 export default function DashboardPage() {
+  const router = useRouter();
+  const overviewOn = moduleEnabled("overview");
+  useEffect(() => {
+    if (!overviewOn) router.replace(HOME_PATH);
+  }, [overviewOn, router]);
+  return overviewOn ? <FleetOverview /> : null;
+}
+
+function FleetOverview() {
+  const t = useTranslations("dashboard");
+
   const { data: fleet, isLoading: fleetLoading } = useQuery<FleetStatus>({
     queryKey: ["fleet-status"],
     queryFn: () => reportsApi.fleetStatus(),
@@ -66,14 +82,14 @@ export default function DashboardPage() {
       {/* Stat cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Skupaj vozil"
+          title={t("totalVehicles")}
           value={fleet?.summary.total_vehicles ?? 0}
           icon={Car}
           color="bg-blue-50 text-blue-600"
-          subtitle={`${fleet?.summary.active_vehicles ?? 0} aktivnih`}
+          subtitle={t("activeVehicles", { count: fleet?.summary.active_vehicles ?? 0 })}
         />
         <StatCard
-          title="Kritični DTC alarmi"
+          title={t("criticalDtc")}
           value={fleet?.summary.active_high_dtcs ?? 0}
           icon={AlertTriangle}
           color={
@@ -83,19 +99,19 @@ export default function DashboardPage() {
           }
           subtitle={
             (fleet?.summary.active_high_dtcs ?? 0) > 0
-              ? "visoke resnosti — ukrepaj takoj"
-              : "Ni kritičnih napak"
+              ? t("criticalDtcSubtitle")
+              : t("noCriticalDtc")
           }
         />
         <StatCard
-          title="Homologacije v teku"
+          title={t("openHomologations")}
           value={fleet?.summary.open_homologations ?? 0}
           icon={Clock}
           color="bg-purple-50 text-purple-600"
           subtitle="pending + in_progress"
         />
         <StatCard
-          title="SW posodobitve (30d)"
+          title={t("swUpdates30d")}
           value={fleet?.summary.sw_updates_last_30_days ?? 0}
           icon={Cpu}
           color="bg-green-50 text-green-600"
@@ -106,7 +122,7 @@ export default function DashboardPage() {
       {fleet?.summary && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Stanje vozil po statusu</CardTitle>
+            <CardTitle className="text-base">{t("vehicleStatusTitle")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-3">
@@ -132,23 +148,23 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Vozila — pregled</CardTitle>
+              <CardTitle className="text-base">{t("vehiclesOverview")}</CardTitle>
               <Link href="/vehicles" className="text-xs text-blue-600 hover:underline">
-                Vsa vozila →
+                {t("allVehicles")}
               </Link>
             </div>
           </CardHeader>
           <CardContent className="p-0">
             {(fleet?.vehicles ?? []).length === 0 ? (
-              <p className="py-4 text-center text-sm text-gray-400">Ni vozil</p>
+              <p className="py-4 text-center text-sm text-gray-400">{t("noVehicles")}</p>
             ) : (
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase text-gray-500">
-                    <th className="px-4 py-2">Vozilo</th>
-                    <th className="px-4 py-2">Status</th>
-                    <th className="px-4 py-2 text-center">DTC</th>
-                    <th className="px-4 py-2 text-center">ECU</th>
+                    <th className="px-4 py-2">{t("vehicle")}</th>
+                    <th className="px-4 py-2">{t("colStatus") ?? "Status"}</th>
+                    <th className="px-4 py-2 text-center">{t("dtcCol")}</th>
+                    <th className="px-4 py-2 text-center">{t("ecuCol")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -189,9 +205,9 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Kritični DTC alarmi</CardTitle>
+              <CardTitle className="text-base">{t("criticalDtcTitle")}</CardTitle>
               <Link href="/dtc" className="text-xs text-blue-600 hover:underline">
-                Vsi DTC →
+                {t("allDtc")}
               </Link>
             </div>
           </CardHeader>
@@ -213,7 +229,7 @@ export default function DashboardPage() {
                     </div>
                     <p className="mt-0.5 text-xs text-gray-500">{dtc.description}</p>
                     <p className="mt-0.5 text-xs text-gray-400">
-                      Zaznano: {formatDate(dtc.detected_at)}
+                      {t("detectedAt")} {formatDate(dtc.detected_at)}
                     </p>
                   </div>
                 </div>
@@ -221,7 +237,7 @@ export default function DashboardPage() {
               {!activeDtcs?.length && (
                 <div className="flex flex-col items-center py-6 text-center">
                   <CheckCircle className="h-8 w-8 text-green-400 mb-2" />
-                  <p className="text-sm text-gray-500">Ni kritičnih DTC napak</p>
+                  <p className="text-sm text-gray-500">{t("noCriticalDtcFull")}</p>
                 </div>
               )}
             </div>

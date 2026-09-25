@@ -56,3 +56,7 @@ migrations/versions/*.pyc
 mobile/.expo/web/
 mobile/%ProgramData%/
 mobile/android/
+
+# Build / runtime artefakti
+*.tsbuildinfo
+celerybeat-schedule

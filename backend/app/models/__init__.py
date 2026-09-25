@@ -26,6 +26,7 @@ from app.models.r156 import (
     VehicleECU,
     VehicleType,
 )
+import app.models.r156_locks  # noqa: F401,E402 — triggerji za zaklep baseline-ov
 
 __all__ = [
     "Organization",

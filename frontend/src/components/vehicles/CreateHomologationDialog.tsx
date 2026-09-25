@@ -15,6 +15,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { homApi } from "@/lib/api";
 import toast from "react-hot-toast";
 import type { AxiosError } from "axios";
+import { useTranslations } from "@/lib/i18n";
 
 interface Props {
   open: boolean;
@@ -33,6 +34,8 @@ const COMMON_REGULATIONS = [
 
 export function CreateHomologationDialog({ open, vehicleId, onClose }: Props) {
   const qc = useQueryClient();
+  const t = useTranslations("homologation");
+  const tCommon = useTranslations("common");
   const [form, setForm] = useState({
     regulation: "",
     status: "pending",
@@ -56,7 +59,7 @@ export function CreateHomologationDialog({ open, vehicleId, onClose }: Props) {
         country: form.country || null,
       }),
     onSuccess: () => {
-      toast.success("Homologacija dodana");
+      toast.success(t("createSuccess"));
       qc.invalidateQueries({ queryKey: ["hom", vehicleId] });
       qc.invalidateQueries({ queryKey: ["hom-all"] });
       qc.invalidateQueries({ queryKey: ["twin", vehicleId] });
@@ -65,7 +68,7 @@ export function CreateHomologationDialog({ open, vehicleId, onClose }: Props) {
     },
     onError: (e: AxiosError<{ detail: string }>) => {
       const msg = e.response?.data?.detail;
-      toast.error(typeof msg === "string" ? msg : "Napaka pri dodajanju");
+      toast.error(typeof msg === "string" ? msg : t("createError"));
     },
   });
 
@@ -73,11 +76,11 @@ export function CreateHomologationDialog({ open, vehicleId, onClose }: Props) {
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Nova homologacija</DialogTitle>
+          <DialogTitle>{t("createTitle")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-700">Uredba *</label>
+            <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldRegulation")}</label>
             <div className="flex gap-2">
               <Input
                 value={form.regulation}
@@ -105,21 +108,21 @@ export function CreateHomologationDialog({ open, vehicleId, onClose }: Props) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Status</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldStatus")}</label>
               <select
                 value={form.status}
                 onChange={(e) => set("status", e.target.value)}
                 className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm"
               >
-                <option value="pending">V čakanju</option>
-                <option value="in_progress">V postopku</option>
-                <option value="approved">Odobreno</option>
-                <option value="expired">Poteklo</option>
-                <option value="rejected">Zavrnjeno</option>
+                <option value="pending">{t("statusPending")}</option>
+                <option value="in_progress">{t("statusInProgress")}</option>
+                <option value="approved">{t("statusApproved")}</option>
+                <option value="expired">{t("statusExpired")}</option>
+                <option value="rejected">{t("statusRejected")}</option>
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Država</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldCountry")}</label>
               <Input
                 value={form.country}
                 onChange={(e) => set("country", e.target.value)}
@@ -128,36 +131,36 @@ export function CreateHomologationDialog({ open, vehicleId, onClose }: Props) {
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-700">Pristojni organ</label>
+            <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldAuthority")}</label>
             <Input
               value={form.authority}
               onChange={(e) => set("authority", e.target.value)}
-              placeholder="npr. TÜV, JRC, AVV"
+              placeholder={t("authorityPlaceholder")}
             />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Veljavno od</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldValidFrom")}</label>
               <Input type="date" value={form.valid_from} onChange={(e) => set("valid_from", e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Veljavno do</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldValidUntil")}</label>
               <Input type="date" value={form.valid_until} onChange={(e) => set("valid_until", e.target.value)} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Naslednja akcija</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldNextAction")}</label>
               <Input type="date" value={form.next_action_due} onChange={(e) => set("next_action_due", e.target.value)} />
             </div>
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Prekliči</Button>
+          <Button variant="outline" onClick={onClose}>{tCommon("cancel")}</Button>
           <Button
             onClick={() => mutation.mutate()}
             disabled={mutation.isPending || !form.regulation}
           >
             {mutation.isPending ? <Spinner className="mr-2 h-4 w-4" /> : null}
-            Dodaj
+            {tCommon("add")}
           </Button>
         </DialogFooter>
       </DialogContent>

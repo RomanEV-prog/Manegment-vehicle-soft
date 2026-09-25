@@ -1,6 +1,7 @@
 import csv
 import io
 import uuid
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import Response, JSONResponse, StreamingResponse
@@ -28,11 +29,18 @@ async def sums_report(
     """SUMS poročilo za vozilo — UNECE R156 §7.1, §7.2, §7.4."""
     try:
         pdf_bytes = await generate_sums_pdf(db, vehicle_id, user["org_id"])
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Poročilo ni dostopno")
 
     if format == "html":
-        return Response(content=pdf_bytes, media_type="text/html; charset=utf-8")
+        return Response(
+            content=pdf_bytes,
+            media_type="text/html; charset=utf-8",
+            headers={
+                "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
 
     return Response(
         content=pdf_bytes,
@@ -70,7 +78,6 @@ async def fleet_status_report(user: CurrentUserDep, db: DbSession):
     open_homs = result.scalar()
 
     # SW posodobitve zadnjih 30 dni
-    from datetime import date, timedelta
     cutoff = date.today() - timedelta(days=30)
     result = await db.execute(
         select(func.count()).where(
@@ -80,24 +87,26 @@ async def fleet_status_report(user: CurrentUserDep, db: DbSession):
     )
     recent_sw = result.scalar()
 
-    # Per-vehicle summary
+    # Twins za vsa vozila v eni query
+    twins_result = await db.execute(
+        select(VehicleTwin).where(VehicleTwin.vehicle_id.in_([v.id for v in vehicles]))
+    )
+    twins_by_vehicle = {t.vehicle_id: t for t in twins_result.scalars().all()}
+
+    # Aktivni DTC counts za vsa vozila v eni query
+    dtc_counts_result = await db.execute(
+        select(DTCRecord.vehicle_id, func.count(DTCRecord.id).label("cnt"))
+        .where(
+            DTCRecord.organization_id == user["org_id"],
+            DTCRecord.status == "active",
+        )
+        .group_by(DTCRecord.vehicle_id)
+    )
+    dtc_counts_by_vehicle = {row.vehicle_id: row.cnt for row in dtc_counts_result.all()}
+
     vehicle_summaries = []
     for v in vehicles:
-        # Twin
-        twin_result = await db.execute(
-            select(VehicleTwin).where(VehicleTwin.vehicle_id == v.id)
-        )
-        twin = twin_result.scalar_one_or_none()
-
-        # Aktivni DTC
-        dtc_result = await db.execute(
-            select(func.count()).where(
-                DTCRecord.vehicle_id == v.id,
-                DTCRecord.status == "active",
-            )
-        )
-        dtc_count = dtc_result.scalar()
-
+        twin = twins_by_vehicle.get(v.id)
         vehicle_summaries.append({
             "id": str(v.id),
             "name": v.name,
@@ -105,7 +114,7 @@ async def fleet_status_report(user: CurrentUserDep, db: DbSession):
             "model": v.model,
             "status": v.status,
             "project_name": v.project_name,
-            "active_dtc_count": dtc_count,
+            "active_dtc_count": dtc_counts_by_vehicle.get(v.id, 0),
             "active_dtcs_high": sum(
                 1 for d in (twin.active_dtcs if twin else [])
                 if d.get("severity") == "high"
@@ -116,7 +125,7 @@ async def fleet_status_report(user: CurrentUserDep, db: DbSession):
         })
 
     return {
-        "generated_at": __import__("datetime").datetime.utcnow().isoformat(),
+        "generated_at": datetime.utcnow().isoformat(),
         "summary": {
             "total_vehicles": len(vehicles),
             "active_vehicles": sum(1 for v in vehicles if v.status == "active"),
@@ -143,11 +152,18 @@ async def hom_overview_report(
 
     try:
         pdf_bytes = await generate_hom_report_pdf(db, vehicle_id, user["org_id"])
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Poročilo ni dostopno")
 
     if format == "html":
-        return Response(content=pdf_bytes, media_type="text/html; charset=utf-8")
+        return Response(
+            content=pdf_bytes,
+            media_type="text/html; charset=utf-8",
+            headers={
+                "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
 
     return Response(
         content=pdf_bytes,

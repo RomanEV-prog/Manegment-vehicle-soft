@@ -1,0 +1,505 @@
+"""
+R156 SUMS register — tipi vozil, ECU register, RXSWIN-i in njihovi baseline-i.
+
+Pravila zaklepanja (R156 §7.1.2.3):
+  - postavke se lahko spreminjajo samo v baseline-u s statusom 'draft'
+  - izdaja (release) zaklene baseline; prejšnji izdani postane 'superseded'
+  - sprememba izdanega stanja = nov draft baseline (kopija zadnjega izdanega)
+Isto pravilo uveljavljajo triggerji v bazi (app/models/r156_locks.py).
+Vsako pisanje gre v audit log s stanjem pred in po.
+"""
+
+import uuid
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
+
+from app.api.deps import CurrentUserDep, DbSession, NonPartnerDep, require_role
+from app.models.r156 import ECU, RXSWIN, RXSWINBaseline, RXSWINBaselineItem, VehicleType
+from app.models.user import User
+from app.schemas.r156 import (
+    SHA256_PATTERN,
+    BaselineCreate,
+    BaselineItemCreate,
+    BaselineItemResponse,
+    BaselineItemUpdate,
+    BaselineResponse,
+    BaselineSummary,
+    BaselineUpdate,
+    ECUCreate,
+    ECUResponse,
+    ECUUpdate,
+    RXSWINCreate,
+    RXSWINDetail,
+    RXSWINListItem,
+    RXSWINUpdate,
+    VehicleTypeCreate,
+    VehicleTypeResponse,
+    VehicleTypeUpdate,
+    VerifyRequest,
+    VerifyResponse,
+)
+from app.utils.audit import write_audit_log
+
+router = APIRouter()
+
+# Izdajo (zaklep) lahko potrdi le odgovorna oseba, ne tehnik
+ReleaseDep = Depends(require_role("admin", "qc_manager"))
+
+ITEM_FIELDS = (
+    "sw_version", "sw_file_name", "sw_file_sha256", "sw_config_version", "sw_config_file_name",
+    "sw_config_sha256", "egnyte_folder_url", "compatible_hardware", "change_log", "description",
+)
+
+
+async def _audit(db, user: dict, action: str, entity_type: str, entity_id, before=None, after=None):
+    await write_audit_log(
+        db=db, org_id=user["org_id"], actor_id=user["user_id"], actor_type="user", actor_device="web",
+        action=action, entity_type=entity_type, entity_id=entity_id, before=before, after=after,
+    )
+
+
+def _snap(obj, fields) -> dict:
+    out = {}
+    for f in fields:
+        v = getattr(obj, f)
+        out[f] = str(v) if isinstance(v, (uuid.UUID, datetime)) else v
+    return out
+
+
+def _item_sha_valid(item: RXSWINBaselineItem) -> bool:
+    """Pogoj za izdajo: datoteka SW ima veljavno SHA-256; če je navedena konfiguracija, tudi ta."""
+    if not item.sw_file_sha256 or not SHA256_PATTERN.match(item.sw_file_sha256):
+        return False
+    has_config = bool(item.sw_config_version or item.sw_config_file_name or item.sw_config_sha256)
+    if has_config and (not item.sw_config_sha256 or not SHA256_PATTERN.match(item.sw_config_sha256)):
+        return False
+    return True
+
+
+# ─── Tipi vozil ───────────────────────────────────────────────────────────────
+
+@router.get("/vehicle-types", response_model=list[VehicleTypeResponse])
+async def list_vehicle_types(user: CurrentUserDep, db: DbSession):
+    result = await db.execute(
+        select(VehicleType).where(VehicleType.organization_id == user["org_id"]).order_by(VehicleType.name)
+    )
+    return result.scalars().all()
+
+
+async def _get_vehicle_type(db, type_id: uuid.UUID, org_id) -> VehicleType:
+    vt = await db.scalar(
+        select(VehicleType).where(VehicleType.id == type_id, VehicleType.organization_id == org_id)
+    )
+    if not vt:
+        raise HTTPException(status_code=404, detail="Tip vozila ne obstaja")
+    return vt
+
+
+@router.post("/vehicle-types", response_model=VehicleTypeResponse, status_code=status.HTTP_201_CREATED)
+async def create_vehicle_type(data: VehicleTypeCreate, db: DbSession, user: dict = ReleaseDep):
+    exists = await db.scalar(
+        select(VehicleType.id).where(VehicleType.organization_id == user["org_id"], VehicleType.name == data.name)
+    )
+    if exists:
+        raise HTTPException(status_code=409, detail=f"Tip vozila '{data.name}' že obstaja")
+    vt = VehicleType(organization_id=user["org_id"], **data.model_dump())
+    db.add(vt)
+    await db.flush()
+    await _audit(db, user, "create", "vehicle_type", vt.id, after=data.model_dump())
+    await db.commit()
+    await db.refresh(vt)
+    return vt
+
+
+@router.put("/vehicle-types/{type_id}", response_model=VehicleTypeResponse)
+async def update_vehicle_type(type_id: uuid.UUID, data: VehicleTypeUpdate, db: DbSession, user: dict = ReleaseDep):
+    vt = await _get_vehicle_type(db, type_id, user["org_id"])
+    changes = data.model_dump(exclude_unset=True)
+    before = _snap(vt, changes.keys())
+    for k, v in changes.items():
+        setattr(vt, k, v)
+    await _audit(db, user, "update", "vehicle_type", vt.id, before=before, after=changes)
+    await db.commit()
+    await db.refresh(vt)
+    return vt
+
+
+# ─── ECU register ─────────────────────────────────────────────────────────────
+
+ECU_FIELDS = ("ecu_name", "system_name", "supplier", "eversum_part_number", "un_ece_reg_number", "description")
+
+
+@router.get("/ecus", response_model=list[ECUResponse])
+async def list_ecus(user: CurrentUserDep, db: DbSession, vehicle_type_id: uuid.UUID | None = Query(None)):
+    q = select(ECU).where(ECU.organization_id == user["org_id"])
+    if vehicle_type_id:
+        q = q.where(ECU.vehicle_type_id == vehicle_type_id)
+    result = await db.execute(q.order_by(ECU.ecu_name))
+    return result.scalars().all()
+
+
+@router.post("/ecus", response_model=ECUResponse, status_code=status.HTTP_201_CREATED)
+async def create_ecu(data: ECUCreate, user: NonPartnerDep, db: DbSession):
+    await _get_vehicle_type(db, data.vehicle_type_id, user["org_id"])
+    exists = await db.scalar(
+        select(ECU.id).where(ECU.vehicle_type_id == data.vehicle_type_id, ECU.ecu_name == data.ecu_name)
+    )
+    if exists:
+        raise HTTPException(status_code=409, detail=f"ECU '{data.ecu_name}' za ta tip vozila že obstaja")
+    ecu = ECU(organization_id=user["org_id"], **data.model_dump())
+    db.add(ecu)
+    await db.flush()
+    await _audit(db, user, "create", "ecu", ecu.id, after=_snap(ecu, ECU_FIELDS + ("vehicle_type_id",)))
+    await db.commit()
+    await db.refresh(ecu)
+    return ecu
+
+
+@router.put("/ecus/{ecu_id}", response_model=ECUResponse)
+async def update_ecu(ecu_id: uuid.UUID, data: ECUUpdate, user: NonPartnerDep, db: DbSession):
+    ecu = await db.scalar(select(ECU).where(ECU.id == ecu_id, ECU.organization_id == user["org_id"]))
+    if not ecu:
+        raise HTTPException(status_code=404, detail="ECU ne obstaja")
+    changes = data.model_dump(exclude_unset=True)
+    if "ecu_name" in changes and changes["ecu_name"] != ecu.ecu_name:
+        dup = await db.scalar(
+            select(ECU.id).where(ECU.vehicle_type_id == ecu.vehicle_type_id, ECU.ecu_name == changes["ecu_name"])
+        )
+        if dup:
+            raise HTTPException(status_code=409, detail=f"ECU '{changes['ecu_name']}' za ta tip vozila že obstaja")
+    before = _snap(ecu, changes.keys())
+    for k, v in changes.items():
+        setattr(ecu, k, v)
+    await _audit(db, user, "update", "ecu", ecu.id, before=before, after=changes)
+    await db.commit()
+    await db.refresh(ecu)
+    return ecu
+
+
+# ─── RXSWIN ───────────────────────────────────────────────────────────────────
+
+def _summary(b: RXSWINBaseline | None) -> BaselineSummary | None:
+    if b is None:
+        return None
+    return BaselineSummary(
+        id=b.id, baseline_number=b.baseline_number, status=b.status,
+        released_at=b.released_at, item_count=len(b.items),
+    )
+
+
+@router.get("/rxswins", response_model=list[RXSWINListItem])
+async def list_rxswins(user: CurrentUserDep, db: DbSession, vehicle_type_id: uuid.UUID | None = Query(None)):
+    q = (
+        select(RXSWIN)
+        .where(RXSWIN.organization_id == user["org_id"])
+        .options(
+            selectinload(RXSWIN.baselines).selectinload(RXSWINBaseline.items),
+            selectinload(RXSWIN.vehicle_type),
+        )
+        .order_by(RXSWIN.rxswin)
+    )
+    if vehicle_type_id:
+        q = q.where(RXSWIN.vehicle_type_id == vehicle_type_id)
+    rxswins = (await db.execute(q)).scalars().all()
+
+    out = []
+    for r in rxswins:
+        released = [b for b in r.baselines if b.status == "released"]
+        drafts = [b for b in r.baselines if b.status == "draft"]
+        out.append(RXSWINListItem(
+            id=r.id, vehicle_type_id=r.vehicle_type_id, vehicle_type_name=r.vehicle_type.name,
+            rxswin=r.rxswin, description=r.description, regulations_affected=r.regulations_affected or [],
+            status=r.status,
+            current_baseline=_summary(max(released, key=lambda b: b.baseline_number) if released else None),
+            draft_baseline=_summary(drafts[0] if drafts else None),
+            baseline_count=len(r.baselines), updated_at=r.updated_at,
+        ))
+    return out
+
+
+async def _load_rxswin(db, rxswin_id: uuid.UUID, org_id) -> RXSWIN:
+    r = await db.scalar(
+        select(RXSWIN)
+        .where(RXSWIN.id == rxswin_id, RXSWIN.organization_id == org_id)
+        .options(
+            selectinload(RXSWIN.baselines).selectinload(RXSWINBaseline.items).selectinload(RXSWINBaselineItem.ecu),
+            selectinload(RXSWIN.vehicle_type),
+        )
+        .execution_options(populate_existing=True)
+    )
+    if not r:
+        raise HTTPException(status_code=404, detail="RXSWIN ne obstaja")
+    return r
+
+
+def _item_response(item: RXSWINBaselineItem) -> BaselineItemResponse:
+    return BaselineItemResponse(
+        id=item.id, baseline_id=item.baseline_id, ecu_id=item.ecu_id,
+        ecu_name=item.ecu.ecu_name, eversum_part_number=item.ecu.eversum_part_number,
+        supplier=item.ecu.supplier, sha_valid=_item_sha_valid(item),
+        **{f: getattr(item, f) for f in ITEM_FIELDS},
+    )
+
+
+async def _rxswin_detail(db, r: RXSWIN) -> RXSWINDetail:
+    user_ids = {uid for b in r.baselines for uid in (b.created_by, b.released_by) if uid}
+    names: dict = {}
+    if user_ids:
+        rows = await db.execute(select(User.id, User.full_name).where(User.id.in_(user_ids)))
+        names = dict(rows.all())
+    baselines = [
+        BaselineResponse(
+            id=b.id, rxswin_id=b.rxswin_id, baseline_number=b.baseline_number, status=b.status,
+            integrity_method=b.integrity_method, notes=b.notes,
+            released_at=b.released_at, released_by=b.released_by, released_by_name=names.get(b.released_by),
+            created_by=b.created_by, created_by_name=names.get(b.created_by), created_at=b.created_at,
+            items=[_item_response(i) for i in sorted(b.items, key=lambda i: i.ecu.ecu_name)],
+        )
+        for b in sorted(r.baselines, key=lambda b: b.baseline_number, reverse=True)
+    ]
+    return RXSWINDetail(
+        id=r.id, vehicle_type_id=r.vehicle_type_id, vehicle_type_name=r.vehicle_type.name,
+        rxswin=r.rxswin, description=r.description, regulations_affected=r.regulations_affected or [],
+        status=r.status, created_at=r.created_at, updated_at=r.updated_at, baselines=baselines,
+    )
+
+
+@router.post("/rxswins", response_model=RXSWINDetail, status_code=status.HTTP_201_CREATED)
+async def create_rxswin(data: RXSWINCreate, user: NonPartnerDep, db: DbSession):
+    await _get_vehicle_type(db, data.vehicle_type_id, user["org_id"])
+    exists = await db.scalar(
+        select(RXSWIN.id).where(RXSWIN.organization_id == user["org_id"], RXSWIN.rxswin == data.rxswin)
+    )
+    if exists:
+        raise HTTPException(status_code=409, detail=f"RXSWIN '{data.rxswin}' že obstaja")
+    r = RXSWIN(organization_id=user["org_id"], status="active", **data.model_dump())
+    db.add(r)
+    await db.flush()
+    await _audit(db, user, "create", "rxswin", r.id, after={
+        "rxswin": r.rxswin, "vehicle_type_id": str(r.vehicle_type_id),
+        "description": r.description, "regulations_affected": r.regulations_affected,
+    })
+    await db.commit()
+    return await _rxswin_detail(db, await _load_rxswin(db, r.id, user["org_id"]))
+
+
+@router.get("/rxswins/{rxswin_id}", response_model=RXSWINDetail)
+async def get_rxswin(rxswin_id: uuid.UUID, user: CurrentUserDep, db: DbSession):
+    return await _rxswin_detail(db, await _load_rxswin(db, rxswin_id, user["org_id"]))
+
+
+@router.put("/rxswins/{rxswin_id}", response_model=RXSWINDetail)
+async def update_rxswin(rxswin_id: uuid.UUID, data: RXSWINUpdate, user: NonPartnerDep, db: DbSession):
+    r = await _load_rxswin(db, rxswin_id, user["org_id"])
+    changes = data.model_dump(exclude_unset=True)
+    before = _snap(r, changes.keys())
+    for k, v in changes.items():
+        setattr(r, k, v)
+    await _audit(db, user, "update", "rxswin", r.id, before=before, after=changes)
+    await db.commit()
+    return await _rxswin_detail(db, await _load_rxswin(db, rxswin_id, user["org_id"]))
+
+
+# ─── Baseline-i ───────────────────────────────────────────────────────────────
+
+@router.post("/rxswins/{rxswin_id}/baselines", response_model=RXSWINDetail, status_code=status.HTTP_201_CREATED)
+async def create_baseline(rxswin_id: uuid.UUID, data: BaselineCreate, user: NonPartnerDep, db: DbSession):
+    """Nov draft baseline. Če obstaja izdan baseline, se njegove postavke prekopirajo kot izhodišče."""
+    r = await _load_rxswin(db, rxswin_id, user["org_id"])
+    if r.status != "active":
+        raise HTTPException(status_code=409, detail="RXSWIN je umaknjen — novega baseline-a ni mogoče odpreti")
+    if any(b.status == "draft" for b in r.baselines):
+        raise HTTPException(status_code=409, detail="Za ta RXSWIN že obstaja odprt osnutek baseline-a")
+
+    number = max((b.baseline_number for b in r.baselines), default=0) + 1
+    baseline = RXSWINBaseline(
+        organization_id=user["org_id"], rxswin_id=r.id, baseline_number=number,
+        status="draft", integrity_method="SHA-256", notes=data.notes, created_by=user["user_id"],
+    )
+    db.add(baseline)
+    await db.flush()
+
+    released = [b for b in r.baselines if b.status == "released"]
+    source = max(released, key=lambda b: b.baseline_number) if released else None
+    if source:
+        for item in source.items:
+            db.add(RXSWINBaselineItem(
+                baseline_id=baseline.id, ecu_id=item.ecu_id,
+                **{f: getattr(item, f) for f in ITEM_FIELDS},
+            ))
+        await db.flush()
+
+    await _audit(db, user, "create", "rxswin_baseline", baseline.id, after={
+        "rxswin": r.rxswin, "baseline_number": number, "status": "draft",
+        "copied_from_baseline": source.baseline_number if source else None,
+        "notes": data.notes,
+    })
+    await db.commit()
+    return await _rxswin_detail(db, await _load_rxswin(db, rxswin_id, user["org_id"]))
+
+
+async def _get_baseline(db, baseline_id: uuid.UUID, org_id, *, draft_only: bool) -> RXSWINBaseline:
+    b = await db.scalar(
+        select(RXSWINBaseline)
+        .where(RXSWINBaseline.id == baseline_id, RXSWINBaseline.organization_id == org_id)
+        .options(selectinload(RXSWINBaseline.items).selectinload(RXSWINBaselineItem.ecu),
+                 selectinload(RXSWINBaseline.rxswin_ref))
+        .with_for_update(of=RXSWINBaseline)
+    )
+    if not b:
+        raise HTTPException(status_code=404, detail="Baseline ne obstaja")
+    if draft_only and b.status != "draft":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Baseline {b.baseline_number} je {b.status} in samo za branje — odpri nov baseline",
+        )
+    return b
+
+
+@router.put("/rxswin-baselines/{baseline_id}", response_model=RXSWINDetail)
+async def update_baseline(baseline_id: uuid.UUID, data: BaselineUpdate, user: NonPartnerDep, db: DbSession):
+    b = await _get_baseline(db, baseline_id, user["org_id"], draft_only=True)
+    before = {"notes": b.notes}
+    b.notes = data.notes
+    await _audit(db, user, "update", "rxswin_baseline", b.id, before=before, after={"notes": data.notes})
+    await db.commit()
+    return await _rxswin_detail(db, await _load_rxswin(db, b.rxswin_id, user["org_id"]))
+
+
+@router.delete("/rxswin-baselines/{baseline_id}", response_model=RXSWINDetail)
+async def discard_draft_baseline(baseline_id: uuid.UUID, user: NonPartnerDep, db: DbSession):
+    """Zavrže neizdan osnutek. Izdanih baseline-ov ni mogoče brisati."""
+    b = await _get_baseline(db, baseline_id, user["org_id"], draft_only=True)
+    rxswin_id = b.rxswin_id
+    await _audit(db, user, "delete", "rxswin_baseline", b.id, before={
+        "rxswin": b.rxswin_ref.rxswin, "baseline_number": b.baseline_number, "status": b.status,
+        "items": [{"ecu": i.ecu.ecu_name, **_snap(i, ITEM_FIELDS)} for i in b.items],
+    })
+    await db.delete(b)
+    await db.commit()
+    return await _rxswin_detail(db, await _load_rxswin(db, rxswin_id, user["org_id"]))
+
+
+@router.post("/rxswin-baselines/{baseline_id}/items", response_model=RXSWINDetail, status_code=status.HTTP_201_CREATED)
+async def add_baseline_item(baseline_id: uuid.UUID, data: BaselineItemCreate, user: NonPartnerDep, db: DbSession):
+    b = await _get_baseline(db, baseline_id, user["org_id"], draft_only=True)
+    ecu = await db.scalar(select(ECU).where(ECU.id == data.ecu_id, ECU.organization_id == user["org_id"]))
+    if not ecu:
+        raise HTTPException(status_code=404, detail="ECU ne obstaja")
+    if ecu.vehicle_type_id != b.rxswin_ref.vehicle_type_id:
+        raise HTTPException(status_code=422, detail="ECU ne pripada tipu vozila tega RXSWIN-a")
+    if any(i.ecu_id == ecu.id for i in b.items):
+        raise HTTPException(status_code=409, detail=f"ECU '{ecu.ecu_name}' je v tem baseline-u že naveden")
+
+    item = RXSWINBaselineItem(baseline_id=b.id, **data.model_dump())
+    db.add(item)
+    await db.flush()
+    await _audit(db, user, "create", "rxswin_baseline_item", item.id, after={
+        "rxswin": b.rxswin_ref.rxswin, "baseline_number": b.baseline_number, "ecu": ecu.ecu_name,
+        **_snap(item, ITEM_FIELDS),
+    })
+    await db.commit()
+    return await _rxswin_detail(db, await _load_rxswin(db, b.rxswin_id, user["org_id"]))
+
+
+def _find_item(b: RXSWINBaseline, item_id: uuid.UUID) -> RXSWINBaselineItem:
+    item = next((i for i in b.items if i.id == item_id), None)
+    if not item:
+        raise HTTPException(status_code=404, detail="Postavka ne obstaja")
+    return item
+
+
+@router.put("/rxswin-baselines/{baseline_id}/items/{item_id}", response_model=RXSWINDetail)
+async def update_baseline_item(
+    baseline_id: uuid.UUID, item_id: uuid.UUID, data: BaselineItemUpdate, user: NonPartnerDep, db: DbSession,
+):
+    b = await _get_baseline(db, baseline_id, user["org_id"], draft_only=True)
+    item = _find_item(b, item_id)
+    changes = data.model_dump(exclude_unset=True)
+    if "sw_version" in changes and not changes["sw_version"]:
+        raise HTTPException(status_code=422, detail="Verzija programske opreme je obvezna")
+    before = _snap(item, changes.keys())
+    for k, v in changes.items():
+        setattr(item, k, v)
+    await _audit(db, user, "update", "rxswin_baseline_item", item.id, before=before, after={
+        "rxswin": b.rxswin_ref.rxswin, "baseline_number": b.baseline_number, "ecu": item.ecu.ecu_name, **changes,
+    })
+    await db.commit()
+    return await _rxswin_detail(db, await _load_rxswin(db, b.rxswin_id, user["org_id"]))
+
+
+@router.delete("/rxswin-baselines/{baseline_id}/items/{item_id}", response_model=RXSWINDetail)
+async def delete_baseline_item(baseline_id: uuid.UUID, item_id: uuid.UUID, user: NonPartnerDep, db: DbSession):
+    b = await _get_baseline(db, baseline_id, user["org_id"], draft_only=True)
+    item = _find_item(b, item_id)
+    await _audit(db, user, "delete", "rxswin_baseline_item", item.id, before={
+        "rxswin": b.rxswin_ref.rxswin, "baseline_number": b.baseline_number, "ecu": item.ecu.ecu_name,
+        **_snap(item, ITEM_FIELDS),
+    })
+    await db.delete(item)
+    await db.commit()
+    return await _rxswin_detail(db, await _load_rxswin(db, b.rxswin_id, user["org_id"]))
+
+
+@router.post("/rxswin-baselines/{baseline_id}/release", response_model=RXSWINDetail)
+async def release_baseline(baseline_id: uuid.UUID, db: DbSession, user: dict = ReleaseDep):
+    """
+    Izda baseline: postane samo za branje, prejšnji izdani postane 'superseded'.
+    Pogoj: vsaj ena postavka in veljavne SHA-256 za vse datoteke.
+    """
+    b = await _get_baseline(db, baseline_id, user["org_id"], draft_only=True)
+    if not b.items:
+        raise HTTPException(status_code=422, detail="Baseline brez postavk ni mogoče izdati")
+    invalid = sorted(i.ecu.ecu_name for i in b.items if not _item_sha_valid(i))
+    if invalid:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Manjka ali ni veljavna SHA-256 za: {', '.join(invalid)}",
+        )
+
+    previous = (await db.execute(
+        select(RXSWINBaseline)
+        .where(RXSWINBaseline.rxswin_id == b.rxswin_id, RXSWINBaseline.status == "released")
+        .with_for_update()
+    )).scalars().all()
+    for p in previous:
+        p.status = "superseded"
+        await _audit(db, user, "supersede", "rxswin_baseline", p.id,
+                     before={"status": "released"},
+                     after={"status": "superseded", "superseded_by_baseline": b.baseline_number})
+
+    b.status = "released"
+    b.released_at = datetime.now(timezone.utc)
+    b.released_by = user["user_id"]
+    await _audit(db, user, "release", "rxswin_baseline", b.id, before={"status": "draft"}, after={
+        "status": "released", "rxswin": b.rxswin_ref.rxswin, "baseline_number": b.baseline_number,
+        "items": [{"ecu": i.ecu.ecu_name, **_snap(i, ITEM_FIELDS)} for i in b.items],
+    })
+    await db.commit()
+    return await _rxswin_detail(db, await _load_rxswin(db, b.rxswin_id, user["org_id"]))
+
+
+# ─── Preverjanje SHA-256 (R156 §7.1.3.1 — integriteta pred reflashem) ─────────
+
+@router.post("/rxswin-baselines/{baseline_id}/items/{item_id}/verify", response_model=VerifyResponse)
+async def verify_item_checksum(
+    baseline_id: uuid.UUID, item_id: uuid.UUID, data: VerifyRequest, user: NonPartnerDep, db: DbSession,
+):
+    """
+    Primerja SHA-256, ki jo je brskalnik izračunal iz datoteke, s shranjeno vrednostjo,
+    in zapiše preverjanje v audit log. Datoteka sama ne zapusti tehnikovega računalnika.
+    """
+    b = await _get_baseline(db, baseline_id, user["org_id"], draft_only=False)
+    item = _find_item(b, item_id)
+    expected = item.sw_file_sha256 if data.target == "sw" else item.sw_config_sha256
+    match = expected is not None and expected == data.computed_sha256
+    await _audit(db, user, "verify", "rxswin_baseline_item", item.id, after={
+        "rxswin": b.rxswin_ref.rxswin, "baseline_number": b.baseline_number, "ecu": item.ecu.ecu_name,
+        "target": data.target, "file_name": data.file_name, "file_size": data.file_size,
+        "expected_sha256": expected, "computed_sha256": data.computed_sha256, "match": match,
+    })
+    await db.commit()
+    return VerifyResponse(match=match, expected_sha256=expected, computed_sha256=data.computed_sha256, recorded=True)

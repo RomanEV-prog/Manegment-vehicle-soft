@@ -13,6 +13,7 @@ import { severityColor, statusColor, formatDate } from "@/lib/utils";
 import type { DtcRecord, Vehicle } from "@/types";
 import { AlertTriangle, Search, Plus, CheckCheck } from "lucide-react";
 import toast from "react-hot-toast";
+import { useTranslations } from "@/lib/i18n";
 
 export default function DtcPage() {
   const [search, setSearch] = useState("");
@@ -21,6 +22,7 @@ export default function DtcPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const queryClient = useQueryClient();
+  const t = useTranslations("dtc");
 
   const { data: dtcs, isLoading } = useQuery<DtcRecord[]>({
     queryKey: ["dtc-all", severityFilter, statusFilter],
@@ -76,10 +78,10 @@ export default function DtcPage() {
   const resolveMutation = useMutation({
     mutationFn: ({ id }: { id: string }) => dtcApi.update(id, { status: "resolved" }),
     onSuccess: () => {
-      toast.success("DTC označen kot rešen");
+      toast.success(t("resolvedSuccess"));
       queryClient.invalidateQueries({ queryKey: ["dtc-all"] });
     },
-    onError: () => toast.error("Napaka pri posodabljanju DTC"),
+    onError: () => toast.error(t("resolvedError")),
   });
 
   const reviewMutation = useMutation({
@@ -92,11 +94,11 @@ export default function DtcPage() {
   const batchResolveMutation = useMutation({
     mutationFn: (ids: string[]) => dtcApi.batchResolve(ids),
     onSuccess: (data: { resolved: number }) => {
-      toast.success(`${data.resolved} DTC zapisov označenih kot rešenih`);
+      toast.success(t("batchResolvedSuccess", { count: data.resolved }));
       setSelectedIds(new Set());
       queryClient.invalidateQueries({ queryKey: ["dtc-all"] });
     },
-    onError: () => toast.error("Napaka pri batch reševanju DTC"),
+    onError: () => toast.error(t("batchResolvedError")),
   });
 
   const handleBatchResolve = () => {
@@ -112,16 +114,16 @@ export default function DtcPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">DTC napake</h2>
+          <h2 className="text-2xl font-bold text-gray-900">{t("title")}</h2>
           <div className="mt-1 flex items-center gap-3 text-sm">
             {highCount > 0 && (
               <span className="flex items-center gap-1 text-red-600 font-medium">
                 <AlertTriangle className="h-4 w-4" />
-                {highCount} kritičnih
+                {t("critical", { count: highCount })}
               </span>
             )}
             {medCount > 0 && (
-              <span className="text-orange-500">{medCount} srednje resnih</span>
+              <span className="text-orange-500">{t("medium", { count: medCount })}</span>
             )}
           </div>
         </div>
@@ -139,12 +141,12 @@ export default function DtcPage() {
               ) : (
                 <CheckCheck className="mr-2 h-4 w-4" />
               )}
-              Reši izbrane ({selectedIds.size})
+              {t("resolveSelected", { count: selectedIds.size })}
             </Button>
           )}
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
-            Nov DTC
+            {t("newDtc")}
           </Button>
         </div>
       </div>
@@ -154,7 +156,7 @@ export default function DtcPage() {
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <Input
-            placeholder="Išči kodo, opis, vozilo..."
+            placeholder={t("searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -165,20 +167,20 @@ export default function DtcPage() {
           onChange={(e) => setSeverityFilter(e.target.value)}
           className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
         >
-          <option value="">Vsa resnost</option>
-          <option value="high">Visoka</option>
-          <option value="medium">Srednja</option>
-          <option value="low">Nizka</option>
+          <option value="">{t("allSeverity")}</option>
+          <option value="high">{t("severityHigh")}</option>
+          <option value="medium">{t("severityMedium")}</option>
+          <option value="low">{t("severityLow")}</option>
         </select>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
           className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
         >
-          <option value="">Vsi statusi</option>
-          <option value="active">Aktiven</option>
-          <option value="in_review">V pregledu</option>
-          <option value="resolved">Rešen</option>
+          <option value="">{t("allStatuses")}</option>
+          <option value="active">{t("statusActive")}</option>
+          <option value="in_review">{t("statusInReview")}</option>
+          <option value="resolved">{t("statusResolved")}</option>
         </select>
       </div>
 
@@ -199,17 +201,17 @@ export default function DtcPage() {
                       checked={allUnresolvedSelected}
                       onChange={toggleAll}
                       className="h-4 w-4 rounded border-gray-300 text-blue-600 cursor-pointer"
-                      title="Izberi vse nerešene"
+                      title={t("selectAllUnresolved")}
                     />
                   </th>
-                  <th className="px-4 py-3">Vozilo</th>
-                  <th className="px-4 py-3">Koda</th>
-                  <th className="px-4 py-3">Opis</th>
-                  <th className="px-4 py-3">Resnost</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Zaznano</th>
-                  <th className="px-4 py-3">Vir</th>
-                  <th className="px-4 py-3">Akcija</th>
+                  <th className="px-4 py-3">{t("colVehicle")}</th>
+                  <th className="px-4 py-3">{t("colCode")}</th>
+                  <th className="px-4 py-3">{t("colDescription")}</th>
+                  <th className="px-4 py-3">{t("colSeverity")}</th>
+                  <th className="px-4 py-3">{t("colStatus")}</th>
+                  <th className="px-4 py-3">{t("colDetected")}</th>
+                  <th className="px-4 py-3">{t("colSource")}</th>
+                  <th className="px-4 py-3">{t("colAction")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -265,7 +267,7 @@ export default function DtcPage() {
                             className="h-7 text-xs"
                             onClick={() => reviewMutation.mutate(dtc.id)}
                           >
-                            Pregled
+                            {t("actionReview")}
                           </Button>
                         )}
                         {dtc.status !== "resolved" && (
@@ -275,7 +277,7 @@ export default function DtcPage() {
                             className="h-7 text-xs text-green-600 hover:text-green-700"
                             onClick={() => resolveMutation.mutate({ id: dtc.id })}
                           >
-                            Reši
+                            {t("actionResolve")}
                           </Button>
                         )}
                       </div>
@@ -285,7 +287,7 @@ export default function DtcPage() {
                 {filtered.length === 0 && (
                   <tr>
                     <td colSpan={9} className="py-12 text-center text-gray-400">
-                      Ni DTC zapisov
+                      {t("noData")}
                     </td>
                   </tr>
                 )}

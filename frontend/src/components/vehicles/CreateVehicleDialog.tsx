@@ -15,6 +15,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { vehiclesApi } from "@/lib/api";
 import toast from "react-hot-toast";
 import type { AxiosError } from "axios";
+import { useTranslations } from "@/lib/i18n";
 
 interface Props {
   open: boolean;
@@ -25,6 +26,8 @@ const STATUS_OPTIONS = ["active", "in_service", "shipped", "decommissioned"];
 
 export function CreateVehicleDialog({ open, onClose }: Props) {
   const qc = useQueryClient();
+  const t = useTranslations("vehicles");
+  const tCommon = useTranslations("common");
   const [form, setForm] = useState({
     name: "",
     model: "",
@@ -41,13 +44,13 @@ export function CreateVehicleDialog({ open, onClose }: Props) {
   const mutation = useMutation({
     mutationFn: () => vehiclesApi.create(form),
     onSuccess: () => {
-      toast.success("Vozilo ustvarjeno");
+      toast.success(t("createSuccess"));
       qc.invalidateQueries({ queryKey: ["vehicles"] });
       onClose();
       setForm({ name: "", model: "", year: new Date().getFullYear(), vin: "", seats: 1, project_name: "", status: "active" });
     },
     onError: (e: AxiosError<{ detail: string }>) => {
-      toast.error(e.response?.data?.detail ?? "Napaka pri ustvarjanju vozila");
+      toast.error(e.response?.data?.detail ?? t("createError"));
     },
   });
 
@@ -55,21 +58,21 @@ export function CreateVehicleDialog({ open, onClose }: Props) {
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Novo vozilo</DialogTitle>
+          <DialogTitle>{t("createTitle")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Ime *</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldName")}</label>
               <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Harlander #3" />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Model *</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldModel")}</label>
               <Input value={form.model} onChange={(e) => set("model", e.target.value)} placeholder="eShuttle S1" />
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-700">VIN *</label>
+            <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldVin")}</label>
             <Input
               value={form.vin}
               onChange={(e) => set("vin", e.target.value.toUpperCase())}
@@ -79,7 +82,7 @@ export function CreateVehicleDialog({ open, onClose }: Props) {
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Leto</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldYear")}</label>
               <Input
                 type="number"
                 value={form.year}
@@ -89,7 +92,7 @@ export function CreateVehicleDialog({ open, onClose }: Props) {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Sedeži</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldSeats")}</label>
               <Input
                 type="number"
                 value={form.seats}
@@ -99,7 +102,7 @@ export function CreateVehicleDialog({ open, onClose }: Props) {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Status</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldStatus")}</label>
               <select
                 value={form.status}
                 onChange={(e) => set("status", e.target.value)}
@@ -112,7 +115,7 @@ export function CreateVehicleDialog({ open, onClose }: Props) {
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-700">Projekt</label>
+            <label className="mb-1 block text-xs font-medium text-gray-700">{t("fieldProject")}</label>
             <Input
               value={form.project_name}
               onChange={(e) => set("project_name", e.target.value)}
@@ -121,13 +124,13 @@ export function CreateVehicleDialog({ open, onClose }: Props) {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Prekliči</Button>
+          <Button variant="outline" onClick={onClose}>{tCommon("cancel")}</Button>
           <Button
             onClick={() => mutation.mutate()}
             disabled={mutation.isPending || !form.name || !form.vin || !form.model}
           >
             {mutation.isPending ? <Spinner className="mr-2 h-4 w-4" /> : null}
-            Ustvari
+            {tCommon("create")}
           </Button>
         </DialogFooter>
       </DialogContent>

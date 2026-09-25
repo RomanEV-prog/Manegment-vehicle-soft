@@ -24,6 +24,7 @@ import {
   Car,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { useTranslations } from "@/lib/i18n";
 
 // ─── Live Data Tile ───────────────────────────────────────────────────────────
 
@@ -67,6 +68,7 @@ function ManualScanDialog({
   vehicleName: string;
 }) {
   const queryClient = useQueryClient();
+  const t = useTranslations("obd.scanDialog");
   const [form, setForm] = useState({
     adapter_type: "ELM327",
     adapter_id: "",
@@ -85,14 +87,14 @@ function ManualScanDialog({
     mutationFn: (payload: unknown) => obdApi.scan(vehicleId, payload),
     onSuccess: (data: OBDScanResponse) => {
       toast.success(
-        `Sken zaključen: ${data.dtcs_imported} DTC uvoženih, ${data.dtcs_skipped} preskočenih`
+        t("scanSuccess", { imported: data.dtcs_imported, skipped: data.dtcs_skipped })
       );
       queryClient.invalidateQueries({ queryKey: ["obd-sessions", vehicleId] });
       queryClient.invalidateQueries({ queryKey: ["obd-live", vehicleId] });
       queryClient.invalidateQueries({ queryKey: ["dtc-all"] });
       onClose();
     },
-    onError: () => toast.error("Napaka pri OBD skenu"),
+    onError: () => toast.error(t("scanError")),
   });
 
   const handleSubmit = () => {
@@ -122,16 +124,25 @@ function ManualScanDialog({
 
   if (!open) return null;
 
+  const pidFields = [
+    { key: "rpm", label: t("pidRpm") },
+    { key: "speed_kmh", label: t("pidSpeed") },
+    { key: "coolant_temp_c", label: t("pidCoolant") },
+    { key: "battery_voltage", label: t("pidVoltage") },
+    { key: "fuel_level_pct", label: t("pidFuel") },
+    { key: "engine_load_pct", label: t("pidLoad") },
+  ];
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
         <h3 className="mb-4 text-lg font-semibold text-gray-900">
-          Ročni OBD sken — {vehicleName}
+          {t("title", { vehicle: vehicleName })}
         </h3>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Adapter</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("adapter")}</label>
               <select
                 value={form.adapter_type}
                 onChange={(e) => setForm((f) => ({ ...f, adapter_type: e.target.value }))}
@@ -140,23 +151,23 @@ function ManualScanDialog({
                 <option value="ELM327">ELM327</option>
                 <option value="J2534">J2534 (Pass-Thru)</option>
                 <option value="K-Line">K-Line</option>
-                <option value="manual">Ročni vnos</option>
+                <option value="manual">{t("adapterManual")}</option>
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">ID adapterja</label>
+              <label className="mb-1 block text-xs font-medium text-gray-700">{t("adapterId")}</label>
               <input
                 type="text"
                 value={form.adapter_id}
                 onChange={(e) => setForm((f) => ({ ...f, adapter_id: e.target.value }))}
-                placeholder="npr. ELM327-BT-001"
+                placeholder={t("adapterIdPlaceholder")}
                 className="w-full rounded-md border px-3 py-2 text-sm"
               />
             </div>
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-700">DTC kode (ena na vrstico)</label>
+            <label className="mb-1 block text-xs font-medium text-gray-700">{t("dtcCodes")}</label>
             <textarea
               rows={3}
               value={form.dtcs_raw}
@@ -164,20 +175,13 @@ function ManualScanDialog({
               placeholder={"P0420\nU0100\nC0031"}
               className="w-full rounded-md border px-3 py-2 text-sm font-mono"
             />
-            <p className="mt-0.5 text-xs text-gray-400">Format: P/C/B/U + 4 znaki hex (npr. P0420)</p>
+            <p className="mt-0.5 text-xs text-gray-400">{t("dtcFormat")}</p>
           </div>
 
           <div>
-            <p className="mb-2 text-xs font-medium text-gray-700">Live PID podatki (opcijsko)</p>
+            <p className="mb-2 text-xs font-medium text-gray-700">{t("livePid")}</p>
             <div className="grid grid-cols-3 gap-2">
-              {[
-                { key: "rpm", label: "RPM" },
-                { key: "speed_kmh", label: "Hitrost km/h" },
-                { key: "coolant_temp_c", label: "Temp. hladilnika °C" },
-                { key: "battery_voltage", label: "Napetost V" },
-                { key: "fuel_level_pct", label: "Gorivo %" },
-                { key: "engine_load_pct", label: "Obremenitev %" },
-              ].map(({ key, label }) => (
+              {pidFields.map(({ key, label }) => (
                 <div key={key}>
                   <label className="mb-0.5 block text-xs text-gray-500">{label}</label>
                   <input
@@ -193,12 +197,12 @@ function ManualScanDialog({
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-700">Opomba</label>
+            <label className="mb-1 block text-xs font-medium text-gray-700">{t("noteLabel")}</label>
             <input
               type="text"
               value={form.notes}
               onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-              placeholder="Opcijsko..."
+              placeholder={t("notePlaceholder")}
               className="w-full rounded-md border px-3 py-2 text-sm"
             />
           </div>
@@ -206,11 +210,11 @@ function ManualScanDialog({
 
         <div className="mt-6 flex justify-end gap-2">
           <Button variant="outline" onClick={onClose} disabled={scanMutation.isPending}>
-            Prekliči
+            Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={scanMutation.isPending}>
             {scanMutation.isPending ? <Spinner className="mr-2 h-4 w-4" /> : <Plug className="mr-2 h-4 w-4" />}
-            Zaženi sken
+            {t("runScan")}
           </Button>
         </div>
       </div>
@@ -222,6 +226,7 @@ function ManualScanDialog({
 
 function SessionRow({ session }: { session: OBDSession }) {
   const [expanded, setExpanded] = useState(false);
+  const t = useTranslations("obd");
 
   return (
     <>
@@ -258,7 +263,7 @@ function SessionRow({ session }: { session: OBDSession }) {
             <span className="ml-1 text-xs text-green-600">(+{session.dtcs_imported})</span>
           )}
           {session.dtcs_skipped > 0 && (
-            <span className="ml-1 text-xs text-gray-400">({session.dtcs_skipped} preskočenih)</span>
+            <span className="ml-1 text-xs text-gray-400">({session.dtcs_skipped} {t("skipped")})</span>
           )}
         </td>
         <td className="px-4 py-3">
@@ -269,7 +274,7 @@ function SessionRow({ session }: { session: OBDSession }) {
           )}
         </td>
         <td className="px-4 py-3">
-          <Badge variant={session.status === "completed" ? "success" : "error"}>
+          <Badge variant={session.status === "completed" ? "success" : "danger"}>
             {session.status}
           </Badge>
         </td>
@@ -278,12 +283,12 @@ function SessionRow({ session }: { session: OBDSession }) {
         <tr className="bg-gray-50">
           <td colSpan={7} className="px-6 py-4">
             <div className="grid grid-cols-2 gap-6">
-              {/* DTC kode */}
+              {/* DTC codes */}
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase text-gray-500">Odkrite DTC kode</p>
+                <p className="mb-2 text-xs font-semibold uppercase text-gray-500">{t("dtcFound")}</p>
                 {session.dtcs_raw.length === 0 ? (
                   <p className="text-sm text-green-600 flex items-center gap-1">
-                    <CheckCircle className="h-4 w-4" /> Brez napak
+                    <CheckCircle className="h-4 w-4" /> {t("noDtc")}
                   </p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
@@ -301,9 +306,9 @@ function SessionRow({ session }: { session: OBDSession }) {
 
               {/* Live data */}
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase text-gray-500">Live PID snapshot</p>
+                <p className="mb-2 text-xs font-semibold uppercase text-gray-500">{t("livePidSnapshot")}</p>
                 {Object.keys(session.live_data).length === 0 ? (
-                  <p className="text-sm text-gray-400">Ni PID podatkov</p>
+                  <p className="text-sm text-gray-400">{t("noPidData")}</p>
                 ) : (
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                     {Object.entries(session.live_data)
@@ -321,7 +326,7 @@ function SessionRow({ session }: { session: OBDSession }) {
               {/* ECU info */}
               {Object.keys(session.ecu_info).length > 0 && (
                 <div>
-                  <p className="mb-2 text-xs font-semibold uppercase text-gray-500">ECU info (Mode 09)</p>
+                  <p className="mb-2 text-xs font-semibold uppercase text-gray-500">{t("ecuInfo")}</p>
                   <div className="space-y-1">
                     {Object.entries(session.ecu_info).map(([k, v]) => (
                       <div key={k} className="flex justify-between text-xs">
@@ -335,7 +340,7 @@ function SessionRow({ session }: { session: OBDSession }) {
 
               {session.notes && (
                 <div>
-                  <p className="mb-1 text-xs font-semibold uppercase text-gray-500">Opomba</p>
+                  <p className="mb-1 text-xs font-semibold uppercase text-gray-500">{t("noteLabel")}</p>
                   <p className="text-sm text-gray-600">{session.notes}</p>
                 </div>
               )}
@@ -352,6 +357,7 @@ function SessionRow({ session }: { session: OBDSession }) {
 export default function OBDPage() {
   const [selectedVehicleId, setSelectedVehicleId] = useState("");
   const [scanOpen, setScanOpen] = useState(false);
+  const t = useTranslations("obd");
 
   const { data: vehicles } = useQuery<Vehicle[]>({
     queryKey: ["vehicles"],
@@ -379,17 +385,15 @@ export default function OBDPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">OBD-II diagnostika</h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Pregled diagnostičnih sej in live PID podatkov vozila
-          </p>
+          <h2 className="text-2xl font-bold text-gray-900">{t("title")}</h2>
+          <p className="mt-1 text-sm text-gray-500">{t("subtitle")}</p>
         </div>
         <Button
           onClick={() => setScanOpen(true)}
           disabled={!selectedVehicleId}
         >
           <Plug className="mr-2 h-4 w-4" />
-          Nov sken
+          {t("newScan")}
         </Button>
       </div>
 
@@ -403,7 +407,7 @@ export default function OBDPage() {
               onChange={(e) => setSelectedVehicleId(e.target.value)}
               className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
             >
-              <option value="">Izberi vozilo...</option>
+              <option value="">{t("selectVehicle")}</option>
               {(vehicles ?? []).map((v) => (
                 <option key={v.id} value={v.id}>
                   {v.name} — {v.vin}
@@ -427,10 +431,10 @@ export default function OBDPage() {
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Activity className="h-4 w-4 text-blue-600" />
-                  Live podatki
+                  {t("liveDataTitle")}
                   {liveData.last_scanned_at && (
                     <span className="ml-auto text-xs font-normal text-gray-400">
-                      Zadnji sken: {formatDate(liveData.last_scanned_at)}
+                      {t("lastScan")} {formatDate(liveData.last_scanned_at)}
                     </span>
                   )}
                 </CardTitle>
@@ -438,13 +442,13 @@ export default function OBDPage() {
               <CardContent>
                 {!liveData.has_data ? (
                   <p className="py-4 text-center text-sm text-gray-400">
-                    Ni podatkov — zaženite prvi OBD sken
+                    {t("noLiveData")}
                   </p>
                 ) : (
                   <div className="flex flex-wrap gap-3">
                     <LiveTile
                       icon={Gauge}
-                      label="Vrtljaji"
+                      label={t("rpm")}
                       value={live.rpm}
                       unit="RPM"
                       colorClass={
@@ -453,13 +457,13 @@ export default function OBDPage() {
                     />
                     <LiveTile
                       icon={Gauge}
-                      label="Hitrost"
+                      label={t("speed")}
                       value={live.speed_kmh}
                       unit="km/h"
                     />
                     <LiveTile
                       icon={Thermometer}
-                      label="Hladilnik"
+                      label={t("coolant")}
                       value={live.coolant_temp_c}
                       unit="°C"
                       colorClass={
@@ -469,13 +473,13 @@ export default function OBDPage() {
                     />
                     <LiveTile
                       icon={Thermometer}
-                      label="Zrak intake"
+                      label={t("intake")}
                       value={live.intake_temp_c}
                       unit="°C"
                     />
                     <LiveTile
                       icon={Battery}
-                      label="Napetost"
+                      label={t("voltage")}
                       value={live.battery_voltage}
                       unit="V"
                       colorClass={
@@ -485,7 +489,7 @@ export default function OBDPage() {
                     />
                     <LiveTile
                       icon={Fuel}
-                      label="Gorivo"
+                      label={t("fuel")}
                       value={live.fuel_level_pct}
                       unit="%"
                       colorClass={
@@ -494,7 +498,7 @@ export default function OBDPage() {
                     />
                     <LiveTile
                       icon={Zap}
-                      label="Obremenitev"
+                      label={t("load")}
                       value={live.engine_load_pct}
                       unit="%"
                     />
@@ -518,10 +522,10 @@ export default function OBDPage() {
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Plug className="h-4 w-4 text-gray-600" />
-                OBD seje
+                {t("sessionsTitle")}
                 {sessions && (
                   <span className="ml-auto text-xs font-normal text-gray-400">
-                    {sessions.length} sej skupaj
+                    {t("sessionsCount", { count: sessions.length })}
                   </span>
                 )}
               </CardTitle>
@@ -536,12 +540,12 @@ export default function OBDPage() {
                   <thead>
                     <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase text-gray-500">
                       <th className="px-4 py-3 w-8"></th>
-                      <th className="px-4 py-3">Čas skena</th>
-                      <th className="px-4 py-3">Adapter</th>
-                      <th className="px-4 py-3">Protokol</th>
-                      <th className="px-4 py-3">DTC</th>
-                      <th className="px-4 py-3">VIN (OBD)</th>
-                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">{t("colScanTime")}</th>
+                      <th className="px-4 py-3">{t("colAdapter")}</th>
+                      <th className="px-4 py-3">{t("colProtocol")}</th>
+                      <th className="px-4 py-3">{t("colDtc")}</th>
+                      <th className="px-4 py-3">{t("colVin")}</th>
+                      <th className="px-4 py-3">{t("colStatus")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -551,7 +555,7 @@ export default function OBDPage() {
                     {(sessions ?? []).length === 0 && (
                       <tr>
                         <td colSpan={7} className="py-12 text-center text-gray-400">
-                          Ni OBD sej za to vozilo
+                          {t("noSessions")}
                         </td>
                       </tr>
                     )}
@@ -567,7 +571,7 @@ export default function OBDPage() {
         <div className="flex h-64 items-center justify-center rounded-xl border-2 border-dashed border-gray-200 text-gray-400">
           <div className="text-center">
             <Plug className="mx-auto mb-3 h-10 w-10 opacity-30" />
-            <p className="text-sm">Izberi vozilo za OBD diagnostiko</p>
+            <p className="text-sm">{t("selectVehiclePrompt")}</p>
           </div>
         </div>
       )}

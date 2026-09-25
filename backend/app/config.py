@@ -1,4 +1,9 @@
+from typing import Self
+
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_INSECURE_DEFAULT_KEY = "change-me-in-production-min-32-chars!!"
 
 
 class Settings(BaseSettings):
@@ -11,10 +16,18 @@ class Settings(BaseSettings):
     # Redis
     redis_url: str = "redis://redis:6379/0"
 
-    # JWT
-    secret_key: str = "change-me-in-production-min-32-chars!!"
+    # JWT — v produkciji MORA biti nastavljen prek .env (openssl rand -hex 32)
+    secret_key: str = _INSECURE_DEFAULT_KEY
     access_token_expire_minutes: int = 60
     refresh_token_expire_days: int = 30
+
+    @model_validator(mode="after")
+    def validate_production_config(self) -> Self:
+        if len(self.secret_key) < 32:
+            raise ValueError("SECRET_KEY mora imeti vsaj 32 znakov")
+        if self.environment == "production" and self.secret_key == _INSECURE_DEFAULT_KEY:
+            raise ValueError("SECRET_KEY mora biti spremenjen v produkciji! Generiraj z: openssl rand -hex 32")
+        return self
 
     # MinIO
     minio_endpoint: str = "minio:9000"

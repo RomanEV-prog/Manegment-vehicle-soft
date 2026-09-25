@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/components/layout/QueryProvider";
+import { I18nProvider } from "@/lib/i18n";
+import { cookies } from "next/headers";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -10,11 +12,23 @@ export const metadata: Metadata = {
   description: "UNECE R155/R156 Vehicle Software Compliance Management",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+async function getI18nProps() {
+  const cookieStore = cookies();
+  const raw = cookieStore.get("NEXT_LOCALE")?.value ?? "sl";
+  const locale = ["sl", "en"].includes(raw) ? raw : "sl";
+  const messages = (await import(`../../messages/${locale}.json`)).default;
+  return { locale, messages };
+}
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const { locale, messages } = await getI18nProps();
+
   return (
-    <html lang="sl">
+    <html lang={locale}>
       <body className={inter.className}>
-        <QueryProvider>{children}</QueryProvider>
+        <I18nProvider locale={locale} messages={messages}>
+          <QueryProvider>{children}</QueryProvider>
+        </I18nProvider>
       </body>
     </html>
   );

@@ -5,6 +5,7 @@ from sqlalchemy import select
 
 from app.api.deps import CurrentUserDep, DbSession, NonPartnerDep
 from app.models.homologation import Homologation
+from app.models.vehicle import Vehicle
 from app.schemas.homologation import (
     HomologationCreate,
     HomologationResponse,
@@ -33,6 +34,22 @@ async def list_homologations(
 
 @router.post("", response_model=HomologationResponse, status_code=status.HTTP_201_CREATED)
 async def create_homologation(data: HomologationCreate, user: NonPartnerDep, db: DbSession):
+    vehicle = await db.scalar(
+        select(Vehicle).where(Vehicle.id == data.vehicle_id, Vehicle.organization_id == user["org_id"])
+    )
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vozilo ne obstaja")
+    duplicate = await db.scalar(
+        select(Homologation.id).where(
+            Homologation.vehicle_id == data.vehicle_id, Homologation.regulation == data.regulation
+        )
+    )
+    if duplicate:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Homologacija za uredbo '{data.regulation}' za to vozilo že obstaja",
+        )
+
     hom = Homologation(**data.model_dump(), organization_id=user["org_id"])
     db.add(hom)
     await db.flush()

@@ -50,6 +50,7 @@ async def test_rxswin_required(client, org_and_user, db_session):
         vin="VIN-TEST-SW-001",
     )
     db_session.add(vehicle)
+    await db_session.flush()
     twin = VehicleTwin(vehicle_id=vehicle.id)
     db_session.add(twin)
     await db_session.commit()
@@ -81,6 +82,7 @@ async def test_sw_update_valid(client, org_and_user, db_session):
         vin="VIN-TEST-SW-002",
     )
     db_session.add(vehicle)
+    await db_session.flush()
     twin = VehicleTwin(vehicle_id=vehicle.id)
     db_session.add(twin)
     await db_session.commit()
