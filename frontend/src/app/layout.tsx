@@ -14,7 +14,9 @@ export const metadata: Metadata = {
 
 async function getI18nProps() {
   const cookieStore = cookies();
-  const raw = cookieStore.get("NEXT_LOCALE")?.value ?? "sl";
+  // DEFAULT_LOCALE (runtime env) določi jezik, dokler uporabnik ne izbere drugega
+  const fallback = process.env.DEFAULT_LOCALE === "en" ? "en" : "sl";
+  const raw = cookieStore.get("NEXT_LOCALE")?.value ?? fallback;
   const locale = ["sl", "en"].includes(raw) ? raw : "sl";
   const messages = (await import(`../../messages/${locale}.json`)).default;
   return { locale, messages };

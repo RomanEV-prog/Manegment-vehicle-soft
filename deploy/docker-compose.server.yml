@@ -1,0 +1,91 @@
+# Samostojna postavitev za strežnik (predogled za eVersum / kasneje lokalni strežnik).
+#
+# NAMENOMA ni override docker-compose.yml: Compose sezname `ports` iz več datotek
+# ZDRUŽI, zato `ports: []` v overridu ne zapre razvojnih portov (5432, 9000, 8000).
+# Tu je javno odprt samo Caddy (80/443); vse ostalo je le v notranjem omrežju.
+#
+# Zagon (v mapi deploy/):  docker compose -f docker-compose.server.yml --env-file .env.server up -d --build
+
+name: eversum-sums
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: eversum_db
+      POSTGRES_USER: eversum
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD manjka}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eversum -d eversum_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+
+  api:
+    build: ../backend
+    restart: always
+    environment:
+      DATABASE_URL: postgresql+asyncpg://eversum:${DB_PASSWORD}@db:5432/eversum_db
+      DATABASE_URL_SYNC: postgresql://eversum:${DB_PASSWORD}@db:5432/eversum_db
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY manjka}
+      ENVIRONMENT: production
+      DEBUG: "false"
+    # --proxy-headers: pravi IP odjemalca iz X-Forwarded-For (audit log, omejitev prijav).
+    # API ni izpostavljen navzven, zato je zaupanje glavam varno.
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+             --proxy-headers --forwarded-allow-ips='*'"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ../frontend
+      args:
+        NEXT_PUBLIC_API_URL: http://api:8000
+        NEXT_PUBLIC_WS_URL: wss://${SITE_ADDRESS}
+        NEXT_PUBLIC_MODULES: ${MODULES:-r156,audit}
+    restart: always
+    environment:
+      NEXT_PUBLIC_API_URL: http://api:8000
+      DEFAULT_LOCALE: ${DEFAULT_LOCALE:-en}
+    depends_on:
+      - api
+
+  caddy:
+    image: caddy:2-alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?SITE_ADDRESS manjka}
+    volumes:
+      - ./Caddyfile.server:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+
+volumes:
+  postgres_data:
+  redis_data:
+  caddy_data:
+  caddy_config:

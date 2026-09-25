@@ -12,6 +12,7 @@ from app.utils.security import (
     decode_refresh_token,
     verify_password,
 )
+from app.utils import login_limit
 from app.utils.audit import write_audit_log
 
 router = APIRouter()
@@ -19,10 +20,20 @@ router = APIRouter()
 
 @router.post("/login", response_model=TokenResponse)
 async def login(request: Request, data: LoginRequest, db: DbSession):
+    client_ip = request.client.host if request.client else None
+    wait = login_limit.retry_after(data.email, client_ip)
+    if wait:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Preveč neuspelih prijav — poskusi znova čez nekaj minut",
+            headers={"Retry-After": str(wait)},
+        )
+
     result = await db.execute(select(User).where(User.email == data.email, User.is_active == True))
     user = result.scalar_one_or_none()
 
     if not user or not verify_password(data.password, user.password_hash):
+        login_limit.record_failure(data.email, client_ip)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Napačen email ali geslo",
@@ -35,8 +46,9 @@ async def login(request: Request, data: LoginRequest, db: DbSession):
         "role": user.role,
     }
 
+    login_limit.record_success(data.email)
+
     # Audit log — R156 §7.4: sledenje prijav
-    client_ip = request.client.host if request.client else None
     await write_audit_log(
         db=db,
         org_id=user.organization_id,

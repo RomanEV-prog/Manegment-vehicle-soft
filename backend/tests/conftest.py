@@ -59,6 +59,14 @@ async def db_session(test_engine):
 
 
 @pytest.fixture(autouse=True)
+def _reset_login_limit():
+    from app.utils import login_limit
+    login_limit.reset()
+    yield
+    login_limit.reset()
+
+
+@pytest.fixture(autouse=True)
 def _no_celery():
     """Celery naloge se v testih ne pošiljajo brokerju (worker bi jih izvedel nad razvojno bazo)."""
     with patch("app.workers.twin_worker.update_vehicle_twin.delay", MagicMock()), \

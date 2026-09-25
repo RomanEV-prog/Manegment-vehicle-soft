@@ -1,0 +1,21 @@
+# En naslov za vse: spletni vmesnik, /api prek Next rewrite, /ws neposredno na API.
+# SITE_ADDRESS je npr. 203-0-113-10.sslip.io — Caddy sam pridobi Let's Encrypt certifikat.
+{$SITE_ADDRESS} {
+	encode gzip
+
+	handle /ws/* {
+		reverse_proxy api:8000
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Frame-Options DENY
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+}

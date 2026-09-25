@@ -166,3 +166,22 @@ async def test_org_isolation(client, db_session):
         vehicles = response.json()
         vins = [v["vin"] for v in vehicles]
         assert "VIN-ORG-B-001" not in vins, "Org isolation je pokvarjena!"
+
+
+async def test_login_rate_limited_after_repeated_failures(client, org_and_user):
+    """Po 10 neuspelih poskusih je prijava začasno blokirana — tudi s pravim geslom."""
+    from app.utils.login_limit import MAX_FAILURES
+
+    for _ in range(MAX_FAILURES):
+        r = await client.post("/api/v1/auth/login", json={"email": "test.admin@eversum.com", "password": "narobe"})
+        assert r.status_code == 401
+    blocked = await client.post("/api/v1/auth/login", json={"email": "test.admin@eversum.com", "password": "test1234"})
+    assert blocked.status_code == 429
+    assert int(blocked.headers["Retry-After"]) > 0
+
+
+async def test_successful_login_resets_failure_count(client, org_and_user):
+    for _ in range(5):
+        await client.post("/api/v1/auth/login", json={"email": "test.admin@eversum.com", "password": "narobe"})
+    ok = await client.post("/api/v1/auth/login", json={"email": "test.admin@eversum.com", "password": "test1234"})
+    assert ok.status_code == 200
