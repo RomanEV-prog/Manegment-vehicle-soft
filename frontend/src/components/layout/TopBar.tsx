@@ -9,6 +9,7 @@ import { useTranslations, useLocale } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import { moduleEnabled } from "@/lib/modules";
+import { HelpButton } from "@/components/help/help";
 
 interface TopBarProps {
   title: string;
@@ -43,6 +44,8 @@ export function TopBar({ title }: TopBarProps) {
           {connected ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
         </span>
         )}
+
+        <HelpButton />
 
         {/* Language switcher */}
         <div className="flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 p-0.5">

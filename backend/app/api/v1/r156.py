@@ -958,6 +958,28 @@ async def sums_overview(user: CurrentUserDep, db: DbSession):
 
     return {
         "counts": counts,
+        # čarovnik "Prvi koraki": koliko je narejenega v vsakem koraku postavitve
+        "setup": {
+            "vehicle_types": await db.scalar(
+                select(func.count()).select_from(VehicleType).where(VehicleType.organization_id == org)
+            ),
+            "ecus": await db.scalar(select(func.count()).select_from(ECU).where(ECU.organization_id == org)),
+            "rxswins": counts["rxswins"],
+            "released_baselines": counts["released_baselines"],
+            "vehicles": counts["vehicles"],
+            "eol_configurations": await db.scalar(
+                select(func.count())
+                .select_from(VehicleConfiguration)
+                .where(VehicleConfiguration.organization_id == org, VehicleConfiguration.config_type == "initial_eol")
+            ),
+            "released_updates": counts["released_updates"],
+            "executed_updates": await db.scalar(
+                select(func.count())
+                .select_from(SoftwareUpdateTarget)
+                .join(SoftwareUpdateDocument, SoftwareUpdateDocument.id == SoftwareUpdateTarget.software_update_id)
+                .where(SoftwareUpdateDocument.organization_id == org, SoftwareUpdateTarget.result == "success")
+            ),
+        },
         "draft_baselines": [
             {"rxswin_id": str(i), "rxswin": r, "baseline_number": n, "created_at": c} for i, r, n, c in draft_baselines
         ],

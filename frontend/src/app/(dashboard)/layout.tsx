@@ -43,6 +43,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     "/software-updates": t("softwareUpdates"),
     "/fleet": t("fleet"),
     "/sums": t("sumsOverview"),
+    "/help": t("help"),
   };
 
   function getTitle(pathname: string): string {

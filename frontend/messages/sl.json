@@ -58,7 +58,8 @@
     "sectionOther": "Ostalo",
     "softwareUpdates": "Software Update",
     "fleet": "Vozila (VIN)",
-    "sumsOverview": "Pregled"
+    "sumsOverview": "Pregled",
+    "help": "Pomoč"
   },
   "login": {
     "title": "eVersum",
@@ -989,5 +990,18 @@
     "action_update": "posodobitev",
     "import": "Uvozi {n}",
     "done": "Uvoženo: {n}"
+  },
+  "help": {
+    "title": "Pomoč",
+    "subtitle": "Vodiči korak za korakom za vse dele SUMS",
+    "search": "Išči po vodičih",
+    "noResults": "Noben vodič ne ustreza iskanju",
+    "tips": "Dobro je vedeti",
+    "openPage": "Odpri to stran",
+    "allGuides": "Vsi vodiči",
+    "pageHelp": "Pomoč za to stran",
+    "progress": "{done} od {total} narejenih",
+    "goThere": "Pojdi tja",
+    "howTo": "Kako"
   }
 }

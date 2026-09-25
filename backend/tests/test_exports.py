@@ -63,6 +63,10 @@ async def test_sums_overview(client, su):
     assert [x["baseline_number"] for x in r["draft_baselines"]] == [3]
     assert len(r["vehicles_without_eol"]) == 3
     assert r["recent"][0]["user"] == "Test Admin"
+    assert r["setup"] == {
+        "vehicle_types": 2, "ecus": 1, "rxswins": 1, "released_baselines": 1, "vehicles": 3,
+        "eol_configurations": 0, "released_updates": 0, "executed_updates": 0,
+    }
 
 
 async def test_audit_log_is_append_only(client, su, test_engine):

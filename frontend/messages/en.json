@@ -58,7 +58,8 @@
     "sectionOther": "Other",
     "softwareUpdates": "Software Updates",
     "fleet": "Vehicles (VIN)",
-    "sumsOverview": "Overview"
+    "sumsOverview": "Overview",
+    "help": "Help"
   },
   "login": {
     "title": "eVersum",
@@ -989,5 +990,18 @@
     "action_update": "update",
     "import": "Import {n}",
     "done": "{n} imported"
+  },
+  "help": {
+    "title": "Help",
+    "subtitle": "Step-by-step guides for every part of the SUMS",
+    "search": "Search guides",
+    "noResults": "No guide matches your search",
+    "tips": "Good to know",
+    "openPage": "Open this page",
+    "allGuides": "All guides",
+    "pageHelp": "Help for this page",
+    "progress": "{done} of {total} done",
+    "goThere": "Go there",
+    "howTo": "How to"
   }
 }

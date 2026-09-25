@@ -8,9 +8,11 @@ import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/lib/api";
 import { useTranslations } from "@/lib/i18n";
 import { formatDateTime } from "@/lib/utils";
+import { SetupChecklist } from "@/components/help/help";
 
 interface Overview {
   counts: { rxswins: number; released_baselines: number; released_updates: number; vehicles: number };
+  setup: Record<string, number>;
   draft_baselines: { rxswin_id: string; rxswin: string; baseline_number: number; created_at: string }[];
   su_drafts: { id: string; document_id: string; revision: number; title: string; updated_at: string }[];
   pending_execution: { id: string; document_id: string; revision: number; title: string; pending: number }[];
@@ -90,6 +92,8 @@ export default function SumsOverviewPage() {
         <h2 className="text-xl font-semibold text-gray-900">{t("title")}</h2>
         <p className="text-sm text-gray-500">{t("subtitle")}</p>
       </div>
+
+      <SetupChecklist setup={data.setup} />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label={t("rxswins")} value={data.counts.rxswins} icon={ShieldCheck} />

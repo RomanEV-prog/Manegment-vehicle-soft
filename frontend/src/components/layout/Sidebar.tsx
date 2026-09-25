@@ -21,6 +21,7 @@ import {
   FileCheck2,
   Truck,
   LayoutDashboard,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -119,6 +120,13 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="border-t p-3 space-y-1">
+        <Link
+          href="/help"
+          className="flex items-center rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+        >
+          <BookOpen className="mr-3 h-4 w-4" />
+          {t("help")}
+        </Link>
         <Link
           href="/settings"
           className="flex items-center rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
