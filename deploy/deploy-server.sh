@@ -51,7 +51,8 @@ $SSH "cd ${REMOTE}/deploy && if [ ! -f .env.server ]; then
   printf 'SITE_ADDRESS=%s\nDB_PASSWORD=%s\nSECRET_KEY=%s\nDEFAULT_LOCALE=en\nMODULES=r156,audit\n' \
     '${SITE}' \"\$(openssl rand -hex 24)\" \"\$(openssl rand -hex 32)\" > .env.server
   echo 'ustvarjena nova .env.server'
-fi"
+fi
+grep -q '^ERP_API_KEY=' .env.server || { printf 'ERP_API_KEY=%s\n' \"\$(openssl rand -hex 24)\" >> .env.server; echo 'dodan ERP_API_KEY'; }"
 
 echo "=== Gradnja in zagon ==="
 $SSH "cd ${REMOTE}/deploy && docker compose -f docker-compose.server.yml --env-file .env.server up -d --build --remove-orphans"

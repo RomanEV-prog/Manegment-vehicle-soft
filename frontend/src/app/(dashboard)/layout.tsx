@@ -46,6 +46,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (pathname.startsWith("/vehicles/")) return t("vehicles");
     if (pathname.startsWith("/rxswins/")) return t("rxswins");
     if (pathname.startsWith("/software-updates/")) return t("softwareUpdates");
+    if (pathname.startsWith("/fleet/")) return t("fleet");
     return PAGE_TITLES[pathname] ?? "eVersum";
   }
 

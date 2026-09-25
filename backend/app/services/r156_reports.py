@@ -156,12 +156,13 @@ SU_TEMPLATE = """
 
 <h2>7. Target vehicles — §7.1.1.6, §7.1.1.7, §7.1.2.4</h2>
 <table class="grid">
-  <tr><th>VIN</th><th>Vehicle</th><th>Compatibility confirmed</th><th>Result</th></tr>
+  <tr><th>VIN</th><th>Vehicle</th><th>Last known configuration</th><th>Compatibility confirmed</th><th>Result</th></tr>
   {% for t in d.targets %}
   <tr><td class="mono">{{ t.vin }}</td><td>{{ t.vehicle_name }}</td>
+      <td>{{ t.current_config_id or "—" }}<br><span class="small">{{ {"ok": "matches baseline before", "mismatch": "DOES NOT match baseline before", "already_installed": "update already installed", "unknown": "no configuration recorded"}[t.precondition] }}{% if t.precondition_detail %} ({{ t.precondition_detail|join("; ") }}){% endif %}</span></td>
       <td>{% if t.compatibility_confirmed %}Yes — {{ t.confirmed_by_name or "—" }}, {{ t.confirmed_at|dt }}{% else %}No{% endif %}{% if t.compatibility_notes %}<br><span class="small">{{ t.compatibility_notes }}</span>{% endif %}</td>
       <td>{% if t.result %}{{ t.result }} — {{ t.applied_by_name or "—" }}, {{ t.applied_at|dt }}{% else %}pending{% endif %}</td></tr>
-  {% else %}<tr><td colspan="4">—</td></tr>{% endfor %}
+  {% else %}<tr><td colspan="5">—</td></tr>{% endfor %}
 </table>
 
 <h2>8. References</h2>

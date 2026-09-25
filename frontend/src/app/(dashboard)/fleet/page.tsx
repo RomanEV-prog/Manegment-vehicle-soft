@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { Plus, Truck } from "lucide-react";
@@ -87,6 +88,7 @@ function NewVehicleDialog({ open, onClose, vehicleType }: { open: boolean; onClo
 }
 
 export default function FleetPage() {
+  const router = useRouter();
   const t = useTranslations("fleet");
   const tr = useTranslations("r156");
   const { canEdit } = usePermissions();
@@ -168,7 +170,7 @@ export default function FleetPage() {
               </thead>
               <tbody className="divide-y">
                 {vehicles.map((v) => (
-                  <tr key={v.id} className="hover:bg-gray-50">
+                  <tr key={v.id} onClick={() => router.push(`/fleet/${v.id}`)} className="cursor-pointer hover:bg-gray-50">
                     <td className="px-4 py-3 font-mono font-medium">{v.vin}</td>
                     <td className="px-4 py-3">{v.name}</td>
                     <td className="px-4 py-3 text-gray-600">{v.year}</td>

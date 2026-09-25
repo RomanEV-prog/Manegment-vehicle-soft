@@ -157,6 +157,9 @@ export interface SuTarget {
   result: "success" | "failed" | "rolled_back" | null;
   applied_at: string | null;
   applied_by_name: string | null;
+  current_config_id: string | null;
+  precondition: "ok" | "mismatch" | "already_installed" | "unknown";
+  precondition_detail: string[];
 }
 
 export interface SuEditable {
@@ -205,4 +208,73 @@ export interface SuDetail extends SuEditable {
   targets: SuTarget[];
   release_blockers: string[];
   revisions: { id: string; revision: number; status: SuStatus }[];
+}
+
+// ─── Konfiguracija vozila (R156 §7.1.2.2) ────────────────────────────────────
+
+export interface SnapshotItem {
+  ecu: string;
+  ecu_id: string;
+  part_number: string;
+  sw_version: string;
+  sw_file_name: string | null;
+  sw_file_sha256: string | null;
+  sw_config_version: string | null;
+  sw_config_file_name: string | null;
+  sw_config_sha256: string | null;
+  compatible_hardware: string | null;
+}
+
+export interface SnapshotRxswin {
+  rxswin_id: string;
+  rxswin: string;
+  baseline_id: string;
+  baseline_number: number;
+  items: SnapshotItem[];
+}
+
+export interface SnapshotEcu {
+  ecu: string;
+  ecu_id: string;
+  part_number: string;
+  serial_number: string | null;
+  hardware_version: string | null;
+  batch_number: string | null;
+}
+
+export interface VehicleConfig {
+  id: string;
+  config_type: "initial_eol" | "last_known";
+  config_id: string | null;
+  reason: string | null;
+  snapshot: { vin: string; rxswins: SnapshotRxswin[]; ecus: SnapshotEcu[] };
+  system_schemes_baseline: string | null;
+  vv_status: string | null;
+  erp_work_order: string | null;
+  software_update_id: string | null;
+  created_by_name: string | null;
+  created_at: string;
+}
+
+export interface EcuInstance {
+  ecu_id: string;
+  ecu_name: string;
+  part_number: string;
+  serial_number: string | null;
+  hardware_version: string | null;
+  batch_number: string | null;
+}
+
+export interface VehicleR156 {
+  id: string;
+  vin: string;
+  name: string;
+  year: number;
+  status: string;
+  vehicle_type_id: string | null;
+  vehicle_type_name: string | null;
+  ecu_instances: EcuInstance[];
+  has_eol: boolean;
+  current: VehicleConfig | null;
+  history: VehicleConfig[];
 }

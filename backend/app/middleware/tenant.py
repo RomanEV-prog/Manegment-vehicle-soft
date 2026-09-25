@@ -25,6 +25,10 @@ class TenantMiddleware(BaseHTTPMiddleware):
         if request.url.path in PUBLIC_PATHS or request.url.path in _DEV_DOC_PATHS or request.url.path.startswith("/ws/"):
             return await call_next(request)
 
+        # ERP integracija: endpoint sam preveri X-API-Key (app/api/v1/integration.py)
+        if request.url.path.startswith("/api/v1/integration/") and request.headers.get("X-API-Key"):
+            return await call_next(request)
+
         auth_header = request.headers.get("Authorization")
         if not auth_header or not auth_header.startswith("Bearer "):
             from fastapi.responses import JSONResponse

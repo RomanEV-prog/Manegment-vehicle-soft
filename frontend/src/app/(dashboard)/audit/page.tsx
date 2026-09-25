@@ -40,7 +40,7 @@ const ACTIONS: AuditAction[] = [
 ];
 
 const ENTITY_TYPES: AuditEntityType[] = [
-  "software_update", "software_update_target", "software_update_rxswin",
+  "software_update", "software_update_target", "software_update_rxswin", "vehicle_configuration", "vehicle_ecu",
   "rxswin", "rxswin_baseline", "rxswin_baseline_item", "ecu", "vehicle_type",
   "vehicle", "sw_update", "dtc_record", "service_record",
   "homologation", "coc_certificate", "photo", "vehicle_twin", "user",
@@ -124,6 +124,8 @@ export default function AuditPage() {
     software_update: t("entitySoftwareUpdate"),
     software_update_rxswin: t("entitySoftwareUpdateRxswin"),
     software_update_target: t("entitySoftwareUpdateTarget"),
+    vehicle_configuration: t("entityVehicleConfiguration"),
+    vehicle_ecu: t("entityVehicleEcu"),
   };
 
   const isAllowed = payload?.role === "admin" || payload?.role === "qc_manager";

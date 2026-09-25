@@ -110,6 +110,10 @@ class TargetResponse(BaseModel):
     result: Optional[str]
     applied_at: Optional[datetime]
     applied_by_name: Optional[str]
+    # §7.1.1.7: zadnja znana konfiguracija vozila glede na baseline "pred"
+    current_config_id: Optional[str] = None
+    precondition: Literal["ok", "mismatch", "already_installed", "unknown"] = "unknown"
+    precondition_detail: list[str] = []
 
 
 class SUDocumentListItem(BaseModel):

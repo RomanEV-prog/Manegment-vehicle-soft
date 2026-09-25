@@ -519,7 +519,9 @@
     "entityRxswinBaselineItem": "Baseline item",
     "entitySoftwareUpdate": "Software Update",
     "entitySoftwareUpdateRxswin": "SU — affected RXSWIN",
-    "entitySoftwareUpdateTarget": "SU — target vehicle"
+    "entitySoftwareUpdateTarget": "SU — target vehicle",
+    "entityVehicleConfiguration": "Vehicle configuration",
+    "entityVehicleEcu": "Vehicle ECUs"
   },
   "settings": {
     "title": "Settings",
@@ -897,6 +899,43 @@
     "blocker_safe_state_conditions": "Safe state conditions",
     "blocker_safety_confirmation": "Safety / security confirmation",
     "blocker_no_targets": "At least one target vehicle",
-    "blocker_targets_not_confirmed": "Compatibility confirmed for every target vehicle"
+    "blocker_targets_not_confirmed": "Compatibility confirmed for every target vehicle",
+    "precondition": "Last known config",
+    "pre_ok": "Matches baseline before",
+    "pre_mismatch": "Does not match baseline before",
+    "pre_already_installed": "Already installed",
+    "pre_unknown": "No configuration recorded"
+  },
+  "vehicleCfg": {
+    "back": "Vehicles",
+    "ecusTitle": "Installed ECUs",
+    "ecusRef": "§7.1.1.2",
+    "ecusHint": "Serial number, hardware version and batch per ECU. A change after end of line creates a new last known configuration.",
+    "serial": "Serial number",
+    "hw": "HW version",
+    "batch": "Batch",
+    "saveEcus": "Save ECUs",
+    "saved": "Saved",
+    "currentTitle": "Last known configuration",
+    "currentRef": "§7.1.2.2",
+    "noConfig": "No configuration recorded yet. Record the end-of-line configuration first.",
+    "recordEol": "Record end-of-line configuration",
+    "eolTitle": "Initial end-of-line configuration",
+    "eolHint": "Select the software baseline installed at end of line for each RXSWIN. Recorded once per vehicle and read-only.",
+    "configId": "Configuration ID",
+    "systemSchemes": "System schemes baseline",
+    "vvStatus": "V&V status",
+    "erpWo": "ERP work order",
+    "notInstalled": "Not installed",
+    "recorded": "Configuration recorded",
+    "type_initial_eol": "End of line",
+    "type_last_known": "Last known",
+    "reason": "Reason",
+    "recordedAt": "Recorded {date} by {name}",
+    "history": "Configuration history",
+    "historyHint": "Every record is immutable — changes create a new record.",
+    "software": "Software",
+    "viaSu": "Software Update",
+    "erpApi": "ERP read access: GET /api/v1/integration/vehicles/{vin}/last-known-configuration"
   }
 }

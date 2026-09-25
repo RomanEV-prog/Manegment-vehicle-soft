@@ -15,6 +15,7 @@ from app.models.r156 import (
     RXSWINBaseline,
     RXSWINBaselineItem,
     SoftwareUpdateDocument,
+    VehicleConfiguration,
 )
 from app.database import Base
 
@@ -149,12 +150,34 @@ $$ LANGUAGE plpgsql
     FOR EACH ROW EXECUTE FUNCTION software_update_child_lock()""",
 ]
 
+# ─── Konfiguracija vozila (R156 §7.1.2.2) ─────────────────────────────────────
+# Zapis je nespremenljiv: nova konfiguracija = nov zapis. Brez izjem.
+CONFIG_LOCK_SQL = [
+"""
+CREATE OR REPLACE FUNCTION vehicle_configuration_lock() RETURNS trigger AS $$
+BEGIN
+    RAISE EXCEPTION 'Konfiguracija vozila % je nespremenljiva (nova konfiguracija = nov zapis)', OLD.config_id
+        USING ERRCODE = 'check_violation';
+END;
+$$ LANGUAGE plpgsql
+""",
+    "DROP TRIGGER IF EXISTS trg_vehicle_configuration_lock ON vehicle_configurations",
+    """CREATE TRIGGER trg_vehicle_configuration_lock
+    BEFORE UPDATE OR DELETE ON vehicle_configurations
+    FOR EACH ROW EXECUTE FUNCTION vehicle_configuration_lock()""",
+    # največ ena konfiguracija ob koncu linije na vozilo
+    """CREATE UNIQUE INDEX IF NOT EXISTS uq_vehicle_config_eol
+    ON vehicle_configurations (vehicle_id) WHERE config_type = 'initial_eol'""",
+]
+
 # asyncpg ne sprejme več ukazov v enem klicu — vsak ukaz posebej.
 # DDL() formatira niz z %, zato se % iz RAISE podvoji.
 for _stmt in BASELINE_LOCK_SQL:
     event.listen(RXSWINBaseline.__table__, "after_create", DDL(_stmt.replace("%", "%%")))
 for _stmt in ITEM_LOCK_SQL:
     event.listen(RXSWINBaselineItem.__table__, "after_create", DDL(_stmt.replace("%", "%%")))
+for _stmt in CONFIG_LOCK_SQL:
+    event.listen(VehicleConfiguration.__table__, "after_create", DDL(_stmt.replace("%", "%%")))
 for _stmt in SU_LOCK_SQL:
     event.listen(SoftwareUpdateDocument.__table__, "after_create", DDL(_stmt.replace("%", "%%")))
 # otroški tabeli morata obstajati obe — trigger se ustvari po celotnem create_all

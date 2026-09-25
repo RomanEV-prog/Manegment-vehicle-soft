@@ -334,7 +334,9 @@ export type AuditEntityType =
   | "rxswin_baseline_item"
   | "software_update"
   | "software_update_rxswin"
-  | "software_update_target";
+  | "software_update_target"
+  | "vehicle_configuration"
+  | "vehicle_ecu";
 
 export interface AuditLog {
   id: string;

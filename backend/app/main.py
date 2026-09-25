@@ -25,6 +25,8 @@ from app.api.v1 import (
     obd,
     r156,
     su_documents,
+    vehicle_config,
+    integration,
 )
 
 _is_dev = settings.environment != "production"
@@ -82,6 +84,8 @@ app.include_router(vehicle_sync.router, prefix=API_PREFIX + "/vehicle-sync", tag
 app.include_router(obd.router, prefix=API_PREFIX + "/obd", tags=["OBD-II"])
 app.include_router(r156.router, prefix=API_PREFIX, tags=["R156 SUMS"])
 app.include_router(su_documents.router, prefix=API_PREFIX + "/software-updates", tags=["R156 Software Update"])
+app.include_router(vehicle_config.router, prefix=API_PREFIX + "/vehicles", tags=["R156 Vehicle configuration"])
+app.include_router(integration.router, prefix=API_PREFIX + "/integration", tags=["Integration (ERP)"])
 
 
 @app.get("/health", tags=["Health"])

@@ -519,7 +519,9 @@
     "entityRxswinBaselineItem": "Postavka baseline-a",
     "entitySoftwareUpdate": "Software Update",
     "entitySoftwareUpdateRxswin": "SU — prizadet RXSWIN",
-    "entitySoftwareUpdateTarget": "SU — ciljno vozilo"
+    "entitySoftwareUpdateTarget": "SU — ciljno vozilo",
+    "entityVehicleConfiguration": "Konfiguracija vozila",
+    "entityVehicleEcu": "ECU-ji vozila"
   },
   "settings": {
     "title": "Nastavitve",
@@ -897,6 +899,43 @@
     "blocker_safe_state_conditions": "Pogoji varnega stanja",
     "blocker_safety_confirmation": "Potrditev varnosti",
     "blocker_no_targets": "Vsaj eno ciljno vozilo",
-    "blocker_targets_not_confirmed": "Potrjena združljivost za vsako ciljno vozilo"
+    "blocker_targets_not_confirmed": "Potrjena združljivost za vsako ciljno vozilo",
+    "precondition": "Zadnja znana konfig.",
+    "pre_ok": "Ujema se z baseline-om pred",
+    "pre_mismatch": "Se NE ujema z baseline-om pred",
+    "pre_already_installed": "Že nameščeno",
+    "pre_unknown": "Konfiguracija ni zapisana"
+  },
+  "vehicleCfg": {
+    "back": "Vozila",
+    "ecusTitle": "Vgrajeni ECU-ji",
+    "ecusRef": "§7.1.1.2",
+    "ecusHint": "Serijska številka, HW verzija in batch za vsak ECU. Sprememba po koncu linije ustvari novo zadnjo znano konfiguracijo.",
+    "serial": "Serijska številka",
+    "hw": "HW verzija",
+    "batch": "Batch",
+    "saveEcus": "Shrani ECU-je",
+    "saved": "Shranjeno",
+    "currentTitle": "Zadnja znana konfiguracija",
+    "currentRef": "§7.1.2.2",
+    "noConfig": "Konfiguracija še ni zapisana. Najprej zapiši konfiguracijo ob koncu linije.",
+    "recordEol": "Zapiši konfiguracijo ob koncu linije",
+    "eolTitle": "Začetna konfiguracija ob koncu linije",
+    "eolHint": "Za vsak RXSWIN izberi baseline programske opreme, nameščen ob koncu linije. Zapiše se enkrat na vozilo in je samo za branje.",
+    "configId": "ID konfiguracije",
+    "systemSchemes": "Baseline sistemskih shem",
+    "vvStatus": "Status V&V",
+    "erpWo": "ERP delovni nalog",
+    "notInstalled": "Ni nameščen",
+    "recorded": "Konfiguracija zapisana",
+    "type_initial_eol": "Konec linije",
+    "type_last_known": "Zadnja znana",
+    "reason": "Razlog",
+    "recordedAt": "Zapisal {name}, {date}",
+    "history": "Zgodovina konfiguracij",
+    "historyHint": "Vsak zapis je nespremenljiv — sprememba ustvari nov zapis.",
+    "software": "Programska oprema",
+    "viaSu": "Software Update",
+    "erpApi": "Branje za ERP: GET /api/v1/integration/vehicles/{vin}/last-known-configuration"
   }
 }

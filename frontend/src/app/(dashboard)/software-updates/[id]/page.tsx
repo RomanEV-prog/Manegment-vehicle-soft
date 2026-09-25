@@ -81,8 +81,27 @@ function TargetRow({ doc, target, editable, canRecord }: { doc: SuDetail; target
   return (
     <tr className="align-top">
       <td className="px-3 py-2.5">
-        <div className="font-mono text-sm font-medium">{target.vin}</div>
+        <Link href={`/fleet/${target.vehicle_id}`} className="font-mono text-sm font-medium text-blue-700 hover:underline">
+          {target.vin}
+        </Link>
         <div className="text-xs text-gray-400">{target.vehicle_name}</div>
+      </td>
+      <td className="px-3 py-2.5">
+        <span
+          className={cn(
+            "text-xs font-medium",
+            target.precondition === "ok" && "text-green-700",
+            target.precondition === "mismatch" && "text-red-600",
+            target.precondition === "already_installed" && "text-blue-700",
+            target.precondition === "unknown" && "text-gray-400"
+          )}
+        >
+          {t(`pre_${target.precondition}`)}
+        </span>
+        {target.current_config_id && <div className="font-mono text-[11px] text-gray-400">{target.current_config_id}</div>}
+        {target.precondition_detail.length > 0 && (
+          <div className="text-[11px] text-gray-400">{target.precondition_detail.join("; ")}</div>
+        )}
       </td>
       <td className="px-3 py-2.5">
         <div className="flex items-center gap-2">
@@ -551,6 +570,7 @@ export default function SoftwareUpdateDetailPage() {
               <thead className="text-left text-xs uppercase tracking-wide text-gray-400">
                 <tr>
                   <th className="px-3 pb-2">VIN</th>
+                  <th className="px-3 pb-2">{t("precondition")}</th>
                   <th className="px-3 pb-2">{t("compatibility")}</th>
                   <th className="px-3 pb-2">{t("result")}</th>
                   <th />

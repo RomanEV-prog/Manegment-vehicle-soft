@@ -7,6 +7,7 @@ import type {
   SuDetail,
   SuEditable,
   SuListItem,
+  VehicleR156,
   RxswinDetail,
   RxswinListItem,
   VehicleType,
@@ -335,6 +336,21 @@ export const fleetApi = {
       .then((r) => r.data),
   create: (data: { name: string; model: string; year: number; vin: string; vehicle_type_id: string }) =>
     api.post<FleetVehicle>("/vehicles", data).then((r) => r.data),
+  r156: (id: string) => api.get<VehicleR156>(`/vehicles/${id}/r156`).then((r) => r.data),
+  updateEcuInstances: (
+    id: string,
+    instances: { ecu_id: string; serial_number: string | null; hardware_version: string | null; batch_number: string | null }[]
+  ) => api.put<VehicleR156>(`/vehicles/${id}/ecu-instances`, { instances }).then((r) => r.data),
+  createEol: (
+    id: string,
+    data: {
+      rxswin_baselines: { rxswin_id: string; baseline_id: string }[];
+      config_id?: string | null;
+      system_schemes_baseline?: string | null;
+      vv_status: "pass" | "fail" | "pending";
+      erp_work_order?: string | null;
+    }
+  ) => api.post<VehicleR156>(`/vehicles/${id}/configurations/eol`, data).then((r) => r.data),
 };
 
 export const suApi = {

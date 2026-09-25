@@ -375,6 +375,8 @@ class VehicleConfiguration(Base):
         UUID(as_uuid=True), ForeignKey("software_updates.id"), nullable=True
     )
     locked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # zakaj je nastala: 'End of line', 'SU-2026-001 rev. 1', 'ECU hardware change'
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )

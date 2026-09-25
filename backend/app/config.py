@@ -55,6 +55,11 @@ class Settings(BaseSettings):
     # FCM
     firebase_credentials_json: str = ""
 
+    # Integracija z ERP (branje Last Known Configuration po VIN).
+    # Prazen ključ = integracija izklopljena.
+    erp_api_key: str = ""
+    erp_org_name: str = "eVersum"
+
     # App
     environment: str = "development"
     debug: bool = True

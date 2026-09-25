@@ -45,6 +45,7 @@ from app.schemas.su_document import (
     UserNotification,
     VVSignRequest,
 )
+from app.services.vehicle_config import current_configuration, installed_baselines, record_configuration
 from app.utils.audit import write_audit_log
 
 router = APIRouter()
@@ -166,6 +167,30 @@ async def _detail(db, doc: SoftwareUpdateDocument) -> SUDocumentDetail:
     def bl(i, attr):
         return getattr(baselines[i], attr) if i in baselines else None
 
+    # §7.1.1.7: primerjava zadnje znane konfiguracije vsakega vozila s pričakovanim stanjem "pred"
+    preconditions: dict = {}
+    for t in doc.targets:
+        cfg = await current_configuration(db, t.vehicle_id)
+        if not cfg:
+            preconditions[t.id] = (None, "unknown", [])
+            continue
+        installed = {r["rxswin_id"]: r for r in cfg.snapshot.get("rxswins", [])}
+        states, detail = [], []
+        for a in doc.affected_rxswins:
+            cur = installed.get(str(a.rxswin_id))
+            cur_label = f"B{cur['baseline_number']}" if cur else "—"
+            exp_label = f"B{bl(a.baseline_before_id, 'baseline_number')}" if a.baseline_before_id else "—"
+            if cur and cur["baseline_id"] == str(a.baseline_after_id):
+                states.append("already_installed")
+            elif (cur["baseline_id"] if cur else None) == (str(a.baseline_before_id) if a.baseline_before_id else None):
+                states.append("ok")
+            else:
+                states.append("mismatch")
+            detail.append(f"{a.rxswin_ref.rxswin}: {cur_label} / {exp_label}")
+        state = ("mismatch" if "mismatch" in states else "already_installed" if states and all(
+            s == "already_installed" for s in states) else "ok") if states else "unknown"
+        preconditions[t.id] = (cfg.config_id, state, detail)
+
     return SUDocumentDetail(
         id=doc.id, document_id=doc.document_id, revision=doc.baseline_number,
         vehicle_type_id=doc.vehicle_type_id, vehicle_type_name=vt.name if vt else "—", status=doc.status,
@@ -206,6 +231,8 @@ async def _detail(db, doc: SoftwareUpdateDocument) -> SUDocumentDetail:
                 compatibility_confirmed=t.compatibility_confirmed, compatibility_notes=t.compatibility_notes,
                 confirmed_by_name=names.get(t.confirmed_by), confirmed_at=t.confirmed_at,
                 result=t.result, applied_at=t.applied_at, applied_by_name=names.get(t.applied_by),
+                current_config_id=preconditions[t.id][0], precondition=preconditions[t.id][1],
+                precondition_detail=preconditions[t.id][2],
             )
             for t in sorted(doc.targets, key=lambda t: vehicles[t.vehicle_id].vin if t.vehicle_id in vehicles else "")
         ],
@@ -477,14 +504,29 @@ async def record_result(
     if doc.status != "released":
         raise HTTPException(status_code=409, detail="Izvedbo je mogoče zapisati le za izdan dokument")
     t = _find_target(doc, target_id)
-    before = {"result": t.result, "applied_at": _jsonable(t.applied_at)}
+    if t.result:
+        # zapis izvedbe je dokaz — ne prepisuje se
+        raise HTTPException(status_code=409, detail="Izvedba za to vozilo je že zapisana")
     t.result = data.result
     t.applied_at = data.applied_at or _now()
     t.applied_by = user["user_id"]
-    await _audit(db, user, "apply", "software_update_target", t.id, before=before, after={
+    after = {
         "document_id": doc.document_id, "revision": doc.baseline_number, "vin": await _vin(db, t.vehicle_id),
         "result": data.result, "applied_at": _jsonable(t.applied_at),
-    })
+    }
+    if data.result == "success":
+        # §7.1.2.2: nova zadnja znana konfiguracija vozila = prejšnja + novi baseline-i
+        vehicle = await db.get(Vehicle, t.vehicle_id)
+        installed = installed_baselines(await current_configuration(db, vehicle.id))
+        for a in doc.affected_rxswins:
+            installed[str(a.rxswin_id)] = str(a.baseline_after_id)
+        cfg = await record_configuration(
+            db, vehicle, config_type="last_known", installed=installed,
+            reason=f"{doc.document_id} rev. {doc.baseline_number}", user_id=user["user_id"],
+            software_update_id=doc.id, erp_work_order=doc.erp_work_order,
+        )
+        after["last_known_configuration"] = cfg.config_id
+    await _audit(db, user, "apply", "software_update_target", t.id, before={"result": None}, after=after)
     await db.commit()
     return await _reload(db, doc_id, user["org_id"])
 
