@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { CheckCircle2, FileSearch, ShieldAlert, XCircle } from "lucide-react";
@@ -22,7 +22,7 @@ import type { Baseline, BaselineItem, Ecu, RxswinDetail, VehicleType, VerifyResu
 import { apiError, Field, Select, ShaInput, Textarea } from "./shared";
 
 // Konvencija eVersum: R<št. uredbe>SWIN<zaporedna št.>, npr. R48SWIN001, R100SWIN001
-const RXSWIN_RE = /^R(\d{1,3})SWIN\d{3,}$/;
+const RXSWIN_RE = /^R([1-9]\d{0,2})SWIN\d{3,}$/;
 const DID_RE = /^[0-9A-F]{4}$/;
 
 export function regulationFromRxswin(code: string): string | null {
@@ -63,13 +63,18 @@ export function CreateRxswinDialog({
     queryFn: () => r156Api.ecus(form.vehicle_type_id),
     enabled: open && !!form.vehicle_type_id,
   });
-  // privzeto: BCU, če obstaja (RXSWIN je shranjen v pomnilniku BCU)
+  // privzeto: BCU, če obstaja (RXSWIN je shranjen v pomnilniku BCU) — samo enkrat na tip vozila,
+  // da lahko uporabnik hrambo tudi izprazni ("—")
+  const defaultedFor = useRef<string | null>(null);
   useEffect(() => {
-    if (!form.stored_in_ecu_id && ecus.length) {
-      const bcu = ecus.find((e) => /body control|^bcu$/i.test(e.ecu_name));
-      if (bcu) setForm((f) => ({ ...f, stored_in_ecu_id: bcu.id }));
-    }
-  }, [ecus, form.stored_in_ecu_id]);
+    if (!open) defaultedFor.current = null;
+  }, [open]);
+  useEffect(() => {
+    if (!ecus.length || defaultedFor.current === form.vehicle_type_id) return;
+    defaultedFor.current = form.vehicle_type_id;
+    const bcu = ecus.find((e) => /body control|^bcu$/i.test(e.ecu_name));
+    setForm((f) => ({ ...f, stored_in_ecu_id: bcu?.id ?? "" }));
+  }, [ecus, form.vehicle_type_id]);
 
   const codeValid = RXSWIN_RE.test(form.rxswin);
   const derived = regulationFromRxswin(form.rxswin);

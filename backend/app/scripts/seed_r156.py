@@ -259,7 +259,13 @@ async def seed_r156() -> None:
         provisional = (
             await db.execute(select(RXSWIN).where(RXSWIN.organization_id == org.id, RXSWIN.rxswin == "VCUSWIN001"))
         ).scalar_one_or_none()
-        if provisional is not None:
+        already = await db.scalar(
+            select(RXSWIN.id).where(RXSWIN.organization_id == org.id, RXSWIN.rxswin == "R100SWIN001")
+        )
+        if provisional is not None and already is not None:
+            print("  Opozorilo: R100SWIN001 že obstaja — začasni VCUSWIN001 ni preimenovan (uredi ročno).")
+        elif provisional is not None:
+            old_regs, old_desc = list(provisional.regulations_affected or []), provisional.description
             provisional.rxswin = "R100SWIN001"
             provisional.regulations_affected = ["UN-ECE R100"]
             provisional.description = VCU_RXSWIN_DESCRIPTION
@@ -272,8 +278,12 @@ async def seed_r156() -> None:
                 action="update",
                 entity_type="rxswin",
                 entity_id=provisional.id,
-                before={"rxswin": "VCUSWIN001"},
-                after={"rxswin": "R100SWIN001", "regulations_affected": ["UN-ECE R100"]},
+                before={"rxswin": "VCUSWIN001", "regulations_affected": old_regs, "description": old_desc},
+                after={
+                    "rxswin": "R100SWIN001",
+                    "regulations_affected": ["UN-ECE R100"],
+                    "description": VCU_RXSWIN_DESCRIPTION,
+                },
                 reason="Provisional identifier replaced per eVersum RXSWIN convention (J. Zdun, 28 Sep 2026)",
             )
             await db.flush()

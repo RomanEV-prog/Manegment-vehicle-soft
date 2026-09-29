@@ -85,7 +85,7 @@ async def test_rxswin_formats_accepted(client, r156, code):
     assert resp.status_code == 201
 
 
-@pytest.mark.parametrize("code", ["RXSWIN-EV-M1-221", "VCUSWIN001", "R48SWIN01", "R48 SWIN", "SWIN001"])
+@pytest.mark.parametrize("code", ["RXSWIN-EV-M1-221", "VCUSWIN001", "R48SWIN01", "R048SWIN001", "R48 SWIN", "SWIN001"])
 async def test_rxswin_invalid_format(client, r156, code):
     resp = await client.post("/api/v1/rxswins", json={"vehicle_type_id": r156["vt"]["id"], "rxswin": code}, headers=r156["h"])
     assert resp.status_code == 422

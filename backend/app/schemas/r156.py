@@ -12,7 +12,7 @@ SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 
 # Konvencija eVersum (J. Zdun, 28. 9. 2026): R<št. uredbe UN-ECE>SWIN<zaporedna št.>,
 # npr. R48SWIN001 (razsvetljava, R48), R100SWIN001 (pogon/HV, R100). En RXSWIN na uredbo.
-RXSWIN_STRICT = re.compile(r"^R(\d{1,3})SWIN\d{3,}$")
+RXSWIN_STRICT = re.compile(r"^R([1-9]\d{0,2})SWIN\d{3,}$")  # brez vodilnih ničel (R048 ≠ R48)
 # DID (UDS ReadDataByIdentifier), npr. F1A0 — RXSWIN je shranjen v pomnilniku BCU
 DID_PATTERN = re.compile(r"^[0-9A-F]{4}$")
 

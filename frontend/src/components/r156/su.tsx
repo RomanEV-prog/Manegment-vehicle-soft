@@ -407,7 +407,7 @@ export function ResultDialog({
 
   useEffect(() => {
     if (open) {
-      setReadback(result === "success" ? "yes" : "none");
+      setReadback("none"); // ujemanje mora uporabnik izrecno potrditi — je dokaz po §7.1.1.4
       setNotes("");
     }
   }, [open, result]);
