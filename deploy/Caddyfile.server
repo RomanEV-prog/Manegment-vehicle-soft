@@ -3,6 +3,11 @@
 {$SITE_ADDRESS} {
 	encode gzip
 
+	# omejitev velikosti telesa zahteve (besedilna polja nimajo omejitve dolžine; fotografije < 20 MB)
+	request_body {
+		max_size 20MB
+	}
+
 	handle /ws/* {
 		reverse_proxy api:8000
 	}

@@ -88,7 +88,7 @@ class TargetResult(BaseModel):
     result: Literal["success", "failed", "rolled_back"]
     # §7.1.1.4: RXSWIN, prebran z vozila (UDS 0x22, DID v BCU) po nalaganju — se ujema?
     readback_verified: Optional[bool] = None
-    readback_notes: Optional[str] = None
+    readback_notes: Optional[str] = Field(default=None, max_length=2000)  # kratka opomba, ne dnevnik
 
 
 class UserNotification(BaseModel):
