@@ -48,7 +48,7 @@ async def test_vehicle_configurations_csv(client, su):
     assert r.status_code == 200
     rows = list(csv.DictReader(io.StringIO(r.content.decode("utf-8-sig"))))
     by_vin = {x["vin"]: x for x in rows}
-    assert by_vin[v["vin"]]["rxswin"] == "VCUSWIN001" and by_vin[v["vin"]]["baseline"] == "1"
+    assert by_vin[v["vin"]]["rxswin"] == "R100SWIN001" and by_vin[v["vin"]]["baseline"] == "1"
     assert by_vin[su["v"][1]["vin"]]["reason"] == "no configuration recorded"
 
 

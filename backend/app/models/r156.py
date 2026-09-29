@@ -117,6 +117,10 @@ class RXSWIN(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)  # funkcionalnost sistema
     regulations_affected: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
     status: Mapped[str] = mapped_column(String, nullable=False, default="active")  # 'active' | 'retired'
+    # §7.2.1.2 / §7.1.1.4: RXSWIN je na vozilu shranjen kot DID v pomnilniku ECU (BCU),
+    # berljiv z UDS ReadDataByIdentifier prek OBD
+    stored_in_ecu_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("ecus.id"), nullable=True)
+    did: Mapped[str | None] = mapped_column(String, nullable=True)  # npr. 'F1A0'
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -125,6 +129,7 @@ class RXSWIN(Base):
     __table_args__ = (UniqueConstraint("organization_id", "rxswin", name="uq_rxswin_org_code"),)
 
     vehicle_type: Mapped["VehicleType"] = relationship("VehicleType", back_populates="rxswins")
+    stored_in_ecu: Mapped["ECU | None"] = relationship("ECU", foreign_keys=[stored_in_ecu_id])
     baselines: Mapped[list["RXSWINBaseline"]] = relationship(
         "RXSWINBaseline", back_populates="rxswin_ref", order_by="RXSWINBaseline.baseline_number"
     )
@@ -318,6 +323,9 @@ class SoftwareUpdateTarget(Base):
     applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     applied_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     result: Mapped[str | None] = mapped_column(String, nullable=True)  # success|failed|rolled_back
+    # §7.1.1.4: po nalaganju prebran RXSWIN z vozila (UDS) se ujema s pričakovanim
+    readback_verified: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    readback_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (UniqueConstraint("software_update_id", "vehicle_id", name="uq_su_target_vehicle"),)

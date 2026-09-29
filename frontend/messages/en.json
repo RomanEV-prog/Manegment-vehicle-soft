@@ -50,7 +50,7 @@
     "audit": "Audit Trail",
     "settings": "Settings",
     "logout": "Log Out",
-    "partnerReadOnly": "Partner — read only",
+    "partnerReadOnly": "Auditor — read only",
     "rxswins": "RXSWIN Register",
     "ecus": "ECU Register",
     "sha256": "SHA-256 Tool",
@@ -690,7 +690,7 @@
     "noRelease": "Not released",
     "items": "{count} ECU",
     "noRxswins": "No RXSWINs yet",
-    "rxswinFormatHint": "Manufacturer-defined: uppercase letters, digits, - _ . (e.g. R48SWIN001)",
+    "rxswinFormatHint": "eVersum convention: R<regulation number>SWIN<sequence>, e.g. R48SWIN001 (lighting, R48) or R100SWIN001 (powertrain / HV, R100)",
     "created": "RXSWIN created",
     "status_draft": "Draft",
     "status_released": "Released",
@@ -716,7 +716,7 @@
     "supersededInfo": "Superseded — kept for the audit trail",
     "draftInfo": "Draft — editable until released",
     "releaseBlocked": "Release requires at least one item and a valid SHA-256 for every file.",
-    "releaseRoleHint": "Only an administrator or QC manager can release.",
+    "releaseRoleHint": "Only an administrator or system engineer can release.",
     "createdBy": "Opened by {name}",
     "addItem": "Add ECU software",
     "editItem": "Edit ECU software",
@@ -783,7 +783,13 @@
     "reactivate": "Reactivate",
     "readme": "Readme PDF",
     "registerPdf": "Register PDF",
-    "importCsv": "Import CSV"
+    "importCsv": "Import CSV",
+    "regulationDerived": "Regulation from the identifier: {reg} (added automatically)",
+    "storedIn": "Stored on the vehicle in",
+    "storedInHint": "RXSWIN is held in the BCU memory as a DID, readable via UDS ReadDataByIdentifier over OBD",
+    "did": "DID",
+    "storedInVehicle": "Stored on the vehicle in {ecu}, DID {did} — readable via UDS over OBD",
+    "storedInUnknown": "Storage on the vehicle (ECU / DID) not recorded"
   },
   "fleet": {
     "title": "Vehicles",
@@ -864,7 +870,7 @@
     "vvSignTitle": "V&V sign-off",
     "vvSignHint": "Engineering sign-off — recorded with your name and time.",
     "vvSigned": "Signed by {name}, {date}",
-    "vvRoleHint": "Only an administrator or QC manager can sign V&V.",
+    "vvRoleHint": "Only an administrator or system engineer can sign V&V.",
     "s4": "4. Type approval",
     "s4ref": "§7.1.1.8–10, §7.1.2.5 (c)–(f)",
     "taNecessary": "Type approval update necessary",
@@ -926,7 +932,16 @@
     "pre_unknown": "No configuration recorded",
     "userActions": "Actions required from the user / a competent person",
     "userActionsPlaceholder": "None — update performed by an eVersum technician",
-    "blocker_user_actions": "Actions required from the user / a competent person"
+    "blocker_user_actions": "Actions required from the user / a competent person",
+    "systemSchemesHint": "Version on Egnyte, e.g. eShuttle X - System Schemes - v.1.9",
+    "readbackQuestion": "RXSWIN read back from the vehicle (UDS) matches {rxswins}?",
+    "readbackHint": "After flashing, read the RXSWIN DID from the BCU and compare it with the register (§7.1.1.4).",
+    "readback_yes": "Read back — matches",
+    "readback_no": "Read back — does NOT match",
+    "readback_none": "Not read back",
+    "readbackNotes": "Read-back notes",
+    "readbackNotesPlaceholder": "e.g. UDS 0x22 F1A0 = R100SWIN001",
+    "readbackMismatchWarning": "A successful result with a mismatching RXSWIN is contradictory — check the vehicle before recording."
   },
   "vehicleCfg": {
     "back": "Vehicles",
@@ -1003,5 +1018,11 @@
     "progress": "{done} of {total} done",
     "goThere": "Go there",
     "howTo": "How to"
+  },
+  "roles": {
+    "admin": "Administrator",
+    "qc_manager": "System engineer",
+    "technician": "Software engineer",
+    "partner_viewer": "Auditor (read only)"
   }
 }

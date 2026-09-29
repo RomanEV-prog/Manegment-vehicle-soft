@@ -23,7 +23,7 @@ async def test_eol_configuration_snapshot(client, su):
     assert d["has_eol"] and d["current"]["config_type"] == "initial_eol"
     assert d["current"]["config_id"] == f"EOL-{v['vin']}"
     [rx] = d["current"]["snapshot"]["rxswins"]
-    assert rx["rxswin"] == "VCUSWIN001" and rx["baseline_number"] == 1
+    assert rx["rxswin"] == "R100SWIN001" and rx["baseline_number"] == 1
     assert rx["items"][0]["sw_version"] == "1.2.115"
     # druga EOL ni dovoljena
     assert (await _eol(client, su, v, su["b1"])).status_code == 409
@@ -110,7 +110,7 @@ async def test_mismatch_precondition(client, su):
                            headers=su["h"])).json()
     by_vin = {t["vin"]: t for t in d["targets"]}
     assert by_vin[su["v"][0]["vin"]]["precondition"] == "mismatch"
-    assert by_vin[su["v"][0]["vin"]]["precondition_detail"] == ["VCUSWIN001: B1 / B2"]
+    assert by_vin[su["v"][0]["vin"]]["precondition_detail"] == ["R100SWIN001: B1 / B2"]
     assert by_vin[su["v"][1]["vin"]]["precondition"] == "unknown"   # brez zapisane konfiguracije
 
 

@@ -21,7 +21,18 @@ import { cn } from "@/lib/utils";
 import type { Baseline, BaselineItem, Ecu, RxswinDetail, VehicleType, VerifyResult } from "@/types/r156";
 import { apiError, Field, Select, ShaInput, Textarea } from "./shared";
 
-const RXSWIN_RE = /^[A-Z0-9][A-Z0-9._-]{2,63}$/;
+// Konvencija eVersum: R<št. uredbe>SWIN<zaporedna št.>, npr. R48SWIN001, R100SWIN001
+const RXSWIN_RE = /^R(\d{1,3})SWIN\d{3,}$/;
+const DID_RE = /^[0-9A-F]{4}$/;
+
+export function regulationFromRxswin(code: string): string | null {
+  const m = RXSWIN_RE.exec(code);
+  return m ? `UN-ECE R${parseInt(m[1], 10)}` : null;
+}
+
+function normalizeDid(v: string): string {
+  return v.trim().toUpperCase().replace(/^0X/, "");
+}
 
 // ─── Nov RXSWIN ───────────────────────────────────────────────────────────────
 
@@ -39,15 +50,31 @@ export function CreateRxswinDialog({
   const t = useTranslations("r156");
   const tc = useTranslations("common");
   const qc = useQueryClient();
-  const [form, setForm] = useState({ vehicle_type_id: "", rxswin: "", description: "", regulations: "" });
+  const [form, setForm] = useState({ vehicle_type_id: "", rxswin: "", description: "", regulations: "", stored_in_ecu_id: "", did: "" });
 
   useEffect(() => {
     if (open) {
-      setForm({ vehicle_type_id: vehicleTypes[0]?.id ?? "", rxswin: "", description: "", regulations: "" });
+      setForm({ vehicle_type_id: vehicleTypes[0]?.id ?? "", rxswin: "", description: "", regulations: "", stored_in_ecu_id: "", did: "" });
     }
   }, [open, vehicleTypes]);
 
+  const { data: ecus = [] } = useQuery<Ecu[]>({
+    queryKey: ["ecus", form.vehicle_type_id],
+    queryFn: () => r156Api.ecus(form.vehicle_type_id),
+    enabled: open && !!form.vehicle_type_id,
+  });
+  // privzeto: BCU, če obstaja (RXSWIN je shranjen v pomnilniku BCU)
+  useEffect(() => {
+    if (!form.stored_in_ecu_id && ecus.length) {
+      const bcu = ecus.find((e) => /body control|^bcu$/i.test(e.ecu_name));
+      if (bcu) setForm((f) => ({ ...f, stored_in_ecu_id: bcu.id }));
+    }
+  }, [ecus, form.stored_in_ecu_id]);
+
   const codeValid = RXSWIN_RE.test(form.rxswin);
+  const derived = regulationFromRxswin(form.rxswin);
+  const did = normalizeDid(form.did);
+  const didValid = !did || DID_RE.test(did);
   const mutation = useMutation({
     mutationFn: () =>
       r156Api.createRxswin({
@@ -55,6 +82,8 @@ export function CreateRxswinDialog({
         rxswin: form.rxswin,
         description: form.description || null,
         regulations_affected: form.regulations.split(",").map((s) => s.trim()).filter(Boolean),
+        stored_in_ecu_id: form.stored_in_ecu_id || null,
+        did: did || null,
       }),
     onSuccess: (r) => {
       toast.success(t("created"));
@@ -72,7 +101,10 @@ export function CreateRxswinDialog({
         </DialogHeader>
         <div className="space-y-3">
           <Field label={t("vehicleType")}>
-            <Select value={form.vehicle_type_id} onChange={(e) => setForm({ ...form, vehicle_type_id: e.target.value })}>
+            <Select
+              value={form.vehicle_type_id}
+              onChange={(e) => setForm({ ...form, vehicle_type_id: e.target.value, stored_in_ecu_id: "" })}
+            >
               {vehicleTypes.map((vt) => (
                 <option key={vt.id} value={vt.id}>
                   {vt.name}
@@ -81,11 +113,11 @@ export function CreateRxswinDialog({
               ))}
             </Select>
           </Field>
-          <Field label={t("rxswin")} hint={t("rxswinFormatHint")}>
+          <Field label={t("rxswin")} hint={derived ? t("regulationDerived", { reg: derived }) : t("rxswinFormatHint")}>
             <Input
               value={form.rxswin}
               onChange={(e) => setForm({ ...form, rxswin: e.target.value.toUpperCase().replace(/\s/g, "") })}
-              placeholder="R48SWIN002"
+              placeholder="R48SWIN001"
               className={cn("font-mono", form.rxswin && !codeValid && "border-red-300")}
             />
           </Field>
@@ -97,8 +129,28 @@ export function CreateRxswinDialog({
             />
           </Field>
           <Field label={t("regulations")} hint={t("regulationsHint")}>
-            <Input value={form.regulations} onChange={(e) => setForm({ ...form, regulations: e.target.value })} />
+            <Input value={form.regulations} onChange={(e) => setForm({ ...form, regulations: e.target.value })} placeholder="UN-ECE R10" />
           </Field>
+          <div className="grid grid-cols-[1fr_120px] gap-3">
+            <Field label={t("storedIn")} hint={t("storedInHint")}>
+              <Select value={form.stored_in_ecu_id} onChange={(e) => setForm({ ...form, stored_in_ecu_id: e.target.value })}>
+                <option value="">—</option>
+                {ecus.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.ecu_name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label={t("did")}>
+              <Input
+                value={form.did}
+                onChange={(e) => setForm({ ...form, did: e.target.value })}
+                placeholder="F1A0"
+                className={cn("font-mono", form.did && !didValid && "border-red-300")}
+              />
+            </Field>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
@@ -106,10 +158,116 @@ export function CreateRxswinDialog({
           </Button>
           <Button
             onClick={() => mutation.mutate()}
-            disabled={!codeValid || !form.vehicle_type_id || mutation.isPending}
+            disabled={!codeValid || !didValid || !form.vehicle_type_id || mutation.isPending}
           >
             {mutation.isPending && <Spinner className="h-3.5 w-3.5" />}
             {tc("create")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Urejanje RXSWIN (opis, uredbe, hramba na vozilu, status) ────────────────
+
+export function EditRxswinDialog({ open, onClose, rxswin }: { open: boolean; onClose: () => void; rxswin: RxswinDetail }) {
+  const t = useTranslations("r156");
+  const tc = useTranslations("common");
+  const qc = useQueryClient();
+  const [form, setForm] = useState({ description: "", regulations: "", stored_in_ecu_id: "", did: "", status: "active" });
+
+  useEffect(() => {
+    if (open) {
+      setForm({
+        description: rxswin.description ?? "",
+        regulations: rxswin.regulations_affected.join(", "),
+        stored_in_ecu_id: rxswin.stored_in_ecu_id ?? "",
+        did: rxswin.did ?? "",
+        status: rxswin.status,
+      });
+    }
+  }, [open, rxswin]);
+
+  const { data: ecus = [] } = useQuery<Ecu[]>({
+    queryKey: ["ecus", rxswin.vehicle_type_id],
+    queryFn: () => r156Api.ecus(rxswin.vehicle_type_id),
+    enabled: open,
+  });
+  const did = normalizeDid(form.did);
+  const didValid = !did || DID_RE.test(did);
+  const derived = regulationFromRxswin(rxswin.rxswin);
+
+  const mutation = useMutation({
+    mutationFn: () => {
+      const regs = form.regulations.split(",").map((s) => s.trim()).filter(Boolean);
+      if (derived && !regs.includes(derived)) regs.unshift(derived);
+      return r156Api.updateRxswin(rxswin.id, {
+        description: form.description.trim() || null,
+        regulations_affected: regs,
+        stored_in_ecu_id: form.stored_in_ecu_id || null,
+        did: did || null,
+        status: form.status,
+      });
+    },
+    onSuccess: (d) => {
+      qc.setQueryData(["rxswin", rxswin.id], d);
+      qc.invalidateQueries({ queryKey: ["rxswins"] });
+      toast.success(t("saved"));
+      onClose();
+    },
+    onError: (e) => toast.error(apiError(e, tc("error"))),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
+            {t("rxswinSettings")} · {rxswin.rxswin}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <Field label={t("description")}>
+            <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          </Field>
+          <Field label={t("regulations")} hint={derived ? t("regulationDerived", { reg: derived }) : t("regulationsHint")}>
+            <Input value={form.regulations} onChange={(e) => setForm({ ...form, regulations: e.target.value })} />
+          </Field>
+          <div className="grid grid-cols-[1fr_120px] gap-3">
+            <Field label={t("storedIn")} hint={t("storedInHint")}>
+              <Select value={form.stored_in_ecu_id} onChange={(e) => setForm({ ...form, stored_in_ecu_id: e.target.value })}>
+                <option value="">—</option>
+                {ecus.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.ecu_name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label={t("did")}>
+              <Input
+                value={form.did}
+                onChange={(e) => setForm({ ...form, did: e.target.value })}
+                placeholder="F1A0"
+                className={cn("font-mono", form.did && !didValid && "border-red-300")}
+              />
+            </Field>
+          </div>
+          <Field label={tc("status")}>
+            <Select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+              <option value="active">{t("status_active")}</option>
+              <option value="retired">{t("status_retired")}</option>
+            </Select>
+          </Field>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            {tc("cancel")}
+          </Button>
+          <Button onClick={() => mutation.mutate()} disabled={!didValid || mutation.isPending}>
+            {mutation.isPending && <Spinner className="h-3.5 w-3.5" />}
+            {tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

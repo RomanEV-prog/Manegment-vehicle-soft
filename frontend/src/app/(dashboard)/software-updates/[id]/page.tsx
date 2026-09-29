@@ -31,6 +31,7 @@ import {
   AddRxswinDialog,
   AddTargetsDialog,
   NotificationDialog,
+  ResultDialog,
   Section,
   SuStatusBadge,
   VvBadge,
@@ -72,11 +73,7 @@ function TargetRow({ doc, target, editable, canRecord }: { doc: SuDetail; target
     onError: onErr,
   });
   const remove = useMutation({ mutationFn: () => suApi.removeTarget(doc.id, target.id), onSuccess: apply, onError: onErr });
-  const result = useMutation({
-    mutationFn: (r: "success" | "failed" | "rolled_back") => suApi.recordResult(doc.id, target.id, r),
-    onSuccess: apply,
-    onError: onErr,
-  });
+  const [resultOpen, setResultOpen] = useState<"success" | "failed" | "rolled_back" | null>(null);
 
   return (
     <tr className="align-top">
@@ -145,14 +142,26 @@ function TargetRow({ doc, target, editable, canRecord }: { doc: SuDetail; target
             <div className="text-xs text-gray-400">
               {target.applied_by_name}, {formatDateTime(target.applied_at)}
             </div>
+            <div
+              className={cn(
+                "text-[11px]",
+                target.readback_verified === true ? "text-green-700" : target.readback_verified === false ? "text-red-600" : "text-gray-400"
+              )}
+            >
+              {t(target.readback_verified === true ? "readback_yes" : target.readback_verified === false ? "readback_no" : "readback_none")}
+              {target.readback_notes ? ` — ${target.readback_notes}` : ""}
+            </div>
           </div>
         ) : doc.status === "released" && canRecord ? (
           <div className="flex flex-wrap gap-1">
             {(["success", "failed", "rolled_back"] as const).map((r) => (
-              <Button key={r} size="sm" variant="outline" className="h-7 text-xs" disabled={result.isPending} onClick={() => result.mutate(r)}>
+              <Button key={r} size="sm" variant="outline" className="h-7 text-xs" onClick={() => setResultOpen(r)}>
                 {t(`result_${r}`)}
               </Button>
             ))}
+            {resultOpen && (
+              <ResultDialog open onClose={() => setResultOpen(null)} doc={doc} targetId={target.id} vin={target.vin} result={resultOpen} />
+            )}
           </div>
         ) : (
           <span className="text-xs text-gray-300">{doc.status === "draft" ? "—" : t("pending")}</span>
@@ -393,7 +402,9 @@ export default function SoftwareUpdateDetailPage() {
           </Field>
           <Field label={t("dependencies")}>{text("dependencies_identified", 3)}</Field>
           <div className="space-y-4">
-            <Field label={t("systemSchemes")}>{line("system_schemes_baseline", "SSB-ES03-12")}</Field>
+            <Field label={t("systemSchemes")} hint={editable ? t("systemSchemesHint") : undefined}>
+              {line("system_schemes_baseline", "eShuttle X - System Schemes - v.1.9")}
+            </Field>
             <Field label={t("newHardware")}>
               <YesNo value={form.new_hardware_required} onChange={(v) => set("new_hardware_required", !!v)} disabled={!editable} allowUnset={false} />
             </Field>

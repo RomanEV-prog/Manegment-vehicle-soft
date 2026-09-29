@@ -50,7 +50,7 @@
     "audit": "Revizijska sled",
     "settings": "Nastavitve",
     "logout": "Odjava",
-    "partnerReadOnly": "Partner — samo branje",
+    "partnerReadOnly": "Presojevalec — samo branje",
     "rxswins": "Register RXSWIN",
     "ecus": "Register ECU",
     "sha256": "SHA-256 orodje",
@@ -690,7 +690,7 @@
     "noRelease": "Ni izdan",
     "items": "{count} ECU",
     "noRxswins": "Ni še nobenega RXSWIN-a",
-    "rxswinFormatHint": "Določi proizvajalec: velike črke, številke, - _ . (npr. R48SWIN001)",
+    "rxswinFormatHint": "Konvencija eVersum: R<št. uredbe>SWIN<zaporedna št.>, npr. R48SWIN001 (razsvetljava, R48) ali R100SWIN001 (pogon / HV, R100)",
     "created": "RXSWIN ustvarjen",
     "status_draft": "Osnutek",
     "status_released": "Izdan",
@@ -716,7 +716,7 @@
     "supersededInfo": "Nadomeščen — ohranjen za revizijsko sled",
     "draftInfo": "Osnutek — urejanje možno do izdaje",
     "releaseBlocked": "Za izdajo je potrebna vsaj ena postavka in veljavna SHA-256 za vsako datoteko.",
-    "releaseRoleHint": "Izdati lahko le administrator ali QC manager.",
+    "releaseRoleHint": "Izdati lahko le administrator ali sistemski inženir.",
     "createdBy": "Odprl {name}",
     "addItem": "Dodaj programsko opremo ECU",
     "editItem": "Uredi programsko opremo ECU",
@@ -783,7 +783,13 @@
     "reactivate": "Ponovno aktiviraj",
     "readme": "Readme PDF",
     "registerPdf": "Register PDF",
-    "importCsv": "Uvozi CSV"
+    "importCsv": "Uvozi CSV",
+    "regulationDerived": "Uredba iz oznake: {reg} (doda se samodejno)",
+    "storedIn": "Na vozilu shranjen v",
+    "storedInHint": "RXSWIN je v pomnilniku BCU kot DID, berljiv z UDS ReadDataByIdentifier prek OBD",
+    "did": "DID",
+    "storedInVehicle": "Na vozilu shranjen v {ecu}, DID {did} — berljiv z UDS prek OBD",
+    "storedInUnknown": "Hramba na vozilu (ECU / DID) ni zapisana"
   },
   "fleet": {
     "title": "Vozila",
@@ -864,7 +870,7 @@
     "vvSignTitle": "Podpis V&V",
     "vvSignHint": "Inženirski podpis — zapiše se s tvojim imenom in časom.",
     "vvSigned": "Podpisal {name}, {date}",
-    "vvRoleHint": "V&V lahko podpiše le administrator ali QC manager.",
+    "vvRoleHint": "V&V lahko podpiše le administrator ali sistemski inženir.",
     "s4": "4. Homologacija",
     "s4ref": "§7.1.1.8–10, §7.1.2.5 (c)–(f)",
     "taNecessary": "Potrebna posodobitev homologacije",
@@ -926,7 +932,16 @@
     "pre_unknown": "Konfiguracija ni zapisana",
     "userActions": "Dejanja uporabnika / usposobljene osebe",
     "userActionsPlaceholder": "Brez — posodobitev izvede tehnik eVersum",
-    "blocker_user_actions": "Dejanja uporabnika / usposobljene osebe pred namestitvijo"
+    "blocker_user_actions": "Dejanja uporabnika / usposobljene osebe pred namestitvijo",
+    "systemSchemesHint": "Različica na Egnyte, npr. eShuttle X - System Schemes - v.1.9",
+    "readbackQuestion": "RXSWIN, prebran z vozila (UDS), se ujema z {rxswins}?",
+    "readbackHint": "Po nalaganju preberi DID z RXSWIN-om iz BCU in ga primerjaj z registrom (§7.1.1.4).",
+    "readback_yes": "Prebrano — ujema se",
+    "readback_no": "Prebrano — se NE ujema",
+    "readback_none": "Ni prebrano",
+    "readbackNotes": "Opombe k branju",
+    "readbackNotesPlaceholder": "npr. UDS 0x22 F1A0 = R100SWIN001",
+    "readbackMismatchWarning": "Uspešen rezultat z neujemajočim RXSWIN-om je protisloven — pred zapisom preveri vozilo."
   },
   "vehicleCfg": {
     "back": "Vozila",
@@ -1003,5 +1018,11 @@
     "progress": "{done} od {total} narejenih",
     "goThere": "Pojdi tja",
     "howTo": "Kako"
+  },
+  "roles": {
+    "admin": "Administrator",
+    "qc_manager": "Sistemski inženir",
+    "technician": "Programski inženir",
+    "partner_viewer": "Presojevalec (samo branje)"
   }
 }

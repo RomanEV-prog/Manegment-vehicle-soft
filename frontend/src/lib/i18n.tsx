@@ -46,3 +46,9 @@ export function useTranslations(namespace: string) {
 export function useLocale() {
   return useContext(I18nContext).locale;
 }
+
+// Napis vloge po eVersum (J. Zdun): admin, system engineer (izdaja, V&V), software engineer, auditor
+export function useRoleLabel() {
+  const t = useTranslations("roles");
+  return (role: string | null | undefined) => (role ? t(role) : "");
+}

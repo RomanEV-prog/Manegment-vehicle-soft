@@ -184,7 +184,11 @@ function EolDialog({ open, onClose, vehicle }: { open: boolean; onClose: () => v
             <Input value={form.config_id} onChange={(e) => setForm({ ...form, config_id: e.target.value })} className="font-mono" />
           </Field>
           <Field label={t("systemSchemes")}>
-            <Input value={form.system_schemes_baseline} onChange={(e) => setForm({ ...form, system_schemes_baseline: e.target.value })} />
+            <Input
+              value={form.system_schemes_baseline}
+              onChange={(e) => setForm({ ...form, system_schemes_baseline: e.target.value })}
+              placeholder="eShuttle X - System Schemes - v.1.9"
+            />
           </Field>
           <Field label={t("erpWo")}>
             <Input value={form.erp_work_order} onChange={(e) => setForm({ ...form, erp_work_order: e.target.value })} />

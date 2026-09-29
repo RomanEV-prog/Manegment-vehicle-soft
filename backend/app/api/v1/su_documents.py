@@ -299,6 +299,8 @@ async def _detail(db, doc: SoftwareUpdateDocument) -> SUDocumentDetail:
                 result=t.result,
                 applied_at=t.applied_at,
                 applied_by_name=names.get(t.applied_by),
+                readback_verified=t.readback_verified,
+                readback_notes=t.readback_notes,
                 current_config_id=preconditions[t.id][0],
                 precondition=preconditions[t.id][1],
                 precondition_detail=preconditions[t.id][2],
@@ -695,12 +697,16 @@ async def record_result(
     t.result = data.result
     t.applied_at = _now()  # strežniški čas — zapis se ne da predatirati
     t.applied_by = user["user_id"]
+    t.readback_verified = data.readback_verified
+    t.readback_notes = data.readback_notes
     after = {
         "document_id": doc.document_id,
         "revision": doc.baseline_number,
         "vin": await _vin(db, t.vehicle_id),
         "result": data.result,
         "applied_at": _jsonable(t.applied_at),
+        "readback_verified": data.readback_verified,
+        "readback_notes": data.readback_notes,
     }
     if data.result == "success":
         # §7.1.2.2: nova zadnja znana konfiguracija vozila = prejšnja + novi baseline-i

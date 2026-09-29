@@ -21,6 +21,7 @@ import {
   FileSearch,
   FileDown,
   FileUp,
+  Cpu,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -38,7 +39,7 @@ import {
   Textarea,
   usePermissions,
 } from "@/components/r156/shared";
-import { ItemDialog, VerifyDialog } from "@/components/r156/dialogs";
+import { EditRxswinDialog, ItemDialog, VerifyDialog } from "@/components/r156/dialogs";
 import { CsvImportDialog } from "@/components/r156/import";
 import {
   Dialog,
@@ -205,6 +206,7 @@ export default function RxswinDetailPage() {
   const [confirm, setConfirm] = useState<"release" | "discard" | null>(null);
   const [newOpen, setNewOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [newNotes, setNewNotes] = useState("");
 
   // Privzeto izberi odprt osnutek, sicer najnovejši baseline
@@ -303,14 +305,28 @@ export default function RxswinDetailPage() {
                 {rx.regulations_affected.length > 0 && <> · {rx.regulations_affected.join(", ")}</>}
               </p>
               {rx.description && <p className="mt-2 max-w-2xl text-sm text-gray-700">{rx.description}</p>}
+              <p className="mt-2 flex items-center gap-1.5 text-xs text-gray-500">
+                <Cpu className="h-3.5 w-3.5" />
+                {rx.stored_in_ecu_name
+                  ? t("storedInVehicle", { ecu: rx.stored_in_ecu_name, did: rx.did ?? "—" })
+                  : t("storedInUnknown")}
+              </p>
             </div>
           </div>
-          {canEdit && rx.status === "active" && (
-            <Button onClick={() => setNewOpen(true)} disabled={hasDraft} title={hasDraft ? t("draftInfo") : undefined}>
-              <FilePlus2 className="h-4 w-4" />
-              {t("newBaseline")}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {canEdit && (
+              <Button variant="outline" onClick={() => setEditOpen(true)}>
+                <Pencil className="h-4 w-4" />
+                {t("rxswinSettings")}
+              </Button>
+            )}
+            {canEdit && rx.status === "active" && (
+              <Button onClick={() => setNewOpen(true)} disabled={hasDraft} title={hasDraft ? t("draftInfo") : undefined}>
+                <FilePlus2 className="h-4 w-4" />
+                {t("newBaseline")}
+              </Button>
+            )}
+          </div>
         </div>
       </Card>
 
@@ -462,6 +478,7 @@ export default function RxswinDetailPage() {
           invalidate={[["rxswin", rx.id], ["rxswins"]]}
         />
       )}
+      <EditRxswinDialog open={editOpen} onClose={() => setEditOpen(false)} rxswin={rx} />
       {baseline && verifyItem && (
         <VerifyDialog open onClose={() => setVerifyItem(null)} baseline={baseline} item={verifyItem} />
       )}

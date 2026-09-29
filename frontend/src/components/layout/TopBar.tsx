@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useAlarmsStore } from "@/hooks/useAlarms";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
-import { useTranslations, useLocale } from "@/lib/i18n";
+import { useTranslations, useLocale, useRoleLabel } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import { moduleEnabled } from "@/lib/modules";
@@ -21,6 +21,7 @@ export function TopBar({ title }: TopBarProps) {
   const { user } = useAuth();
   const t = useTranslations("topbar");
   const tLang = useTranslations("lang");
+  const roleLabel = useRoleLabel();
   const locale = useLocale();
   const router = useRouter();
   const alarmsOn = moduleEnabled("alarms");
@@ -93,7 +94,7 @@ export function TopBar({ title }: TopBarProps) {
             </div>
             <div className="hidden sm:block">
               <p className="text-sm font-medium text-gray-900">{user.full_name}</p>
-              <p className="text-xs text-gray-500">{user.role}</p>
+              <p className="text-xs text-gray-500">{roleLabel(user.role)}</p>
             </div>
           </div>
         )}

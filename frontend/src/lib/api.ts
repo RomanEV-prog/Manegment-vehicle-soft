@@ -285,9 +285,19 @@ export const r156Api = {
     rxswin: string;
     description?: string | null;
     regulations_affected?: string[];
+    stored_in_ecu_id?: string | null;
+    did?: string | null;
   }) => api.post<RxswinDetail>("/rxswins", data).then((r) => r.data),
-  updateRxswin: (id: string, data: { description?: string | null; regulations_affected?: string[]; status?: string }) =>
-    api.put<RxswinDetail>(`/rxswins/${id}`, data).then((r) => r.data),
+  updateRxswin: (
+    id: string,
+    data: {
+      description?: string | null;
+      regulations_affected?: string[];
+      status?: string;
+      stored_in_ecu_id?: string | null;
+      did?: string | null;
+    }
+  ) => api.put<RxswinDetail>(`/rxswins/${id}`, data).then((r) => r.data),
 
   createBaseline: (rxswinId: string, notes?: string) =>
     api.post<RxswinDetail>(`/rxswins/${rxswinId}/baselines`, { notes: notes || null }).then((r) => r.data),
@@ -371,8 +381,11 @@ export const suApi = {
     api.put<SuDetail>(`/software-updates/${id}/targets/${targetId}`, data).then((r) => r.data),
   removeTarget: (id: string, targetId: string) =>
     api.delete<SuDetail>(`/software-updates/${id}/targets/${targetId}`).then((r) => r.data),
-  recordResult: (id: string, targetId: string, result: "success" | "failed" | "rolled_back") =>
-    api.post<SuDetail>(`/software-updates/${id}/targets/${targetId}/result`, { result }).then((r) => r.data),
+  recordResult: (
+    id: string,
+    targetId: string,
+    data: { result: "success" | "failed" | "rolled_back"; readback_verified: boolean | null; readback_notes?: string | null }
+  ) => api.post<SuDetail>(`/software-updates/${id}/targets/${targetId}/result`, data).then((r) => r.data),
   recordNotification: (id: string, method: string) =>
     api.post<SuDetail>(`/software-updates/${id}/notification`, { method }).then((r) => r.data),
   release: (id: string) => api.post<SuDetail>(`/software-updates/${id}/release`).then((r) => r.data),

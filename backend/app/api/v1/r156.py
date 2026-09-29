@@ -37,6 +37,7 @@ from app.schemas.r156 import (
     RXSWINListItem,
     RXSWINUpdate,
     VehicleTypeCreate,
+    regulation_from_rxswin,
     VehicleTypeResponse,
     VehicleTypeUpdate,
     VerifyRequest,
@@ -218,6 +219,7 @@ async def list_rxswins(user: CurrentUserDep, db: DbSession, vehicle_type_id: uui
         .options(
             selectinload(RXSWIN.baselines).selectinload(RXSWINBaseline.items),
             selectinload(RXSWIN.vehicle_type),
+            selectinload(RXSWIN.stored_in_ecu),
         )
         .order_by(RXSWIN.rxswin)
     )
@@ -238,6 +240,8 @@ async def list_rxswins(user: CurrentUserDep, db: DbSession, vehicle_type_id: uui
                 description=r.description,
                 regulations_affected=r.regulations_affected or [],
                 status=r.status,
+                stored_in_ecu_name=r.stored_in_ecu.ecu_name if r.stored_in_ecu else None,
+                did=r.did,
                 current_baseline=_summary(max(released, key=lambda b: b.baseline_number) if released else None),
                 draft_baseline=_summary(drafts[0] if drafts else None),
                 baseline_count=len(r.baselines),
@@ -254,6 +258,7 @@ async def _load_rxswin(db, rxswin_id: uuid.UUID, org_id) -> RXSWIN:
         .options(
             selectinload(RXSWIN.baselines).selectinload(RXSWINBaseline.items).selectinload(RXSWINBaselineItem.ecu),
             selectinload(RXSWIN.vehicle_type),
+            selectinload(RXSWIN.stored_in_ecu),
         )
         .execution_options(populate_existing=True)
     )
@@ -307,10 +312,23 @@ async def _rxswin_detail(db, r: RXSWIN) -> RXSWINDetail:
         description=r.description,
         regulations_affected=r.regulations_affected or [],
         status=r.status,
+        stored_in_ecu_id=r.stored_in_ecu_id,
+        stored_in_ecu_name=r.stored_in_ecu.ecu_name if r.stored_in_ecu else None,
+        did=r.did,
         created_at=r.created_at,
         updated_at=r.updated_at,
         baselines=baselines,
     )
+
+
+async def _check_storage_ecu(db, ecu_id: uuid.UUID | None, vehicle_type_id: uuid.UUID, org_id) -> None:
+    if ecu_id is None:
+        return
+    ecu = await db.scalar(select(ECU).where(ECU.id == ecu_id, ECU.organization_id == org_id))
+    if not ecu:
+        raise HTTPException(status_code=404, detail="ECU ne obstaja")
+    if ecu.vehicle_type_id != vehicle_type_id:
+        raise HTTPException(status_code=422, detail="ECU, ki hrani RXSWIN, mora pripadati istemu tipu vozila")
 
 
 @router.post("/rxswins", response_model=RXSWINDetail, status_code=status.HTTP_201_CREATED)
@@ -321,7 +339,13 @@ async def create_rxswin(data: RXSWINCreate, user: NonPartnerDep, db: DbSession):
     )
     if exists:
         raise HTTPException(status_code=409, detail=f"RXSWIN '{data.rxswin}' že obstaja")
-    r = RXSWIN(organization_id=user["org_id"], status="active", **data.model_dump())
+    await _check_storage_ecu(db, data.stored_in_ecu_id, data.vehicle_type_id, user["org_id"])
+    values = data.model_dump()
+    # uredba iz oznake (R48SWIN001 → UN-ECE R48) je vedno med prizadetimi
+    reg = regulation_from_rxswin(data.rxswin)
+    if reg and reg not in values["regulations_affected"]:
+        values["regulations_affected"] = [reg, *values["regulations_affected"]]
+    r = RXSWIN(organization_id=user["org_id"], status="active", **values)
     db.add(r)
     await db.flush()
     await _audit(
@@ -335,6 +359,8 @@ async def create_rxswin(data: RXSWINCreate, user: NonPartnerDep, db: DbSession):
             "vehicle_type_id": str(r.vehicle_type_id),
             "description": r.description,
             "regulations_affected": r.regulations_affected,
+            "stored_in_ecu_id": str(r.stored_in_ecu_id) if r.stored_in_ecu_id else None,
+            "did": r.did,
         },
     )
     await db.commit()
@@ -350,10 +376,15 @@ async def get_rxswin(rxswin_id: uuid.UUID, user: CurrentUserDep, db: DbSession):
 async def update_rxswin(rxswin_id: uuid.UUID, data: RXSWINUpdate, user: NonPartnerDep, db: DbSession):
     r = await _load_rxswin(db, rxswin_id, user["org_id"])
     changes = data.model_dump(exclude_unset=True)
+    if "stored_in_ecu_id" in changes:
+        await _check_storage_ecu(db, changes["stored_in_ecu_id"], r.vehicle_type_id, user["org_id"])
     before = _snap(r, changes.keys())
     for k, v in changes.items():
         setattr(r, k, v)
-    await _audit(db, user, "update", "rxswin", r.id, before=before, after=changes)
+    # audit JSON: stored_in_ecu_id je UUID → mode="json" ga zapiše kot niz
+    await _audit(
+        db, user, "update", "rxswin", r.id, before=before, after=data.model_dump(exclude_unset=True, mode="json")
+    )
     await db.commit()
     return await _rxswin_detail(db, await _load_rxswin(db, rxswin_id, user["org_id"]))
 
@@ -688,7 +719,8 @@ async def item_readme_pdf(baseline_id: uuid.UUID, item_id: uuid.UUID, user: Curr
     from starlette.concurrency import run_in_threadpool
 
     pdf = await run_in_threadpool(render_readme_pdf, detail, baseline, item)
-    filename = f"{ecu_short_name(item.ecu_name)} {item.sw_version} - Readme.pdf"
+    # oblika po eVersum (J. Zdun): "ECU_Name ECU_Software_Version Readme"
+    filename = f"{ecu_short_name(item.ecu_name)} {item.sw_version} Readme.pdf"
     return Response(
         content=pdf,
         media_type="application/pdf",

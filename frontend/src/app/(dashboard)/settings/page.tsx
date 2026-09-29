@@ -22,7 +22,7 @@ import { moduleEnabled } from "@/lib/modules";
 import type { User, AlarmConfig } from "@/types";
 import toast from "react-hot-toast";
 import type { AxiosError } from "axios";
-import { useTranslations } from "@/lib/i18n";
+import { useTranslations, useRoleLabel } from "@/lib/i18n";
 
 const ROLES = ["admin", "qc_manager", "technician", "partner_viewer"];
 
@@ -86,6 +86,7 @@ function CreateUserDialog({ open, onClose }: { open: boolean; onClose: () => voi
   const t = useTranslations("settings");
   const tCommon = useTranslations("common");
   const [form, setForm] = useState({ email: "", full_name: "", password: "", role: "technician" });
+  const roleLabel = useRoleLabel();
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   const mutation = useMutation({
@@ -132,7 +133,7 @@ function CreateUserDialog({ open, onClose }: { open: boolean; onClose: () => voi
               onChange={(e) => set("role", e.target.value)}
               className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm"
             >
-              {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+              {ROLES.map((r) => <option key={r} value={r}>{roleLabel(r)}</option>)}
             </select>
           </div>
         </div>
@@ -157,6 +158,7 @@ export default function SettingsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const t = useTranslations("settings");
   const tCommon = useTranslations("common");
+  const roleLabel = useRoleLabel();
 
   const { data: users, isLoading } = useQuery<User[]>({
     queryKey: ["users"],
@@ -231,7 +233,7 @@ export default function SettingsPage() {
               </p>
               <div className="mt-1.5 flex items-center gap-2">
                 <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${ROLE_COLORS[payload?.role ?? ""] ?? "bg-gray-100"}`}>
-                  {payload?.role}
+                  {roleLabel(payload?.role)}
                 </span>
                 <span className="text-xs text-gray-400">
                   {t("orgLabel")} {payload?.org_id?.slice(0, 8)}…
@@ -282,7 +284,7 @@ export default function SettingsPage() {
                       <td className="px-4 py-3 text-gray-600">{u.email}</td>
                       <td className="px-4 py-3">
                         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${ROLE_COLORS[u.role] ?? "bg-gray-100"}`}>
-                          {u.role}
+                          {roleLabel(u.role)}
                         </span>
                       </td>
                       <td className="px-4 py-3">

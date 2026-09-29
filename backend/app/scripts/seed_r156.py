@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.config import settings
 from app.models.organization import Organization
+from app.utils.audit import write_audit_log
 from app.models.r156 import (
     ECU,
     RXSWIN,
@@ -132,6 +133,11 @@ VCU_ITEM = {
     "description": "Vehicle Control Unit software. Source: Helix ALM readme, baseline 152, 17 Oct 2025.",
 }
 
+VCU_RXSWIN_DESCRIPTION = (
+    "Powertrain / HV system — Vehicle Control Unit software relevant to UN-ECE Reg 100 "
+    "(Helix ALM readme ES03v02_vcu1_1_2_115)."
+)
+
 # Serijske številke instanc ECU iz diagrama — vežemo jih na vozilo, če obstaja
 VEHICLE_ECU_INSTANCES = {
     "Body Control Unit": {"serial_number": "N6200012501301", "hardware_version": "v.1.3", "batch_number": "7009"},
@@ -189,6 +195,21 @@ async def seed_r156() -> None:
             ecus[name] = ecu
             created["ecus"] += is_new
 
+        # prvi tip vozila za homologacijo po R156 (J. Zdun, 28. 9. 2026)
+        _, is_new = await get_or_create(
+            db,
+            VehicleType,
+            {"organization_id": org.id, "name": "IAV VHH 6.9m"},
+            {
+                "model_code": None,
+                "description": "First vehicle type to be homologated for UN-ECE R156 (J. Zdun, 28 Sep 2026).",
+            },
+        )
+        created["vehicle_types"] += is_new
+
+        # RXSWIN je shranjen v pomnilniku BCU kot DID (J. Zdun, 28. 9. 2026); DID še ni določen
+        bcu = ecus["Body Control Unit"]
+
         # --- RXSWIN R48SWIN001, baseline 1 (izdan) ---
         rxswin, is_new = await get_or_create(
             db,
@@ -199,9 +220,12 @@ async def seed_r156() -> None:
                 "description": "Exterior Lighting — software relevant to UN-ECE Reg 48.",
                 "regulations_affected": ["UN-ECE R48"],
                 "status": "active",
+                "stored_in_ecu_id": bcu.id,
             },
         )
         created["rxswins"] += is_new
+        if rxswin.stored_in_ecu_id is None:
+            rxswin.stored_in_ecu_id = bcu.id
 
         baseline, is_new = await get_or_create(
             db,
@@ -229,19 +253,47 @@ async def seed_r156() -> None:
             created["baseline_items"] += is_new
         await release(db, baseline)
 
-        # --- VCU: lastni RXSWIN, ker readme ne navaja pripadnosti R48 ---
+        # --- VCU: R100SWIN001 (pogon / HV, UN-ECE R100) ---
+        # Do 28. 9. 2026 je bil to začasni 'VCUSWIN001'; J. Zdun: VCU hosts software for R100.
+        # Oznaka se preimenuje enkrat (API preimenovanja ne dovoli), z zapisom v revizijsko sled.
+        provisional = (
+            await db.execute(select(RXSWIN).where(RXSWIN.organization_id == org.id, RXSWIN.rxswin == "VCUSWIN001"))
+        ).scalar_one_or_none()
+        if provisional is not None:
+            provisional.rxswin = "R100SWIN001"
+            provisional.regulations_affected = ["UN-ECE R100"]
+            provisional.description = VCU_RXSWIN_DESCRIPTION
+            await write_audit_log(
+                db=db,
+                org_id=org.id,
+                actor_id=None,
+                actor_type="system",
+                actor_device="seed",
+                action="update",
+                entity_type="rxswin",
+                entity_id=provisional.id,
+                before={"rxswin": "VCUSWIN001"},
+                after={"rxswin": "R100SWIN001", "regulations_affected": ["UN-ECE R100"]},
+                reason="Provisional identifier replaced per eVersum RXSWIN convention (J. Zdun, 28 Sep 2026)",
+            )
+            await db.flush()
+            created["renamed"] = created.get("renamed", 0) + 1
+
         vcu_rxswin, is_new = await get_or_create(
             db,
             RXSWIN,
-            {"organization_id": org.id, "rxswin": "VCUSWIN001"},
+            {"organization_id": org.id, "rxswin": "R100SWIN001"},
             {
                 "vehicle_type_id": vtype.id,
-                "description": "Vehicle Control Unit software (Helix ALM readme). PROVISIONAL RXSWIN — "
-                "the regulation / RXSWIN assignment is not stated in the source and is to be confirmed.",
+                "description": VCU_RXSWIN_DESCRIPTION,
+                "regulations_affected": ["UN-ECE R100"],
                 "status": "active",
+                "stored_in_ecu_id": bcu.id,
             },
         )
         created["rxswins"] += is_new
+        if vcu_rxswin.stored_in_ecu_id is None:
+            vcu_rxswin.stored_in_ecu_id = bcu.id
 
         vcu_baseline, is_new = await get_or_create(
             db,
@@ -272,6 +324,8 @@ async def seed_r156() -> None:
     await engine.dispose()
 
     print("✓ R156 podatki iz gradiva Jakuba Zduna vneseni.")
+    if created.get("renamed"):
+        print("  VCUSWIN001 → R100SWIN001 (zapisano v revizijsko sled)")
     for table, count in created.items():
         print(f"  {table}: {count} novih")
     print("\n  Opozorilo: kontrolne vsote za BCU/MUX1/MUX2 so iz diagrama okrajšane ('..')")

@@ -61,7 +61,7 @@ README_TEMPLATE = """
 <div class="cover">
   <div class="brand">e<span>V</span>ersum</div>
   <div class="title">
-    <h1>{{ ecu_short }} {{ item.sw_version }} - Readme</h1>
+    <h1>{{ ecu_short }} {{ item.sw_version }} Readme</h1>
     <p><b>Description:</b><br>
     This document states the SW version, SHA-256 checksum of the SW file and any parameters files
     (if applicable), as well as compatible hardware and change log.</p>
@@ -79,7 +79,7 @@ README_TEMPLATE = """
   </div>
 </div>
 
-<h1 style="color:#2d5d9f; font-size:16pt">{{ ecu_short }} {{ item.sw_version }} - Readme</h1>
+<h1 style="color:#2d5d9f; font-size:16pt">{{ ecu_short }} {{ item.sw_version }} Readme</h1>
 <p><b>RXSWIN:</b> {{ rxswin.rxswin }} &nbsp; <b>Baseline Number:</b> {{ baseline.baseline_number }}
 &nbsp; <b>Status:</b> <span class="status {{ baseline.status }}">{{ baseline.status|upper }}</span></p>
 <p>The following table aggregates the content of the software file readme for eVersum {{ ecu_short }} SW:</p>
@@ -157,13 +157,14 @@ SU_TEMPLATE = """
 
 <h2>7. Target vehicles — §7.1.1.6, §7.1.1.7, §7.1.2.4</h2>
 <table class="grid">
-  <tr><th>VIN</th><th>Vehicle</th><th>Last known configuration</th><th>Compatibility confirmed</th><th>Result</th></tr>
+  <tr><th>VIN</th><th>Vehicle</th><th>Last known configuration</th><th>Compatibility confirmed</th><th>Result</th><th>RXSWIN read-back</th></tr>
   {% for t in d.targets %}
   <tr><td class="mono">{{ t.vin }}</td><td>{{ t.vehicle_name }}</td>
       <td>{{ t.current_config_id or "—" }}<br><span class="small">{{ {"ok": "matches baseline before", "mismatch": "DOES NOT match baseline before", "already_installed": "update already installed", "unknown": "no configuration recorded"}[t.precondition] }}{% if t.precondition_detail %} ({{ t.precondition_detail|join("; ") }}){% endif %}</span></td>
       <td>{% if t.compatibility_confirmed %}Yes — {{ t.confirmed_by_name or "—" }}, {{ t.confirmed_at|dt }}{% else %}No{% endif %}{% if t.compatibility_notes %}<br><span class="small">{{ t.compatibility_notes }}</span>{% endif %}</td>
-      <td>{% if t.result %}{{ t.result }} — {{ t.applied_by_name or "—" }}, {{ t.applied_at|dt }}{% else %}pending{% endif %}</td></tr>
-  {% else %}<tr><td colspan="5">—</td></tr>{% endfor %}
+      <td>{% if t.result %}{{ t.result }} — {{ t.applied_by_name or "—" }}, {{ t.applied_at|dt }}{% else %}pending{% endif %}</td>
+      <td>{% if t.readback_verified is true %}matches{% elif t.readback_verified is false %}DOES NOT MATCH{% else %}not recorded{% endif %}{% if t.readback_notes %}<br><span class="small">{{ t.readback_notes }}</span>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="6">—</td></tr>{% endfor %}
 </table>
 
 <h2>8. References</h2>
@@ -223,6 +224,7 @@ OTA updates are excluded from the scope of the eVersum SUMS.</p>
   <tr><td class="k">Vehicle type</td><td>{{ r.vehicle_type_name }}</td></tr>
   <tr><td class="k">Description</td><td class="pre">{{ r.description or "—" }}</td></tr>
   <tr><td class="k">Regulations affected</td><td>{{ r.regulations_affected|join(", ") or "—" }}</td></tr>
+  <tr><td class="k">Stored on the vehicle</td><td>{% if r.stored_in_ecu_name %}{{ r.stored_in_ecu_name }}, DID {{ r.did or "—" }} (UDS ReadDataByIdentifier via OBD){% else %}—{% endif %}</td></tr>
 </table>
 
 {% for b in r.baselines if b.status != "draft" %}

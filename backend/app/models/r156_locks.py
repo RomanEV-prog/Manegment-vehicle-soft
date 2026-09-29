@@ -126,7 +126,7 @@ CREATE OR REPLACE FUNCTION software_update_child_lock() RETURNS trigger AS $$
 DECLARE
     st text;
     st_old text;
-    allowed text[] := ARRAY['result', 'applied_at', 'applied_by'];
+    allowed text[] := ARRAY['result', 'applied_at', 'applied_by', 'readback_verified', 'readback_notes'];
 BEGIN
     SELECT status INTO st FROM software_updates
         WHERE id = CASE WHEN TG_OP = 'DELETE' THEN OLD.software_update_id ELSE NEW.software_update_id END;

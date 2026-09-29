@@ -7,9 +7,20 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.schemas.sw_update import RXSWIN_PATTERN
 
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+
+# Konvencija eVersum (J. Zdun, 28. 9. 2026): R<št. uredbe UN-ECE>SWIN<zaporedna št.>,
+# npr. R48SWIN001 (razsvetljava, R48), R100SWIN001 (pogon/HV, R100). En RXSWIN na uredbo.
+RXSWIN_STRICT = re.compile(r"^R(\d{1,3})SWIN\d{3,}$")
+# DID (UDS ReadDataByIdentifier), npr. F1A0 — RXSWIN je shranjen v pomnilniku BCU
+DID_PATTERN = re.compile(r"^[0-9A-F]{4}$")
+
+
+def regulation_from_rxswin(code: str) -> str | None:
+    """'R48SWIN001' → 'UN-ECE R48'."""
+    m = RXSWIN_STRICT.match(code)
+    return f"UN-ECE R{int(m.group(1))}" if m else None
 
 
 def http_url(v: Optional[str]) -> Optional[str]:
@@ -105,25 +116,50 @@ class ECUResponse(BaseModel):
 # ─── RXSWIN ───────────────────────────────────────────────────────────────────
 
 
+def validate_did(v: Optional[str]) -> Optional[str]:
+    if v is None:
+        return None
+    v = v.strip().upper().removeprefix("0X")
+    if not v:
+        return None
+    if not DID_PATTERN.match(v):
+        raise ValueError("DID mora biti 4 šestnajstiški znaki, npr. F1A0")
+    return v
+
+
 class RXSWINCreate(BaseModel):
     vehicle_type_id: uuid.UUID
     rxswin: str
     description: Optional[str] = None
     regulations_affected: list[str] = []
+    stored_in_ecu_id: Optional[uuid.UUID] = None  # ECU, ki hrani RXSWIN (BCU)
+    did: Optional[str] = None
 
     @field_validator("rxswin")
     @classmethod
     def validate_rxswin(cls, v: str) -> str:
-        v = v.strip()
-        if not RXSWIN_PATTERN.match(v):
-            raise ValueError("RXSWIN sme vsebovati le velike črke, številke in - _ . (3–64 znakov)")
+        v = v.strip().upper()
+        if not RXSWIN_STRICT.match(v):
+            raise ValueError("RXSWIN mora biti v obliki R<uredba>SWIN<št.>, npr. R48SWIN001 ali R100SWIN001")
         return v
+
+    @field_validator("did")
+    @classmethod
+    def _did(cls, v: Optional[str]) -> Optional[str]:
+        return validate_did(v)
 
 
 class RXSWINUpdate(BaseModel):
     description: Optional[str] = None
     regulations_affected: Optional[list[str]] = None
     status: Optional[Literal["active", "retired"]] = None
+    stored_in_ecu_id: Optional[uuid.UUID] = None
+    did: Optional[str] = None
+
+    @field_validator("did")
+    @classmethod
+    def _did(cls, v: Optional[str]) -> Optional[str]:
+        return validate_did(v)
 
 
 class BaselineSummary(BaseModel):
@@ -142,6 +178,8 @@ class RXSWINListItem(BaseModel):
     description: Optional[str]
     regulations_affected: list[str]
     status: str
+    stored_in_ecu_name: Optional[str] = None
+    did: Optional[str] = None
     current_baseline: Optional[BaselineSummary]
     draft_baseline: Optional[BaselineSummary]
     baseline_count: int
@@ -235,6 +273,9 @@ class RXSWINDetail(BaseModel):
     description: Optional[str]
     regulations_affected: list[str]
     status: str
+    stored_in_ecu_id: Optional[uuid.UUID] = None
+    stored_in_ecu_name: Optional[str] = None
+    did: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     baselines: list[BaselineResponse]  # najnovejši najprej

@@ -86,6 +86,9 @@ class TargetCompatibility(BaseModel):
 
 class TargetResult(BaseModel):
     result: Literal["success", "failed", "rolled_back"]
+    # §7.1.1.4: RXSWIN, prebran z vozila (UDS 0x22, DID v BCU) po nalaganju — se ujema?
+    readback_verified: Optional[bool] = None
+    readback_notes: Optional[str] = None
 
 
 class UserNotification(BaseModel):
@@ -118,6 +121,8 @@ class TargetResponse(BaseModel):
     result: Optional[str]
     applied_at: Optional[datetime]
     applied_by_name: Optional[str]
+    readback_verified: Optional[bool] = None
+    readback_notes: Optional[str] = None
     # §7.1.1.7: zadnja znana konfiguracija vozila glede na baseline "pred"
     current_config_id: Optional[str] = None
     precondition: Literal["ok", "mismatch", "already_installed", "unknown"] = "unknown"

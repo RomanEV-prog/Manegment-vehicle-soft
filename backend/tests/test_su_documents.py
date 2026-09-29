@@ -22,7 +22,7 @@ async def su(client: AsyncClient, org_and_user):
     ecu = (await client.post("/api/v1/ecus", json={
         "vehicle_type_id": vt["id"], "ecu_name": "Vehicle Control Unit", "eversum_part_number": "EV-00000-41817",
     }, headers=h)).json()
-    rx = (await client.post("/api/v1/rxswins", json={"vehicle_type_id": vt["id"], "rxswin": "VCUSWIN001"}, headers=h)).json()
+    rx = (await client.post("/api/v1/rxswins", json={"vehicle_type_id": vt["id"], "rxswin": "R100SWIN001"}, headers=h)).json()
 
     ids = []
     for sha, ver in ((SHA1, "1.2.115"), (SHA2, "1.2.116")):
@@ -109,7 +109,7 @@ async def test_affected_rxswin_records_before_and_after(client, su):
                           json={"rxswin_id": su["rx"]["id"], "baseline_after_id": su["b2"]}, headers=su["h"])
     assert r.status_code == 201
     [a] = r.json()["affected_rxswins"]
-    assert (a["rxswin"], a["baseline_before_number"], a["baseline_after_number"]) == ("VCUSWIN001", 1, 2)
+    assert (a["rxswin"], a["baseline_before_number"], a["baseline_after_number"]) == ("R100SWIN001", 1, 2)
 
 
 async def test_targets_must_match_vehicle_type(client, su):
@@ -150,7 +150,7 @@ async def test_full_release(client, su, org_and_user):
     d = r.json()
     assert d["status"] == "released" and d["released_by_name"] == "Test Admin"
     logs = (await client.get("/api/v1/audit-logs", params={"entity_id": d["id"], "action": "release"}, headers=su["h"])).json()
-    assert logs[0]["after"]["rxswins"] == ["VCUSWIN001 B1→B2"]
+    assert logs[0]["after"]["rxswins"] == ["R100SWIN001 B1→B2"]
     assert sorted(logs[0]["after"]["targets"]) == ["VIN0000000000001", "VIN0000000000002"]
 
 
@@ -162,7 +162,7 @@ async def test_draft_rxswin_baseline_blocks_release(client, su, org_and_user):
     await client.delete(f"{url}/rxswins/{d['affected_rxswins'][0]['id']}", headers=su["h"])
     d = (await client.post(f"{url}/rxswins", json={"rxswin_id": su["rx"]["id"], "baseline_after_id": draft["id"]},
                            headers=su["h"])).json()
-    assert d["release_blockers"] == ["baseline_not_released:VCUSWIN001", "vv_not_passed"]
+    assert d["release_blockers"] == ["baseline_not_released:R100SWIN001", "vv_not_passed"]
 
 
 async def test_unconfirmed_target_blocks_release(client, su, org_and_user):
@@ -195,11 +195,15 @@ async def test_released_document_is_read_only_but_accepts_execution(client, su, 
     assert (await client.delete(url, headers=su["h"])).status_code == 409
 
     t = d["targets"][0]
-    r = await client.post(f"{url}/targets/{t['id']}/result", json={"result": "success"},
+    r = await client.post(f"{url}/targets/{t['id']}/result",
+                          json={"result": "success", "readback_verified": True, "readback_notes": "UDS 0x22 F1A0 = R100SWIN001"},
                           headers=org_and_user["tech_headers"])
     assert r.status_code == 200
     done = next(x for x in r.json()["targets"] if x["id"] == t["id"])
     assert done["result"] == "success" and done["applied_by_name"] == "Test Technician"
+    assert done["readback_verified"] is True and done["readback_notes"].startswith("UDS")
+    logs = (await client.get("/api/v1/audit-logs", params={"entity_id": t["id"], "action": "apply"}, headers=su["h"])).json()
+    assert logs[0]["after"]["readback_verified"] is True
 
     n = await client.post(f"{url}/notification", json={"method": "E-mail to fleet manager"}, headers=su["h"])
     assert n.status_code == 200 and n.json()["user_notified_by_name"] == "Test Admin"
@@ -247,9 +251,9 @@ async def test_database_trigger_protects_released_document(client, su, org_and_u
         with pytest.raises(Exception, match="samo za branje|zaklenjen|ni mogoče spreminjati"):
             async with test_engine.begin() as conn:
                 await conn.execute(text(sql))
-    # izvedba na vozilu je dovoljena tudi neposredno
+    # izvedba na vozilu (vključno z read-backom) je dovoljena tudi neposredno
     async with test_engine.begin() as conn:
-        await conn.execute(text("UPDATE software_update_targets SET result = 'success', applied_at = now()"))
+        await conn.execute(text("UPDATE software_update_targets SET result = 'success', applied_at = now(), readback_verified = true"))
 
 
 async def test_discard_draft(client, su):
@@ -273,7 +277,7 @@ async def test_readme_pdf(client, su):
     b = next(x for x in detail["baselines"] if x["id"] == su["b2"])
     r = await client.get(f"/api/v1/rxswin-baselines/{b['id']}/items/{b['items'][0]['id']}/readme.pdf", headers=su["h"])
     assert r.status_code == 200 and r.content[:4] == b"%PDF"
-    assert "VCU%201.2.116%20-%20Readme.pdf" in r.headers["content-disposition"]
+    assert "VCU%201.2.116%20Readme.pdf" in r.headers["content-disposition"]
 
 
 # ─── Vozila ───────────────────────────────────────────────────────────────────

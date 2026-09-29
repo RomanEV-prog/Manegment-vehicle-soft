@@ -77,7 +77,7 @@ async def test_ecu_update_writes_audit(client, r156):
 
 # ─── RXSWIN ───────────────────────────────────────────────────────────────────
 
-@pytest.mark.parametrize("code", ["R48SWIN001", "RXSWIN-EV-M1-221", "VCU_SWIN.002"])
+@pytest.mark.parametrize("code", ["R48SWIN001", "R100SWIN001", "R10SWIN002"])
 async def test_rxswin_formats_accepted(client, r156, code):
     if code == "R48SWIN001":
         return  # že ustvarjen v fixturi
@@ -85,10 +85,36 @@ async def test_rxswin_formats_accepted(client, r156, code):
     assert resp.status_code == 201
 
 
-@pytest.mark.parametrize("code", ["r48swin001", "R4", "R48 SWIN"])
+@pytest.mark.parametrize("code", ["RXSWIN-EV-M1-221", "VCUSWIN001", "R48SWIN01", "R48 SWIN", "SWIN001"])
 async def test_rxswin_invalid_format(client, r156, code):
     resp = await client.post("/api/v1/rxswins", json={"vehicle_type_id": r156["vt"]["id"], "rxswin": code}, headers=r156["h"])
     assert resp.status_code == 422
+
+
+async def test_rxswin_regulation_derived_and_storage_ecu(client, r156):
+    r = await client.post("/api/v1/rxswins", json={
+        "vehicle_type_id": r156["vt"]["id"], "rxswin": "r100swin001",   # velikost črk se popravi
+        "regulations_affected": ["UN-ECE R10"], "stored_in_ecu_id": r156["bcu"]["id"], "did": "0xf1a0",
+    }, headers=r156["h"])
+    assert r.status_code == 201, r.text
+    d = r.json()
+    assert d["rxswin"] == "R100SWIN001"
+    assert d["regulations_affected"] == ["UN-ECE R100", "UN-ECE R10"]   # uredba iz oznake je dodana
+    assert d["stored_in_ecu_name"] == "Body Control Unit" and d["did"] == "F1A0"
+    # ECU drugega tipa vozila ne sme hraniti RXSWIN-a
+    vt2 = (await client.post("/api/v1/vehicle-types", json={"name": "Drug tip"}, headers=r156["h"])).json()
+    ecu2 = (await client.post("/api/v1/ecus", json={"vehicle_type_id": vt2["id"], "ecu_name": "BCU", "eversum_part_number": "EV-9"}, headers=r156["h"])).json()
+    bad = await client.put(f"/api/v1/rxswins/{d['id']}", json={"stored_in_ecu_id": ecu2["id"]}, headers=r156["h"])
+    assert bad.status_code == 422
+    assert (await client.put(f"/api/v1/rxswins/{d['id']}", json={"did": "ZZZZ"}, headers=r156["h"])).status_code == 422
+    # veljavna sprememba hrambe (UUID v audit JSON) mora uspeti
+    ok = await client.put(
+        f"/api/v1/rxswins/{d['id']}",
+        json={"stored_in_ecu_id": r156["bcu"]["id"], "did": "f1b2", "description": "spremenjeno"},
+        headers=r156["h"],
+    )
+    assert ok.status_code == 200, ok.text
+    assert ok.json()["did"] == "F1B2" and ok.json()["stored_in_ecu_name"] == "Body Control Unit"
 
 
 async def test_rxswin_duplicate_rejected(client, r156):
@@ -226,7 +252,7 @@ async def test_partner_reads_but_cannot_write(client, r156, org_and_user):
     ph = org_and_user["partner_headers"]
     assert (await client.get(f"/api/v1/rxswins/{r156['rx']['id']}", headers=ph)).status_code == 200
     assert (await client.post(f"/api/v1/rxswins/{r156['rx']['id']}/baselines", json={}, headers=ph)).status_code == 403
-    assert (await client.post("/api/v1/rxswins", json={"vehicle_type_id": r156["vt"]["id"], "rxswin": "NEW001"}, headers=ph)).status_code == 403
+    assert (await client.post("/api/v1/rxswins", json={"vehicle_type_id": r156["vt"]["id"], "rxswin": "R10SWIN001"}, headers=ph)).status_code == 403
 
 
 async def test_other_org_cannot_see_rxswin(client, r156, db_session):
@@ -244,7 +270,7 @@ async def test_other_org_cannot_see_rxswin(client, r156, db_session):
 
     assert (await client.get(f"/api/v1/rxswins/{r156['rx']['id']}", headers=h2)).status_code == 404
     assert (await client.get("/api/v1/rxswins", headers=h2)).json() == []
-    assert (await client.post("/api/v1/rxswins", json={"vehicle_type_id": r156["vt"]["id"], "rxswin": "X001"}, headers=h2)).status_code == 404
+    assert (await client.post("/api/v1/rxswins", json={"vehicle_type_id": r156["vt"]["id"], "rxswin": "R10SWIN001"}, headers=h2)).status_code == 404
 
 
 # ─── Preverjanje SHA-256 ──────────────────────────────────────────────────────

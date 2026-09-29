@@ -38,6 +38,8 @@ export interface RxswinListItem {
   description: string | null;
   regulations_affected: string[];
   status: "active" | "retired";
+  stored_in_ecu_name: string | null;
+  did: string | null;
   current_baseline: BaselineSummary | null;
   draft_baseline: BaselineSummary | null;
   baseline_count: number;
@@ -91,6 +93,9 @@ export interface RxswinDetail {
   description: string | null;
   regulations_affected: string[];
   status: "active" | "retired";
+  stored_in_ecu_id: string | null;
+  stored_in_ecu_name: string | null;
+  did: string | null;
   created_at: string;
   updated_at: string;
   baselines: Baseline[];
@@ -157,6 +162,8 @@ export interface SuTarget {
   result: "success" | "failed" | "rolled_back" | null;
   applied_at: string | null;
   applied_by_name: string | null;
+  readback_verified: boolean | null;
+  readback_notes: string | null;
   current_config_id: string | null;
   precondition: "ok" | "mismatch" | "already_installed" | "unknown";
   precondition_detail: string[];

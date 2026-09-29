@@ -382,3 +382,99 @@ export function NotificationDialog({ open, onClose, doc }: { open: boolean; onCl
     </Dialog>
   );
 }
+
+// Zapis rezultata izvedbe z read-backom RXSWIN-a z vozila (UDS 0x22, DID v BCU) — §7.1.1.4
+export function ResultDialog({
+  open,
+  onClose,
+  doc,
+  targetId,
+  vin,
+  result,
+}: {
+  open: boolean;
+  onClose: () => void;
+  doc: SuDetail;
+  targetId: string;
+  vin: string;
+  result: "success" | "failed" | "rolled_back";
+}) {
+  const t = useTranslations("su");
+  const tc = useTranslations("common");
+  const qc = useQueryClient();
+  const [readback, setReadback] = useState<"yes" | "no" | "none">("none");
+  const [notes, setNotes] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setReadback(result === "success" ? "yes" : "none");
+      setNotes("");
+    }
+  }, [open, result]);
+
+  const expected = doc.affected_rxswins.map((a) => a.rxswin).join(", ");
+  const mutation = useMutation({
+    mutationFn: () =>
+      suApi.recordResult(doc.id, targetId, {
+        result,
+        readback_verified: readback === "none" ? null : readback === "yes",
+        readback_notes: notes.trim() || null,
+      }),
+    onSuccess: (d) => {
+      qc.setQueryData(["software-update", doc.id], d);
+      onClose();
+    },
+    onError: (e) => toast.error(apiError(e, tc("error"))),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {t("recordResult")} · {vin}
+          </DialogTitle>
+        </DialogHeader>
+        <p className="text-sm">
+          {t("result")}: <b>{t(`result_${result}`)}</b>
+        </p>
+        <div className="mt-3 space-y-3">
+          <Field label={t("readbackQuestion", { rxswins: expected })} hint={t("readbackHint")}>
+            <div className="inline-flex rounded-md border bg-white p-0.5">
+              {(["yes", "no", "none"] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setReadback(v)}
+                  className={cn(
+                    "rounded px-3 py-1 text-xs font-medium",
+                    readback === v
+                      ? v === "yes" ? "bg-green-600 text-white" : v === "no" ? "bg-red-600 text-white" : "bg-gray-600 text-white"
+                      : "text-gray-600 hover:bg-gray-100"
+                  )}
+                >
+                  {t(`readback_${v}`)}
+                </button>
+              ))}
+            </div>
+          </Field>
+          <Field label={t("readbackNotes")}>
+            <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("readbackNotesPlaceholder")} />
+          </Field>
+          {result === "success" && readback === "no" && (
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-800">{t("readbackMismatchWarning")}</p>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            {tc("cancel")}
+          </Button>
+          <Button onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+            {mutation.isPending && <Spinner className="h-3.5 w-3.5" />}
+            {t("recordResult")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
